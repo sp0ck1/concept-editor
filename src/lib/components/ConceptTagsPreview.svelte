@@ -83,7 +83,7 @@
 						onTagRemove?.(tagConcept);
 					}}
 				>
-					×
+					<span aria-hidden="true">×</span>
 				</button>
 			</div>
 		{/each}
@@ -124,23 +124,31 @@
 	}
 
 	.concept-tag-tile {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		max-width: 100%;
-		min-width: 0;
-		padding: 3px 6px;
-		border-radius: var(--child-tile-radius-small);
-		border: 1px dotted var(--child-tile-border);
-		background: var(--tag-background-color);
-		color: black;
-		font-size: 0.7rem;
-		font-weight: 600;
-		cursor: pointer;
-		box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	max-width: 100%;
+	min-width: 0;
+	padding: 3px 6px;
+	border-radius: var(--child-tile-radius-small);
+	border: 1px transparent var(--child-tile-border);
+	opacity: 0.75;
+	background: var(--tag-background-color);
+	color: black;
+	font-size: 0.7rem;
+	font-weight: 600;
+	cursor: pointer;
+	box-sizing: border-box;
+	
+}
 
-	}
-
+.concept-tag-tile > span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	text-decoration: underline dotted;
+}
 	.concept-tag-tile:hover {
 		background: var(--tag-background-color-hover);
 	}
@@ -151,17 +159,38 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
+.concept-tag-remove {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 11px;
+	height: 12px;
+	padding: 0;
+	border: 0;
+	border-radius: 1px;
+	background: rgb(246, 246, 246);
+	color: inherit;
+	cursor: pointer;
+	opacity: 0;
+}
 
-	.concept-tag-remove {
-		border: 0;
-		background: transparent;
-		color: inherit;
-		cursor: pointer;
-		padding: 0;
-		font: inherit;
-		opacity: 0.75;
+.concept-tag-remove > span {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	line-height: 1;
+	
+
+	
+}
+
+	.concept-tag-remove:hover {
+		opacity: 1;
+		background: rgba(255, 0, 0, 0.722);
+		
 	}
-
 	.concept-tag-input {
 		width: 8ch;
 		min-width: 0;

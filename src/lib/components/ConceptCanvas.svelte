@@ -1,15 +1,14 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import ConceptCard from '$lib/components/ConceptCard.svelte';
+	import ConceptCard from '$lib/components/card/ConceptCard.svelte';
 	import CanvasContextMenu from '$lib/components/canvas/CanvasContextMenu.svelte';
 	import CanvasTopbar from '$lib/components/canvas/CanvasTopbar.svelte';
 	import ConceptSidebar from '$lib/components/sidebar/ConceptSidebar.svelte';
+	import type { TitleConflictMode } from '$lib/types/TitleConflictMode';
+	import type { ConceptRelationship } from '$lib/types/ConceptRelationship'
+	import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
 	import {
-		emptyDragState,
-		emptyPendingDragState,
-		emptyResizeState,
-		emptySelectionBoxState,
 		conceptSizePresets,
 		type Concept,
 		type ConceptInstance,
@@ -33,14 +32,58 @@
 	import { lineParser, type ParsedConceptInput } from '$lib/parsers';
 	import PasteImportConfirmation from '$lib/components/canvas/PasteImportConfirmation.svelte';
 	import CanvasSelectionBox from '$lib/components/canvas/CanvasSelectionBox.svelte';
+	import { createConceptRecord,
+		updateConceptTitleFromInstanceRecord
+	 } from '$lib/client/concepts';
+	import { updateConceptInstanceRecord } from '$lib/client/conceptInstances';
+	import { getRelationshipsForConcept } from '$lib/queries/conceptRelationshipQueries';
+
+
+
+
+
+
+
+type TitleConflictState = {
+	card: ConceptCardView;
+	title: string;
+	matchingConcepts: Concept[];
+};
+
+
 
 	// let Declarations
 
-	let { initialCards, initialConcepts } = $props<{
+	let { initialCards, initialConcepts, initialRelationships, 
+		initialRelationshipDefinitions
+	 } = $props<{
 		initialCards: ConceptCardView[];
 		initialConcepts: Concept[];
+		initialRelationships: ConceptRelationship[];
+		initialRelationshipDefinitions: RelationshipDefinition[];
 	}>();
 
+	$effect(() => {
+		concepts = initialConcepts.map(normalizeConcept);
+		cards = initialCards.map(normalizeCard);
+		relationships = initialRelationships;
+	});
+
+
+
+
+let titleConflict = $state<TitleConflictState | null>(null);
+
+let sidebarElement = $state<HTMLElement | null>(null);
+let sidebarWidth = $state<number | null>(null);
+let isResizingSidebar = $state(false);
+
+let sidebarResizeStartX = 0;
+let sidebarResizeStartWidth = 0;
+
+const minSidebarWidth = 180;
+const minCanvasWidth = 240;
+	
 	let contextMenu = $state<ContextMenu>({
 		visible: false,
 		x: 0,
@@ -61,40 +104,24 @@
 		targetInstanceId: null
 	});
 
-	
 	let cards = $state<ConceptCardView[]>([]);
 	let concepts = $state<Concept[]>([]);
+	let relationships = $state<ConceptRelationship[]>([]);
 
+	let sidebarVisible = $state(true);
+	let cardsByInstanceId = $derived.by(() => {
+		return new Map(cards.map((card) => [card.instance.id, card]));
+	});
 
-	$effect(() => {
-		concepts = initialConcepts.map((concept) => ({
-			...concept,
-			properties: concept.properties ?? {},
-			tagConceptIds: concept.tagConceptIds ?? []
-		}));
-
-		cards = initialCards.map((card) => ({
-			concept: {
-				...card.concept,
-				properties: card.concept.properties ?? {},
-				tagConceptIds: card.concept.tagConceptIds ?? []
-			},
-			instance: {
-				...card.instance,
-				parentInstanceId: card.instance.parentInstanceId ?? null,
-				x: card.instance.x ?? 0,
-				y: card.instance.y ?? 0,
-				width: card.instance.width ?? defaultConceptWidth,
-				height: card.instance.height ?? defaultConceptHeight
-			}
-		}));
+	let conceptsById = $derived.by(() => {
+		return new Map(concepts.map((concept) => [concept.id, concept]));
 	});
 
 	let canvasElement = $state<HTMLElement | null>(null);
 
 	let activeInstanceId = $state<string | null>(null);
 	let pendingFocusInstanceId = $state<string | null>(null);
-	let currentCanvasInstanceId = $state<string | null>(null);
+	let currentCanvasOwnerInstanceId = $state<string | null>(null);
 	let selectedInstanceIds = $state<Set<string>>(new Set());
 	let marqueePreviewInstanceIds = $state<Set<string>>(new Set());
 	let sidebarNewTag = $state('');
@@ -102,6 +129,8 @@
 	let sidebarTab = $state<SidebarTab>('concept');
 	let mainView = $state<MainView>('canvas');
 	let arrangingCamera = $state(false);
+
+	let nextZIndex = $state(1);
 
 	let panX = $state(0);
 	let panY = $state(0);
@@ -130,15 +159,6 @@
 		targetConceptName: ''
 	});
 
-	const selectionDragThresholdPx = 4;
-	const selectionOverlapThreshold = 0.25;
-
-	const minZoom = 0.25;
-	const maxZoom = 3;
-	const doubleEnterWindowMs = 450;
-
-	const arrangeAnimationMs = 4000;
-
 	let lastEnterPress = $state<{
 		targetId: string | null;
 		time: number;
@@ -147,8 +167,8 @@
 		time: 0
 	});
 
-	let visibleCards = $derived(
-		cards.filter((card) => card.instance.parentInstanceId === currentCanvasInstanceId)
+	let cardsInCurrentCanvas = $derived(
+		cards.filter((card) => card.instance.parentInstanceId === currentCanvasOwnerInstanceId)
 	);
 
 	let childTileDragState = $state<ChildTileDragState>({
@@ -163,125 +183,349 @@
 
 
 
-type PackedCardPlacement = {
-	card: ConceptCardView;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-};
 
-type PackedLayout = {
-	placements: PackedCardPlacement[];
-	width: number;
-	height: number;
-	columns: number;
-};
 
-function packCardsIntoColumns(
-	cardsToPack: ConceptCardView[],
-	columns: number,
-	columnUnitWidth: number,
-	gap: number
-): PackedLayout {
-	const columnHeights = Array.from({ length: columns }, () => 0);
 
-	const placements = cardsToPack.map((card) => {
-		const cardWidth = card.instance.width;
-		const cardHeight = card.instance.height;
 
-		const columnSpan = Math.min(
-			columns,
-			Math.max(1, Math.ceil((cardWidth + gap) / (columnUnitWidth + gap)))
+
+
+	const selectionDragThresholdPx = 4;
+	const selectionOverlapThreshold = 0.25;
+
+	const minZoom = 0.1;
+	const maxZoom = 5;
+	const doubleEnterWindowMs = 450;
+
+	const arrangeAnimationMs = 4000;
+	const cardDragThresholdPx = 4;
+	
+	
+	// Move?
+	type WorldBounds = {
+		left: number;
+		top: number;
+		right: number;
+		bottom: number;
+	};
+
+
+
+	// Card Arrangement
+
+	type PackedCardPlacement = {
+		card: ConceptCardView;
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	};
+
+	type PackedLayout = {
+		placements: PackedCardPlacement[];
+		width: number;
+		height: number;
+		columns: number;
+	};
+
+	type CanvasCamera = {
+		panX: number;
+		panY: number;
+		zoom: number;
+	};
+
+
+
+	// Initialization of cards
+
+	function normalizeConcept(concept: Concept): Concept {
+		return {
+			...concept,
+			properties: concept.properties ?? {},
+			tagConceptIds: concept.tagConceptIds ?? []
+		};
+	}
+
+	function normalizeInstance(instance: ConceptInstance): ConceptInstance {
+		return {
+			...instance,
+			parentInstanceId: instance.parentInstanceId ?? null,
+			x: instance.x ?? 0,
+			y: instance.y ?? 0,
+			width: instance.width ?? defaultConceptWidth,
+			height: instance.height ?? defaultConceptHeight,
+			lastCameraPanX: instance.lastCameraPanX ?? 0,
+			lastCameraPanY: instance.lastCameraPanY ?? 0,
+			lastCameraZoom: instance.lastCameraZoom ?? 1
+		};
+	}
+
+	function normalizeCard(card: ConceptCardView): ConceptCardView {
+		return {
+			concept: normalizeConcept(card.concept),
+			instance: normalizeInstance(card.instance)
+		};
+	}
+
+
+	// Refactor eventually. No reason to have both. Should be dragState = {active: false ...}
+	function resetDragState() {
+		dragState = emptyDragState();
+	}
+
+	function resetResizeState() {
+		resizeState = emptyResizeState();
+	}
+
+
+	function handleSidebarResizePointerDown(event: PointerEvent) {
+	if (event.button !== 0 || !sidebarElement) {
+		return;
+	}
+
+	event.preventDefault();
+	event.stopPropagation();
+
+	const handle = event.currentTarget as HTMLElement;
+
+	handle.setPointerCapture(event.pointerId);
+
+	isResizingSidebar = true;
+	sidebarResizeStartX = event.clientX;
+	sidebarResizeStartWidth =
+		sidebarElement.getBoundingClientRect().width;
+}
+
+function handleSidebarResizePointerMove(event: PointerEvent) {
+	if (!isResizingSidebar || !sidebarElement) {
+		return;
+	}
+
+	const workspaceWidth =
+		sidebarElement.parentElement?.getBoundingClientRect().width ??
+		window.innerWidth;
+
+	const maxSidebarWidth = Math.max(
+		minSidebarWidth,
+		workspaceWidth - minCanvasWidth
+	);
+
+	sidebarWidth = clamp(
+		sidebarResizeStartWidth +
+			(event.clientX - sidebarResizeStartX),
+		minSidebarWidth,
+		maxSidebarWidth
+	);
+}
+
+function handleSidebarResizePointerUp(event: PointerEvent) {
+	if (!isResizingSidebar) {
+		return;
+	}
+
+	const handle = event.currentTarget as HTMLElement;
+
+	if (handle.hasPointerCapture(event.pointerId)) {
+		handle.releasePointerCapture(event.pointerId);
+	}
+
+	isResizingSidebar = false;
+}
+
+
+
+	function getCurrentCamera(): CanvasCamera {
+		return {
+			panX,
+			panY,
+			zoom
+		};
+	}
+
+	function applyCamera(camera: CanvasCamera | null) {
+		if (!camera) {
+			return;
+		}
+
+		panX = camera.panX;
+		panY = camera.panY;
+		zoom = camera.zoom;
+	}
+
+	function getSavedCameraForInstance(instance: ConceptInstance): CanvasCamera | null {
+		
+		// return CanvasCamera
+		return {
+			panX: instance.lastCameraPanX ?? 0,
+			panY: instance.lastCameraPanY ?? 0,
+			zoom: instance.lastCameraZoom ?? 1
+		};
+	}
+
+	// Returns where the camera will be after the arrangement takes place
+	function getCameraForBounds(
+		bounds: WorldBounds,
+		options: {
+			padding: number;
+			allowZoomIn: boolean;
+		}
+	) {
+		if (!canvasElement) {
+			return null;
+		}
+
+		const rect = canvasElement.getBoundingClientRect();
+
+		const contentWidth = Math.max(1, bounds.right - bounds.left);
+		const contentHeight = Math.max(1, bounds.bottom - bounds.top);
+
+		const availableWidth = rect.width - options.padding * 2;
+		const availableHeight = rect.height - options.padding * 2;
+
+		const fitZoom = clamp(
+			Math.min(availableWidth / contentWidth, availableHeight / contentHeight),
+			minZoom,
+			options.allowZoomIn ? maxZoom : zoom
 		);
 
-		let bestColumn = 0;
-		let bestY = Number.POSITIVE_INFINITY;
+		const centerX = (bounds.left + bounds.right) / 2;
+		const centerY = (bounds.top + bounds.bottom) / 2;
 
-		for (let column = 0; column <= columns - columnSpan; column += 1) {
-			const candidateY = Math.max(...columnHeights.slice(column, column + columnSpan));
+		return {
+			zoom: fitZoom,
+			panX: rect.width / 2 - centerX * fitZoom,
+			panY: rect.height / 2 - centerY * fitZoom
+		};
+	}
 
-			if (candidateY < bestY) {
-				bestY = candidateY;
-				bestColumn = column;
+	// Saves camera to the ConceptInstance
+	async function saveCurrentCanvasCamera() {
+		if (currentCanvasOwnerInstanceId === null) {
+			return;
+		}
+
+		const camera = getCurrentCamera();
+
+		const currentCard = getCardByInstanceId(currentCanvasOwnerInstanceId);
+
+		if (currentCard) {
+			currentCard.instance.lastCameraPanX = camera.panX;
+			currentCard.instance.lastCameraPanY = camera.panY;
+			currentCard.instance.lastCameraZoom = camera.zoom;
+		}
+
+		await updateConceptInstanceRecord(currentCanvasOwnerInstanceId, {
+			lastCameraPanX: camera.panX,
+			lastCameraPanY: camera.panY,
+			lastCameraZoom: camera.zoom
+		});
+	}
+
+	function packCardsIntoColumns(
+		cardsToPack: ConceptCardView[],
+		columns: number,
+		columnUnitWidth: number,
+		gap: number
+	): PackedLayout {
+		const columnHeights = Array.from({ length: columns }, () => 0);
+
+		const placements = cardsToPack.map((card) => {
+			const cardWidth = card.instance.width;
+			const cardHeight = card.instance.height;
+
+			const columnSpan = Math.min(
+				columns,
+				Math.max(1, Math.ceil((cardWidth + gap) / (columnUnitWidth + gap)))
+			);
+
+			let bestColumn = 0;
+			let bestY = Number.POSITIVE_INFINITY;
+
+			for (let column = 0; column <= columns - columnSpan; column += 1) {
+				const candidateY = Math.max(...columnHeights.slice(column, column + columnSpan));
+
+				if (candidateY < bestY) {
+					bestY = candidateY;
+					bestColumn = column;
+				}
+			}
+
+			const spanWidth = columnSpan * columnUnitWidth + (columnSpan - 1) * gap;
+
+			const x = bestColumn * (columnUnitWidth + gap) + Math.max(0, (spanWidth - cardWidth) / 2);
+
+			const y = bestY;
+
+			const nextColumnHeight = y + cardHeight + gap;
+
+			for (let column = bestColumn; column < bestColumn + columnSpan; column += 1) {
+				columnHeights[column] = nextColumnHeight;
+			}
+
+			return {
+				card,
+				x,
+				y,
+				width: cardWidth,
+				height: cardHeight
+			};
+		});
+
+		const right = Math.max(...placements.map((placement) => placement.x + placement.width));
+		const bottom = Math.max(...placements.map((placement) => placement.y + placement.height));
+
+		return {
+			placements,
+			width: right,
+			height: bottom,
+			columns
+		};
+	}
+
+
+	function getConceptChildren(
+	conceptInstanceId: string
+): ConceptCardView[] {
+	return cards.filter((card) => card.instance.parentInstanceId === conceptInstanceId);
+}
+
+function getRootConceptInstances(): ConceptCardView[] {
+	return cards.filter(
+		(card) => card.instance.parentInstanceId === null
+	);
+}
+
+	function chooseBestPackedLayout(cardsToPack: ConceptCardView[], gap: number): PackedLayout {
+		const viewportSize = getViewportWorldSize();
+		const viewportRatio = viewportSize.width / Math.max(1, viewportSize.height);
+
+		const columnUnitWidth = conceptSizePresets.small.width;
+		const maxColumns = Math.max(1, Math.min(cardsToPack.length, 12));
+
+		let bestLayout: PackedLayout | null = null;
+		let bestScore = Number.POSITIVE_INFINITY;
+
+		for (let columns = 1; columns <= maxColumns; columns += 1) {
+			const layout = packCardsIntoColumns(cardsToPack, columns, columnUnitWidth, gap);
+
+			const layoutRatio = layout.width / Math.max(1, layout.height);
+			const ratioScore = Math.abs(Math.log(layoutRatio / viewportRatio));
+
+			const areaScore = (layout.width * layout.height) / 1000000;
+
+			const score = ratioScore * 10 + areaScore;
+
+			if (score < bestScore) {
+				bestScore = score;
+				bestLayout = layout;
 			}
 		}
 
-		const spanWidth = columnSpan * columnUnitWidth + (columnSpan - 1) * gap;
-
-		const x =
-			bestColumn * (columnUnitWidth + gap) +
-			Math.max(0, (spanWidth - cardWidth) / 2);
-
-		const y = bestY;
-
-		const nextColumnHeight = y + cardHeight + gap;
-
-		for (let column = bestColumn; column < bestColumn + columnSpan; column += 1) {
-			columnHeights[column] = nextColumnHeight;
+		if (!bestLayout) {
+			return packCardsIntoColumns(cardsToPack, 1, columnUnitWidth, gap);
 		}
 
-		return {
-			card,
-			x,
-			y,
-			width: cardWidth,
-			height: cardHeight
-		};
-	});
-
-	const right = Math.max(...placements.map((placement) => placement.x + placement.width));
-	const bottom = Math.max(...placements.map((placement) => placement.y + placement.height));
-
-	return {
-		placements,
-		width: right,
-		height: bottom,
-		columns
-	};
-}
-
-function chooseBestPackedLayout(
-	cardsToPack: ConceptCardView[],
-	gap: number
-): PackedLayout {
-	const viewportSize = getViewportWorldSize();
-	const viewportRatio = viewportSize.width / Math.max(1, viewportSize.height);
-
-	const columnUnitWidth = conceptSizePresets.small.width;
-	const maxColumns = Math.max(1, Math.min(cardsToPack.length, 12));
-
-	let bestLayout: PackedLayout | null = null;
-	let bestScore = Number.POSITIVE_INFINITY;
-
-	for (let columns = 1; columns <= maxColumns; columns += 1) {
-		const layout = packCardsIntoColumns(cardsToPack, columns, columnUnitWidth, gap);
-
-		const layoutRatio = layout.width / Math.max(1, layout.height);
-		const ratioScore = Math.abs(Math.log(layoutRatio / viewportRatio));
-
-		const areaScore = (layout.width * layout.height) / 1000000;
-
-		const score = ratioScore * 10 + areaScore;
-
-		if (score < bestScore) {
-			bestScore = score;
-			bestLayout = layout;
-		}
+		return bestLayout;
 	}
-
-	if (!bestLayout) {
-		return packCardsIntoColumns(cardsToPack, 1, columnUnitWidth, gap);
-	}
-
-	return bestLayout;
-}
-
-
-
-
-
-
 
 
 	// Functions
@@ -320,9 +564,10 @@ function chooseBestPackedLayout(
 		};
 
 		isPanning = false;
+
 		pendingDragState = emptyPendingDragState();
-		dragState = emptyDragState();
-		resizeState = emptyResizeState();
+		resetDragState();
+		resetResizeState();
 	}
 
 	async function createConceptFromMenu(sizePreset: ConceptSizePreset = 'medium') {
@@ -364,7 +609,7 @@ function chooseBestPackedLayout(
 		event.stopPropagation();
 
 		const targetConceptName =
-			currentCanvasCard?.concept.title || currentCanvasCard?.concept.id || 'Root';
+			currentCanvasOwnerCard?.concept.title || currentCanvasOwnerCard?.concept.id || 'Root';
 
 		if (result.items.length > 25) {
 			pasteConfirmation = {
@@ -378,6 +623,7 @@ function chooseBestPackedLayout(
 
 		await createConceptsFromParsedItems(result.items);
 	}
+
 	async function confirmPasteImport() {
 		const items = pasteConfirmation.items;
 
@@ -405,14 +651,14 @@ function chooseBestPackedLayout(
 			return;
 		}
 
-		const start = getCenterOfCurrentCanvasView();
+		const start = getViewportCenterWorldPoint();
 
 		const importedSizes = cleanedItems.map((item) => getImportedConceptSize(item.title));
 		const maxImportedWidth = Math.max(...importedSizes.map((size) => size.width));
 		const maxImportedHeight = Math.max(...importedSizes.map((size) => size.height));
 
-		const gapX = maxImportedWidth + 48;
-		const gapY = maxImportedHeight + 48;
+		const gapX = maxImportedWidth + 24;
+		const gapY = maxImportedHeight + 24;
 		const columns = Math.ceil(Math.sqrt(cleanedItems.length));
 
 		let lastCreatedInstanceId: string | null = null;
@@ -424,7 +670,7 @@ function chooseBestPackedLayout(
 
 			const result = await createConcept({
 				title: item.title,
-				parentInstanceId: currentCanvasInstanceId,
+				parentInstanceId: currentCanvasOwnerInstanceId,
 				position: {
 					x: start.x + column * gapX,
 					y: start.y + row * gapY
@@ -464,7 +710,7 @@ function chooseBestPackedLayout(
 	}
 
 	function getConceptById(conceptId: string) {
-		return concepts.find((concept) => concept.id === conceptId) ?? null;
+		return conceptsById.get(conceptId) ?? null;
 	}
 
 	function getTagConcepts(tagConceptIds: string[]) {
@@ -512,14 +758,7 @@ function chooseBestPackedLayout(
 		};
 
 		if (!concepts.some((concept) => concept.id === result.concept.id)) {
-			concepts = [
-				...concepts,
-				{
-					...result.concept,
-					properties: result.concept.properties ?? {},
-					tagConceptIds: result.concept.tagConceptIds ?? []
-				}
-			];
+			concepts = [...concepts, normalizeConcept(result.concept)];
 		}
 
 		await tagConceptWithConcept(card, result.concept);
@@ -532,218 +771,150 @@ function chooseBestPackedLayout(
 		);
 	}
 
-function nextAnimationFrame() {
-	return new Promise<void>((resolve) => {
-		requestAnimationFrame(() => resolve());
-	});
-}
+	function nextAnimationFrame() {
+		return new Promise<void>((resolve) => {
+			requestAnimationFrame(() => resolve());
+		});
+	}
 
 	function openTagCanvas(tagConcept: Concept) {
 		console.log('open tag canvas later:', tagConcept.title || tagConcept.id);
 	}
 
 	function getBoundsForInstanceUpdates(
-	updates: {
-		id: string;
 		updates: {
-			x: number;
-			y: number;
+			id: string;
+			updates: {
+				x: number;
+				y: number;
+			};
+		}[]
+	) {
+		const updatedCards = updates
+			.map((update) => {
+				const card = cards.find((item) => item.instance.id === update.id);
+
+				if (!card) {
+					return null;
+				}
+
+				return {
+					left: update.updates.x,
+					top: update.updates.y,
+					right: update.updates.x + card.instance.width,
+					bottom: update.updates.y + card.instance.height
+				};
+			})
+			.filter((bounds): bounds is { left: number; top: number; right: number; bottom: number } =>
+				Boolean(bounds)
+			);
+
+		if (updatedCards.length === 0) {
+			return null;
+		}
+
+		return {
+			left: Math.min(...updatedCards.map((bounds) => bounds.left)),
+			top: Math.min(...updatedCards.map((bounds) => bounds.top)),
+			right: Math.max(...updatedCards.map((bounds) => bounds.right)),
+			bottom: Math.max(...updatedCards.map((bounds) => bounds.bottom))
 		};
-	}[]
-) {
-	const updatedCards = updates
-		.map((update) => {
+	}
+
+	function frameCardsInCurrentCanvas() {
+		if (cardsInCurrentCanvas.length === 0) {
+			return;
+		}
+
+		applyCamera(
+			getCameraForBounds(getCardsWorldBounds(cardsInCurrentCanvas), {
+				padding: 6,
+				allowZoomIn: true
+			})
+		);
+	}
+
+	async function animateLayoutUpdates(
+		updates: {
+			id: string;
+			updates: {
+				x: number;
+				y: number;
+			};
+		}[]
+	) {
+		const futureBounds = getBoundsForInstanceUpdates(updates);
+		const futureCamera = futureBounds
+			? getCameraForBounds(futureBounds, {
+					padding: 6,
+					allowZoomIn: true
+				})
+			: null;
+
+		arrangingCards = true;
+		arrangingCamera = true;
+
+		await tick();
+		await nextAnimationFrame();
+
+		for (const update of updates) {
 			const card = cards.find((item) => item.instance.id === update.id);
 
 			if (!card) {
-				return null;
+				continue;
 			}
 
-			return {
-				left: update.updates.x,
-				top: update.updates.y,
-				right: update.updates.x + card.instance.width,
-				bottom: update.updates.y + card.instance.height
-			};
-		})
-		.filter(
-			(bounds): bounds is { left: number; top: number; right: number; bottom: number } =>
-				Boolean(bounds)
-		);
-
-	if (updatedCards.length === 0) {
-		return null;
-	}
-
-	return {
-		left: Math.min(...updatedCards.map((bounds) => bounds.left)),
-		top: Math.min(...updatedCards.map((bounds) => bounds.top)),
-		right: Math.max(...updatedCards.map((bounds) => bounds.right)),
-		bottom: Math.max(...updatedCards.map((bounds) => bounds.bottom))
-	};
-}
-
-	function getCameraForBoundsOnlyIfNeeded(bounds: {
-	left: number;
-	top: number;
-	right: number;
-	bottom: number;
-}) {
-	if (!canvasElement) {
-		return null;
-	}
-
-	const rect = canvasElement.getBoundingClientRect();
-
-	const padding = 12;
-
-	const contentWidth = Math.max(1, bounds.right - bounds.left);
-	const contentHeight = Math.max(1, bounds.bottom - bounds.top);
-
-	const availableWidth = rect.width - padding * 2;
-	const availableHeight = rect.height - padding * 2;
-
-	const currentScreenWidth = contentWidth * zoom;
-	const currentScreenHeight = contentHeight * zoom;
-
-	const centerX = (bounds.left + bounds.right) / 2;
-	const centerY = (bounds.top + bounds.bottom) / 2;
-
-	const alreadyFits =
-		currentScreenWidth <= availableWidth &&
-		currentScreenHeight <= availableHeight;
-
-	const nextZoom = alreadyFits
-		? zoom
-		: clamp(Math.min(availableWidth / contentWidth, availableHeight / contentHeight), minZoom, zoom);
-
-	return {
-		zoom: nextZoom,
-		panX: rect.width / 2 - centerX * nextZoom,
-		panY: rect.height / 2 - centerY * nextZoom
-	};
-}
-
-async function animateLayoutUpdates(
-	updates: {
-		id: string;
-		updates: {
-			x: number;
-			y: number;
-		};
-	}[]
-) {
-	const futureBounds = getBoundsForInstanceUpdates(updates);
-	const futureCamera = futureBounds ? getCameraForBoundsOnlyIfNeeded(futureBounds) : null;
-
-	arrangingCards = true;
-	arrangingCamera = true;
-
-	await tick();
-	await nextAnimationFrame();
-
-	for (const update of updates) {
-		const card = cards.find((item) => item.instance.id === update.id);
-
-		if (!card) {
-			continue;
+			card.instance.x = update.updates.x;
+			card.instance.y = update.updates.y;
 		}
 
-		card.instance.x = update.updates.x;
-		card.instance.y = update.updates.y;
-	}
-
-	if (futureCamera) {
-		zoom = futureCamera.zoom;
-		panX = futureCamera.panX;
-		panY = futureCamera.panY;
-	}
-
-	await tick();
-
-	await new Promise((resolve) => window.setTimeout(resolve, arrangeAnimationMs));
-
-	arrangingCards = false;
-	arrangingCamera = false;
-
-	await updateInstancesBatch(updates);
-}
-
-async function arrangeVisibleCardsInGrid() {
-	if (visibleCards.length === 0) {
-		return;
-	}
-
-	const sortedCards = [...visibleCards].sort((a, b) => {
-		const titleA = a.concept.title || a.concept.id;
-		const titleB = b.concept.title || b.concept.id;
-
-		return titleA.localeCompare(titleB);
-	});
-
-	const viewportCenter = getViewportCenterWorldPoint();
-	const gap = 48;
-
-	const layout = chooseBestPackedLayout(sortedCards, gap);
-
-	const layoutLeft = viewportCenter.x - layout.width / 2;
-	const layoutTop = viewportCenter.y - layout.height / 2;
-
-	const updates = layout.placements.map((placement) => ({
-		id: placement.card.instance.id,
-		updates: {
-			x: layoutLeft + placement.x,
-			y: layoutTop + placement.y
+		if (futureCamera) {
+			applyCamera(futureCamera);
 		}
-	}));
 
-	await animateLayoutUpdates(updates);
+		await tick();
 
-	fitVisibleCardsOnlyIfNeeded();
-}
-function fitVisibleCardsOnlyIfNeeded() {
-	if (!canvasElement || visibleCards.length === 0) {
-		return;
+		await new Promise((resolve) => window.setTimeout(resolve, arrangeAnimationMs));
+
+		arrangingCards = false;
+		arrangingCamera = false;
+
+		await updateInstancesBatch(updates);
 	}
 
-	const rect = canvasElement.getBoundingClientRect();
-	const bounds = getCardsWorldBounds(visibleCards);
+	async function arrangeCardsInCurrentCanvasInGrid() {
+		if (cardsInCurrentCanvas.length === 0) {
+			return;
+		}
 
-	const padding = 12;
+		const sortedCards = [...cardsInCurrentCanvas].sort((a, b) => {
+			const titleA = a.concept.title || a.concept.id;
+			const titleB = b.concept.title || b.concept.id;
 
-	const contentWidth = Math.max(1, bounds.right - bounds.left);
-	const contentHeight = Math.max(1, bounds.bottom - bounds.top);
+			return titleA.localeCompare(titleB);
+		});
 
-	const availableWidth = rect.width - padding * 2;
-	const availableHeight = rect.height - padding * 2;
+		const viewportCenter = getViewportCenterWorldPoint();
+		const gap = 48;
 
-	const currentScreenWidth = contentWidth * zoom;
-	const currentScreenHeight = contentHeight * zoom;
+		const layout = chooseBestPackedLayout(sortedCards, gap);
 
-	const alreadyFits =
-		currentScreenWidth <= availableWidth &&
-		currentScreenHeight <= availableHeight;
+		const layoutLeft = viewportCenter.x - layout.width / 2;
+		const layoutTop = viewportCenter.y - layout.height / 2;
 
-	const centerX = (bounds.left + bounds.right) / 2;
-	const centerY = (bounds.top + bounds.bottom) / 2;
+		const updates = layout.placements.map((placement) => ({
+			id: placement.card.instance.id,
+			updates: {
+				x: layoutLeft + placement.x,
+				y: layoutTop + placement.y
+			}
+		}));
 
-	if (alreadyFits) {
-		panX = rect.width / 2 - centerX * zoom;
-		panY = rect.height / 2 - centerY * zoom;
-		return;
+		await animateLayoutUpdates(updates);
+
+		frameCardsInCurrentCanvas();
 	}
 
-	const nextZoom = clamp(
-		Math.min(availableWidth / contentWidth, availableHeight / contentHeight),
-		minZoom,
-		zoom
-	);
-
-	zoom = nextZoom;
-
-	panX = rect.width / 2 - centerX * zoom;
-	panY = rect.height / 2 - centerY * zoom;
-}
 	function getViewportCenterWorldPoint() {
 		if (!canvasElement) {
 			return { x: 0, y: 0 };
@@ -793,22 +964,24 @@ function fitVisibleCardsOnlyIfNeeded() {
 	}
 
 	function focusSelectionOrNearestCard() {
-		const selectedVisibleCards = visibleCards.filter((card) =>
-			selectedInstanceIds.has(card.instance.id)
-		);
+		if (selectedInstanceIds.size > 0) {
+			const selectedCards = cardsInCurrentCanvas.filter((card) =>
+				selectedInstanceIds.has(card.instance.id)
+			);
 
-		if (selectedVisibleCards.length > 0) {
-			const bounds = getCardsWorldBounds(selectedVisibleCards);
+			const bounds = getCardsWorldBounds(selectedCards);
+
 			panToWorldPoint({
 				x: (bounds.left + bounds.right) / 2,
 				y: (bounds.top + bounds.bottom) / 2
 			});
+
 			return;
 		}
 
 		const viewportCenter = getViewportCenterWorldPoint();
 
-		const nearestCard = visibleCards
+		const nearestCard = cardsInCurrentCanvas
 			.map((card) => {
 				const center = getCardCenter(card);
 				const distance = Math.hypot(center.x - viewportCenter.x, center.y - viewportCenter.y);
@@ -831,37 +1004,6 @@ function fitVisibleCardsOnlyIfNeeded() {
 		return { left, top, right, bottom };
 	}
 
-	function frameVisibleCards() {
-		if (!canvasElement || visibleCards.length === 0) {
-			return;
-		}
-
-		const rect = canvasElement.getBoundingClientRect();
-		const bounds = getCardsWorldBounds(visibleCards);
-
-		const padding = 6;
-		const contentWidth = Math.max(1, bounds.right - bounds.left);
-		const contentHeight = Math.max(1, bounds.bottom - bounds.top);
-
-		// Zooms out if frame would be too small. Needs to also zoom in if frame would be too big.
-		const nextZoom = clamp(
-			Math.min(
-				(rect.width - padding * 2) / contentWidth,
-				(rect.height - padding * 2) / contentHeight
-			),
-			minZoom,
-			maxZoom
-		);
-
-		zoom = nextZoom;
-
-		const centerX = (bounds.left + bounds.right) / 2;
-		const centerY = (bounds.top + bounds.bottom) / 2;
-
-		panX = rect.width / 2 - centerX * zoom;
-		panY = rect.height / 2 - centerY * zoom;
-	}
-
 	function getCardsInsideSelectionBox() {
 		const selectionWorldRect = getSelectionBoxWorldRect();
 
@@ -869,7 +1011,7 @@ function fitVisibleCardsOnlyIfNeeded() {
 			return [];
 		}
 
-		return visibleCards.filter((card) => {
+		return cardsInCurrentCanvas.filter((card) => {
 			const overlapRatio = getRectOverlapRatio(getCardWorldRect(card), selectionWorldRect);
 			return overlapRatio >= selectionOverlapThreshold;
 		});
@@ -900,19 +1042,6 @@ function fitVisibleCardsOnlyIfNeeded() {
 
 		activeInstanceId = selectedByBox[selectedByBox.length - 1] ?? null;
 		clearMarqueePreviewSelection();
-	}
-
-	function getCanvasPointFromPointerEvent(event: PointerEvent | MouseEvent) {
-		if (!canvasElement) {
-			return { x: 0, y: 0 };
-		}
-
-		const rect = canvasElement.getBoundingClientRect();
-
-		return {
-			x: event.clientX - rect.left,
-			y: event.clientY - rect.top
-		};
 	}
 
 	function canvasPointToWorldPoint(point: { x: number; y: number }) {
@@ -1023,22 +1152,6 @@ function fitVisibleCardsOnlyIfNeeded() {
 		);
 	}
 
-	function getCenterOfCurrentCanvasView() {
-		if (!canvasElement) {
-			return { x: 0, y: 0 };
-		}
-
-		const rect = canvasElement.getBoundingClientRect();
-
-		const viewportCenterX = rect.width / 2;
-		const viewportCenterY = rect.height / 2;
-
-		return {
-			x: (viewportCenterX - panX) / zoom,
-			y: (viewportCenterY - panY) / zoom
-		};
-	}
-
 	async function commitTitleEdit(card: ConceptCardView, nextTitle: string) {
 		const trimmedTitle = nextTitle.trim();
 
@@ -1049,15 +1162,14 @@ function fitVisibleCardsOnlyIfNeeded() {
 		await updateConceptTitleFromInstance(card, trimmedTitle);
 	}
 
-
 	// Every time Enter is pressed consumeDoubleEnter is called to check if it was pressed twice
 	// i.e., within doubleEnterWindowMs of the last time.
 	// This is the only function that assigns a value to lastEnterPress.
-	// This function DOES NOT check if Enter was pressed. It assumes that is already true. 
+	// This function DOES NOT check if Enter was pressed. It assumes that is already true.
 	function consumeDoubleEnter(targetId: string) {
 		const now = window.performance.now();
 
-		// Confirm the user pressed Enter twice on the same click focused target 
+		// Confirm the user pressed Enter twice on the same click focused target
 		// and that the second Enter occurred less than doubleEnterWindowMs than the first
 		const isDoubleEnter =
 			lastEnterPress.targetId === targetId && now - lastEnterPress.time <= doubleEnterWindowMs;
@@ -1069,6 +1181,9 @@ function fitVisibleCardsOnlyIfNeeded() {
 
 		return isDoubleEnter;
 	}
+
+	// IMPORTANT FUNCTION
+	// This terribly named function chooses where the new cards will spawn
 
 	function getNextConceptPositionAfterCard(card: ConceptCardView) {
 		const gap = 116;
@@ -1082,7 +1197,7 @@ function fitVisibleCardsOnlyIfNeeded() {
 	}
 
 	function getCardByInstanceId(instanceId: string) {
-		return cards.find((card) => card.instance.id === instanceId);
+		return cardsByInstanceId.get(instanceId);
 	}
 
 	function getInstanceBreadcrumb(instanceId: string) {
@@ -1104,20 +1219,31 @@ function fitVisibleCardsOnlyIfNeeded() {
 	}
 
 	let currentBreadcrumb = $derived.by(() => {
-		if (currentCanvasInstanceId === null) {
+		if (currentCanvasOwnerInstanceId === null) {
 			return [];
 		}
 
-		return getInstanceBreadcrumb(currentCanvasInstanceId);
+		return getInstanceBreadcrumb(currentCanvasOwnerInstanceId);
 	});
 
-	let currentCanvasCard = $derived.by(() => {
-		if (currentCanvasInstanceId === null) {
+	let currentCanvasOwnerCard = $derived.by(() => {
+		if (currentCanvasOwnerInstanceId === null) {
 			return null;
 		}
 
-		return getCardByInstanceId(currentCanvasInstanceId) ?? null;
+		return getCardByInstanceId(currentCanvasOwnerInstanceId) ?? null;
 	});
+
+	let currentConceptRelationships = $derived.by(() => {
+	if (!currentCanvasOwnerCard) {
+		return [];
+	}
+
+	return getRelationshipsForConcept(
+		relationships,
+		currentCanvasOwnerCard.concept.id
+	);
+});
 
 	let importChildrenOptions = $derived.by(() => {
 		if (!importChildrenMenu.visible || !importChildrenMenu.targetInstanceId) {
@@ -1133,10 +1259,6 @@ function fitVisibleCardsOnlyIfNeeded() {
 		if (nextView === 'table') {
 			sidebarTab = 'tree';
 		}
-	}
-
-	function getChildCards(parentInstanceId: string) {
-		return cards.filter((card) => card.instance.parentInstanceId === parentInstanceId);
 	}
 
 	function getImportChildrenOptions(targetInstanceId: string) {
@@ -1200,46 +1322,28 @@ function fitVisibleCardsOnlyIfNeeded() {
 		return breadcrumb.map((card) => card.concept.title || card.concept.id).join(' > ');
 	}
 
-	async function createConcept(options: CreateConceptOptions = {}) {
-		const sizePreset = options.sizePreset ?? 'medium';
-		const presetSize = conceptSizePresets[sizePreset];
+async function createConcept(options: CreateConceptOptions = {}) {
+	const sizePreset = options.sizePreset ?? 'medium';
+	const presetSize = conceptSizePresets[sizePreset];
 
-		const width = options.width ?? presetSize.width;
-		const height = options.height ?? presetSize.height;
+	const result = await createConceptRecord({
+		...(options.position ?? {}),
+		...(options.title !== undefined ? { title: options.title } : {}),
+		width: options.width ?? presetSize.width,
+		height: options.height ?? presetSize.height,
+		parentInstanceId:
+			options.parentInstanceId ?? currentCanvasOwnerInstanceId
+	});
 
-		const response = await fetch('/api/concepts', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				...(options.position ?? {}),
-				...(options.title !== undefined ? { title: options.title } : {}),
-				width,
-				height,
-				parentInstanceId: options.parentInstanceId ?? currentCanvasInstanceId
-			})
-		});
-
-		if (!response.ok) {
-			console.error('Failed to create concept');
-			return null;
-		}
-
-		const result = (await response.json()) as {
-			concept: Concept;
-			instance: ConceptInstance;
-		};
-
-		if (options.focusAfterCreate ?? true) {
-			pendingFocusInstanceId = result.instance.id;
-			activeInstanceId = result.instance.id;
-		}
-
-		await invalidateAll();
-
-		return result;
+	if (options.focusAfterCreate ?? true) {
+		pendingFocusInstanceId = result.instance.id;
+		activeInstanceId = result.instance.id;
 	}
+
+	await invalidateAll();
+
+	return result;
+}
 
 	async function deleteInstance(id: string) {
 		const response = await fetch('/api/concept-instances', {
@@ -1268,23 +1372,14 @@ function fitVisibleCardsOnlyIfNeeded() {
 	}
 
 	async function updateConcept(id: string, updates: Partial<Omit<Concept, 'id'>>) {
-		const response = await fetch('/api/concepts', {
+		await requestJson('/api/concepts', {
 			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
+			body: {
 				id,
 				...updates
-			})
+			},
+			errorMessage: 'Failed to update concept'
 		});
-
-		if (!response.ok) {
-			console.error('Failed to update concept');
-			return;
-		}
-
-		await invalidateAll();
 	}
 
 	async function updateInstance(
@@ -1310,69 +1405,74 @@ function fitVisibleCardsOnlyIfNeeded() {
 		await invalidateAll();
 	}
 
-	async function updateConceptTitleFromInstance(card: ConceptCardView, title: string) {
-		const response = await fetch('/api/concepts', {
-			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				id: card.concept.id,
-				instanceId: card.instance.id,
-				title
-			})
-		});
+async function updateConceptTitleFromInstance(
+	card: ConceptCardView,
+	title: string,
+	conflictMode: TitleConflictMode = 'report-conflict'
+) {
+	const result = await updateConceptTitleFromInstanceRecord(
+		card.concept.id,
+		card.instance.id,
+		title,
+		conflictMode
+	);
 
-		if (!response.ok) {
-			console.error('Failed to update concept title');
-			return;
+	if (result.status === 'title-conflict') {
+		titleConflict = {
+			card,
+			title,
+			matchingConcepts: result.matchingConcepts
+		};
+
+		return;
+	}
+
+	titleConflict = null;
+
+	await invalidateAll();
+}
+
+
+
+	function getCanvasPointFromPointerEvent(event: PointerEvent | MouseEvent) {
+		if (!canvasElement) {
+			return { x: 0, y: 0 };
 		}
 
-		await invalidateAll();
+		const rect = canvasElement.getBoundingClientRect();
+
+		return {
+			x: event.clientX - rect.left,
+			y: event.clientY - rect.top
+		};
+	}
+
+	function getWorldPointFromEvent(event: PointerEvent | MouseEvent) {
+		return canvasPointToWorldPoint(getCanvasPointFromPointerEvent(event));
 	}
 
 	async function handleCanvasDoubleClick(event: MouseEvent) {
-		const canvas = event.currentTarget as HTMLElement;
-		const rect = canvas.getBoundingClientRect();
+		const point = getWorldPointFromEvent(event);
 
-		const mouseCanvasX = event.clientX - rect.left;
-		const mouseCanvasY = event.clientY - rect.top;
-
-		const mouseWorldX = (mouseCanvasX - panX) / zoom;
-		const mouseWorldY = (mouseCanvasY - panY) / zoom;
-
-		const offsetX = Math.round(Math.random() * 200 - 100);
-		const offsetY = Math.round(Math.random() * 200 - 100);
-
-		const position = {
-			x: mouseWorldX + offsetX,
-			y: mouseWorldY + offsetY
-		};
-
-		console.log(position);
 		await createConcept({
-			position
+			position: {
+				x: point.x + Math.round(Math.random() * 200 - 100),
+				y: point.y + Math.round(Math.random() * 200 - 100)
+			}
 		});
 	}
 
 	function handleCanvasContextMenu(event: MouseEvent) {
 		event.preventDefault();
 
-		const canvas = event.currentTarget as HTMLElement;
-		const rect = canvas.getBoundingClientRect();
-
-		const mouseCanvasX = event.clientX - rect.left;
-		const mouseCanvasY = event.clientY - rect.top;
-
-		const worldX = (mouseCanvasX - panX) / zoom;
-		const worldY = (mouseCanvasY - panY) / zoom;
+		const point = getWorldPointFromEvent(event);
 
 		contextMenu = {
 			visible: true,
 			x: event.clientX,
 			y: event.clientY,
-			worldX,
-			worldY,
+			worldX: point.x,
+			worldY: point.y,
 			targetType: 'canvas',
 			instanceId: null
 		};
@@ -1388,6 +1488,52 @@ function fitVisibleCardsOnlyIfNeeded() {
 		};
 
 		closeImportChildrenMenu();
+	}
+
+	function emptyDragState(): DragState {
+		return {
+			active: false,
+			instanceId: null,
+			startMouseX: 0,
+			startMouseY: 0,
+			startInstanceX: 0,
+			startInstanceY: 0,
+			draggedCards: []
+		};
+	}
+
+	function emptySelectionBoxState(): SelectionBoxState {
+		return {
+			active: false,
+			startCanvasX: 0,
+			startCanvasY: 0,
+			currentCanvasX: 0,
+			currentCanvasY: 0,
+			additive: false
+		};
+	}
+
+	function emptyPendingDragState(): PendingDragState {
+		return {
+			active: false,
+			instanceId: null,
+			startMouseX: 0,
+			startMouseY: 0,
+			startInstanceX: 0,
+			startInstanceY: 0,
+			draggedCards: []
+		};
+	}
+
+	function emptyResizeState(): ResizeState {
+		return {
+			active: false,
+			instanceId: null,
+			startMouseX: 0,
+			startMouseY: 0,
+			startWidth: 0,
+			startHeight: 0
+		};
 	}
 
 	async function importChildrenFromSource(sourceInstanceId: string) {
@@ -1418,14 +1564,8 @@ function fitVisibleCardsOnlyIfNeeded() {
 	function handleCanvasWheel(event: WheelEvent) {
 		event.preventDefault();
 
-		const canvas = event.currentTarget as HTMLElement;
-		const rect = canvas.getBoundingClientRect();
-
-		const mouseX = event.clientX - rect.left;
-		const mouseY = event.clientY - rect.top;
-
-		const worldX = (mouseX - panX) / zoom;
-		const worldY = (mouseY - panY) / zoom;
+		const canvasPoint = getCanvasPointFromPointerEvent(event);
+		const worldPoint = canvasPointToWorldPoint(canvasPoint);
 
 		const zoomDirection = event.deltaY > 0 ? -1 : 1;
 		const zoomFactor = 0.1;
@@ -1433,8 +1573,8 @@ function fitVisibleCardsOnlyIfNeeded() {
 
 		zoom = nextZoom;
 
-		panX = mouseX - worldX * zoom;
-		panY = mouseY - worldY * zoom;
+		panX = canvasPoint.x - worldPoint.x * zoom;
+		panY = canvasPoint.y - worldPoint.y * zoom;
 	}
 
 	function handleCanvasPointerDown(event: PointerEvent) {
@@ -1475,39 +1615,55 @@ function fitVisibleCardsOnlyIfNeeded() {
 	}
 
 	function handleCardPointerDown(event: PointerEvent, card: ConceptCardView) {
-		if (event.button !== 0) {
-			return;
+		console.log(event.button);
+		if (event.button === 0) {
+			const target = event.target as HTMLElement;
+
+			if (target.closest('input, button, [role="button"], .concept-child-tile')) {
+				return;
+			}
+
+			event.stopPropagation();
+
+			activeInstanceId = card.instance.id;
+			closeContextMenu();
+
+			handleCardSelectionPointerDown(event, card);
+
+			pendingDragState = {
+				active: true,
+				instanceId: card.instance.id,
+				startMouseX: event.clientX,
+				startMouseY: event.clientY,
+				startInstanceX: card.instance.x,
+				startInstanceY: card.instance.y,
+				draggedCards: getCardsForDragStart(card)
+			};
+		} else {
+			if (event.button === 1) {
+				// Pan should always active on middle click, even if space toggle is off
+				const shouldPan = event.button === 1 || panToggleOnSpace;
+
+				if (shouldPan) {
+					isPanning = true;
+					panStartMouseX = event.clientX;
+					panStartMouseY = event.clientY;
+					panStartX = panX;
+					panStartY = panY;
+					return;
+				}
+			}
 		}
-
-		const target = event.target as HTMLElement;
-
-		if (target.closest('input, button, [role="button"], .concept-child-tile')) {
-			return;
-		}
-
-		event.stopPropagation();
-
-		activeInstanceId = card.instance.id;
-		closeContextMenu();
-
-		handleCardSelectionPointerDown(event, card);
-
-		pendingDragState = {
-			active: true,
-			instanceId: card.instance.id,
-			startMouseX: event.clientX,
-			startMouseY: event.clientY,
-			startInstanceX: card.instance.x,
-			startInstanceY: card.instance.y,
-			draggedCards: getCardsForDragStart(card)
-		};
+		return;
 	}
 
 	function getCardsForDragStart(card: ConceptCardView) {
 		const shouldDragSelection = selectedInstanceIds.has(card.instance.id);
 
 		const cardsToDrag = shouldDragSelection
-			? visibleCards.filter((visibleCard) => selectedInstanceIds.has(visibleCard.instance.id))
+			? cardsInCurrentCanvas.filter((visibleCard) =>
+					selectedInstanceIds.has(visibleCard.instance.id)
+				)
 			: [card];
 
 		return cardsToDrag.map((dragCard) => ({
@@ -1558,63 +1714,71 @@ function fitVisibleCardsOnlyIfNeeded() {
 		};
 	}
 
-	function handleWindowPointerMove(event: PointerEvent) {
-		if (childTileDragState.active) {
-			childTileDragState.mouseX = event.clientX;
-			childTileDragState.mouseY = event.clientY;
+	function handleChildTilePointerMove(event: PointerEvent) {
+		childTileDragState.mouseX = event.clientX;
+		childTileDragState.mouseY = event.clientY;
+	}
+
+	function handleSelectionBoxPointerMove(event: PointerEvent) {
+		const canvasPoint = getCanvasPointFromPointerEvent(event);
+
+		selectionBoxState.currentCanvasX = canvasPoint.x;
+		selectionBoxState.currentCanvasY = canvasPoint.y;
+
+		updateMarqueePreviewSelection();
+	}
+
+	function promotePendingDragIfValid(event: PointerEvent) {
+		if (!pendingDragState.active || dragState.active) {
 			return;
 		}
 
-		if (selectionBoxState.active) {
-			const canvasPoint = getCanvasPointFromPointerEvent(event);
+		const instanceId = pendingDragState.instanceId;
 
-			selectionBoxState.currentCanvasX = canvasPoint.x;
-			selectionBoxState.currentCanvasY = canvasPoint.y;
-
-			updateMarqueePreviewSelection();
-
+		if (instanceId === null) {
 			return;
 		}
 
-		if (pendingDragState.active && !dragState.active) {
-			const dx = event.clientX - pendingDragState.startMouseX;
-			const dy = event.clientY - pendingDragState.startMouseY;
-			const distance = Math.hypot(dx, dy);
+		const dx = event.clientX - pendingDragState.startMouseX;
+		const dy = event.clientY - pendingDragState.startMouseY;
+		const distance = Math.hypot(dx, dy);
 
-			if (distance < 4) {
-				return;
-			}
-
-			dragState = {
-				active: true,
-				instanceId: pendingDragState.instanceId,
-				startMouseX: pendingDragState.startMouseX,
-				startMouseY: pendingDragState.startMouseY,
-				startInstanceX: pendingDragState.startInstanceX,
-				startInstanceY: pendingDragState.startInstanceY,
-				draggedCards: pendingDragState.draggedCards
-			};
-		}
-
-		if (resizeState.active) {
-			const dx = (event.clientX - resizeState.startMouseX) / zoom;
-			const dy = (event.clientY - resizeState.startMouseY) / zoom;
-
-			const card = cards.find((item) => item.instance.id === resizeState.instanceId);
-
-			if (!card) {
-				return;
-			}
-
-			const minWidth = getTitleSizedConceptWidth(card.concept.title);
-			const minHeight = conceptSizePresets.small.height;
-
-			card.instance.width = Math.max(minWidth, resizeState.startWidth + dx);
-			card.instance.height = Math.max(minHeight, resizeState.startHeight + dy);
-
+		// 4 is a hard-coded value that could be turned into a constant, but it is already perfect
+		if (distance < cardDragThresholdPx) {
 			return;
 		}
 
+		dragState = {
+			active: true,
+			instanceId: pendingDragState.instanceId,
+			startMouseX: pendingDragState.startMouseX,
+			startMouseY: pendingDragState.startMouseY,
+			startInstanceX: pendingDragState.startInstanceX,
+			startInstanceY: pendingDragState.startInstanceY,
+			draggedCards: pendingDragState.draggedCards
+		};
+	}
+
+	function handleCardResizingPointerMove(event: PointerEvent) {
+		const dx = (event.clientX - resizeState.startMouseX) / zoom;
+		const dy = (event.clientY - resizeState.startMouseY) / zoom;
+
+		const card = cards.find((item) => item.instance.id === resizeState.instanceId);
+
+		if (!card) {
+			return;
+		}
+
+		const minWidth = getTitleSizedConceptWidth(card.concept.title);
+		const minHeight = conceptSizePresets.small.height;
+
+		card.instance.width = Math.max(minWidth, resizeState.startWidth + dx);
+		card.instance.height = Math.max(minHeight, resizeState.startHeight + dy);
+
+		return;
+	}
+
+	function handleCardDraggingPointerMove(event: PointerEvent) {
 		if (dragState.active) {
 			const dx = (event.clientX - dragState.startMouseX) / zoom;
 			const dy = (event.clientY - dragState.startMouseY) / zoom;
@@ -1632,241 +1796,276 @@ function fitVisibleCardsOnlyIfNeeded() {
 
 			return;
 		}
+	}
+
+	function handlePanningPointerMove(event: PointerEvent) {
+		const dx = event.clientX - panStartMouseX;
+		const dy = event.clientY - panStartMouseY;
+
+		panX = panStartX + dx;
+		panY = panStartY + dy;
+	}
+
+	// The pointer might be:
+	// - Dragging a Child Tile
+	// - Drawing a Selection Box
+	// - Dragging a Card
+	// - Resizing a card
+	// - Panning the camera
+	function handleWindowPointerMove(event: PointerEvent) {
+		if (childTileDragState.active) {
+			handleChildTilePointerMove(event);
+			return;
+		}
+
+		if (selectionBoxState.active) {
+			handleSelectionBoxPointerMove(event);
+			return;
+		}
+
+		if (pendingDragState.active && !dragState.active) {
+			promotePendingDragIfValid(event);
+			return;
+		}
+
+		if (dragState.active) {
+			handleCardDraggingPointerMove(event);
+			return;
+		}
+
+		if (resizeState.active) {
+			handleCardResizingPointerMove(event);
+			return;
+		}
 
 		if (isPanning) {
-			const dx = event.clientX - panStartMouseX;
-			const dy = event.clientY - panStartMouseY;
-
-			panX = panStartX + dx;
-			panY = panStartY + dy;
+			handlePanningPointerMove(event);
+			return;
 		}
 	}
 
-	async function handleWindowPointerUp(event: PointerEvent) {
-		if (childTileDragState.active) {
-			const childCard = childTileDragState.childCard;
+	async function finishChildTileDrag(event: PointerEvent) {
+		const childCard = childTileDragState.childCard;
+		const { targetTagInstanceId, targetParentInstanceId } = getDropTargetAtPoint(
+			event.clientX,
+			event.clientY
+		);
 
-			const elementUnderPointer = document.elementFromPoint(event.clientX, event.clientY);
+		childTileDragState = emptyChildTileDragState();
 
-			const tagTarget = elementUnderPointer?.closest<HTMLElement>('.concept-tags-preview');
-			const targetTagInstanceId =
-				tagTarget?.closest<HTMLElement>('.concept-card')?.dataset.cardInstanceId ?? null;
+		if (!childCard) {
+			return;
+		}
 
-			const dropTarget = elementUnderPointer?.closest<HTMLElement>('.concept-drop-area');
-			const targetParentInstanceId = dropTarget?.dataset.instanceId ?? null;
+		if (targetTagInstanceId) {
+			const targetCard = getCardByInstanceId(targetTagInstanceId);
 
-			const canvas = document.querySelector<HTMLElement>('.canvas');
-			const rect = canvas?.getBoundingClientRect();
-
-			childTileDragState = {
-				active: false,
-				childCard: null,
-				mouseX: 0,
-				mouseY: 0
-			};
-
-			if (!childCard) {
+			if (!targetCard) {
 				return;
 			}
 
-			if (targetTagInstanceId) {
-				const targetCard = cards.find((card) => card.instance.id === targetTagInstanceId);
+			await tagConceptWithConcept(targetCard, childCard.concept);
 
-				if (!targetCard) {
-					return;
-				}
+			return;
+		}
 
-				await tagConceptWithConcept(targetCard, childCard.concept);
-
+		if (targetParentInstanceId) {
+			if (targetParentInstanceId === childCard.instance.id) {
 				return;
 			}
 
-			if (targetParentInstanceId) {
-				if (targetParentInstanceId === childCard.instance.id) {
-					return;
-				}
+			const targetAlreadyContainsConcept = cards.some(
+				(item) =>
+					item.instance.parentInstanceId === targetParentInstanceId &&
+					item.instance.conceptId === childCard.instance.conceptId &&
+					item.instance.id !== childCard.instance.id
+			);
 
-				const targetAlreadyContainsConcept = cards.some(
-					(item) =>
-						item.instance.parentInstanceId === targetParentInstanceId &&
-						item.instance.conceptId === childCard.instance.conceptId &&
-						item.instance.id !== childCard.instance.id
-				);
-
-				if (targetAlreadyContainsConcept) {
-					return;
-				}
-
-				childCard.instance.parentInstanceId = targetParentInstanceId;
-
-				await updateInstance(childCard.instance.id, {
-					parentInstanceId: targetParentInstanceId
-				});
-
+			if (targetAlreadyContainsConcept) {
 				return;
 			}
 
-			if (!rect) {
-				return;
-			}
-
-			const mouseCanvasX = event.clientX - rect.left;
-			const mouseCanvasY = event.clientY - rect.top;
-
-			const mouseWorldX = (mouseCanvasX - panX) / zoom;
-			const mouseWorldY = (mouseCanvasY - panY) / zoom;
+			childCard.instance.parentInstanceId = targetParentInstanceId;
 
 			await updateInstance(childCard.instance.id, {
-				parentInstanceId: currentCanvasInstanceId,
-				x: mouseWorldX,
-				y: mouseWorldY
+				parentInstanceId: targetParentInstanceId
 			});
 
 			return;
 		}
 
-		if (selectionBoxState.active) {
-			const dx = selectionBoxState.currentCanvasX - selectionBoxState.startCanvasX;
-			const dy = selectionBoxState.currentCanvasY - selectionBoxState.startCanvasY;
-			const distance = Math.hypot(dx, dy);
+		if (!canvasElement) {
+			return;
+		}
 
-			if (distance >= selectionDragThresholdPx) {
-				applyMarqueeSelection();
-			} else if (!selectionBoxState.additive) {
-				clearSelection();
+		const worldPoint = getWorldPointFromEvent(event);
+
+		await updateInstance(childCard.instance.id, {
+			parentInstanceId: currentCanvasOwnerInstanceId,
+			x: worldPoint.x,
+			y: worldPoint.y
+		});
+
+		return;
+	}
+
+	function finishSelectionBox() {
+		const dx = selectionBoxState.currentCanvasX - selectionBoxState.startCanvasX;
+		const dy = selectionBoxState.currentCanvasY - selectionBoxState.startCanvasY;
+		const distance = Math.hypot(dx, dy);
+
+		if (distance >= selectionDragThresholdPx) {
+			applyMarqueeSelection();
+		} else if (!selectionBoxState.additive) {
+			clearSelection();
+		}
+
+		selectionBoxState = emptySelectionBoxState();
+		clearMarqueePreviewSelection();
+		return;
+	}
+
+	async function finishResize() {
+		if (!resizeState.active || resizeState.instanceId === null) {
+			return;
+		}
+
+		const card = getCardByInstanceId(resizeState.instanceId);
+
+		resizeState = emptyResizeState();
+
+		if (!card) {
+			return;
+		}
+
+		await updateInstance(card.instance.id, {
+			width: card.instance.width,
+			height: card.instance.height
+		});
+	}
+
+	async function finishCardDrag(event: PointerEvent) {
+		const draggedInstanceIds = dragState.draggedCards.map((draggedCard) => draggedCard.instanceId);
+
+		const draggedCards = draggedInstanceIds
+			.map((instanceId) => cards.find((item) => item.instance.id === instanceId))
+			.filter((card): card is ConceptCardView => Boolean(card));
+
+		const primaryCard = cards.find((item) => item.instance.id === dragState.instanceId);
+
+		const { targetTagInstanceId, targetParentInstanceId } = getDropTargetAtPoint(
+			event.clientX,
+			event.clientY
+		);
+
+		resetDragState();
+		pendingDragState = emptyPendingDragState();
+
+		if (!primaryCard || draggedCards.length === 0) {
+			return;
+		}
+
+		if (targetTagInstanceId) {
+			const targetCard = getCardByInstanceId(targetTagInstanceId);
+			if (!targetCard) {
+				return;
 			}
 
-			selectionBoxState = emptySelectionBoxState();
-			clearMarqueePreviewSelection();
+			for (const draggedCard of draggedCards) {
+				await tagConceptWithConcept(targetCard, draggedCard.concept);
+			}
+
+			return;
+		}
+
+		if (targetParentInstanceId && !draggedInstanceIds.includes(targetParentInstanceId)) {
+			const updates: {
+				id: string;
+				updates: Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>;
+			}[] = [];
+
+			const conceptIdsAlreadyInTarget = new Set(
+				cards
+					.filter(
+						(item) =>
+							item.instance.parentInstanceId === targetParentInstanceId &&
+							!draggedInstanceIds.includes(item.instance.id)
+					)
+					.map((item) => item.instance.conceptId)
+			);
+
+			for (const card of draggedCards) {
+				if (conceptIdsAlreadyInTarget.has(card.instance.conceptId)) {
+					continue;
+				}
+
+				conceptIdsAlreadyInTarget.add(card.instance.conceptId);
+				card.instance.parentInstanceId = targetParentInstanceId;
+
+				updates.push({
+					id: card.instance.id,
+					updates: {
+						parentInstanceId: targetParentInstanceId,
+						x: card.instance.x,
+						y: card.instance.y
+					}
+				});
+			}
+
+			await updateInstancesBatch(updates);
+			return;
+		}
+
+		await updateInstancesBatch(
+			draggedCards.map((card) => ({
+				id: card.instance.id,
+				updates: {
+					x: card.instance.x,
+					y: card.instance.y
+				}
+			}))
+		);
+
+		return;
+	}
+	function getDropTargetAtPoint(x: number, y: number) {
+		const elementUnderPointer = document.elementFromPoint(x, y);
+
+		const tagTarget = elementUnderPointer?.closest<HTMLElement>('.concept-tags-preview');
+		const targetTagInstanceId =
+			tagTarget?.closest<HTMLElement>('.concept-card')?.dataset.cardInstanceId ?? null;
+
+		const dropTarget = elementUnderPointer?.closest<HTMLElement>('.concept-drop-area');
+		const targetParentInstanceId = dropTarget?.dataset.instanceId ?? null;
+
+		return {
+			targetTagInstanceId,
+			targetParentInstanceId
+		};
+	}
+	async function handleWindowPointerUp(event: PointerEvent) {
+		if (childTileDragState.active) {
+			await finishChildTileDrag(event);
+			return;
+		}
+
+		if (selectionBoxState.active) {
+			finishSelectionBox();
 			return;
 		}
 
 		if (pendingDragState.active && !dragState.active) {
-			pendingDragState = {
-				active: false,
-				instanceId: null,
-				startMouseX: 0,
-				startMouseY: 0,
-				startInstanceX: 0,
-				startInstanceY: 0,
-				draggedCards: []
-			};
-
+			pendingDragState = emptyPendingDragState();
 			return;
 		}
 
 		if (resizeState.active) {
-			const card = cards.find((item) => item.instance.id === resizeState.instanceId);
-
-			resizeState = {
-				active: false,
-				instanceId: null,
-				startMouseX: 0,
-				startMouseY: 0,
-				startWidth: 0,
-				startHeight: 0
-			};
-
-			if (card) {
-				await updateInstance(card.instance.id, {
-					width: card.instance.width,
-					height: card.instance.height
-				});
-			}
-
+			await finishResize();
 			return;
 		}
 
 		if (dragState.active) {
-			const draggedInstanceIds = dragState.draggedCards.map(
-				(draggedCard) => draggedCard.instanceId
-			);
-
-			const draggedCards = draggedInstanceIds
-				.map((instanceId) => cards.find((item) => item.instance.id === instanceId))
-				.filter((card): card is ConceptCardView => Boolean(card));
-
-			const primaryCard = cards.find((item) => item.instance.id === dragState.instanceId);
-
-			const elementUnderPointer = document.elementFromPoint(event.clientX, event.clientY);
-
-			const tagTarget = elementUnderPointer?.closest<HTMLElement>('.concept-tags-preview');
-			const targetTagInstanceId =
-				tagTarget?.closest<HTMLElement>('.concept-card')?.dataset.cardInstanceId ?? null;
-
-			const dropTarget = elementUnderPointer?.closest<HTMLElement>('.concept-drop-area');
-
-			const targetParentInstanceId = dropTarget?.dataset.instanceId ?? null;
-
-			dragState = emptyDragState();
-			pendingDragState = emptyPendingDragState();
-
-			if (!primaryCard || draggedCards.length === 0) {
-				return;
-			}
-
-			if (targetTagInstanceId) {
-				const targetCard = cards.find((card) => card.instance.id === targetTagInstanceId);
-
-				if (!targetCard) {
-					return;
-				}
-
-				for (const draggedCard of draggedCards) {
-					await tagConceptWithConcept(targetCard, draggedCard.concept);
-				}
-
-				return;
-			}
-
-			if (targetParentInstanceId && !draggedInstanceIds.includes(targetParentInstanceId)) {
-				const updates: {
-					id: string;
-					updates: Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>;
-				}[] = [];
-
-				const conceptIdsAlreadyInTarget = new Set(
-					cards
-						.filter(
-							(item) =>
-								item.instance.parentInstanceId === targetParentInstanceId &&
-								!draggedInstanceIds.includes(item.instance.id)
-						)
-						.map((item) => item.instance.conceptId)
-				);
-
-				for (const card of draggedCards) {
-					if (conceptIdsAlreadyInTarget.has(card.instance.conceptId)) {
-						continue;
-					}
-
-					conceptIdsAlreadyInTarget.add(card.instance.conceptId);
-					card.instance.parentInstanceId = targetParentInstanceId;
-
-					updates.push({
-						id: card.instance.id,
-						updates: {
-							parentInstanceId: targetParentInstanceId,
-							x: card.instance.x,
-							y: card.instance.y
-						}
-					});
-				}
-
-				await updateInstancesBatch(updates);
-				return;
-			}
-
-			await updateInstancesBatch(
-				draggedCards.map((card) => ({
-					id: card.instance.id,
-					updates: {
-						x: card.instance.x,
-						y: card.instance.y
-					}
-				}))
-			);
-
+			await finishCardDrag(event);
 			return;
 		}
 
@@ -1883,20 +2082,11 @@ function fitVisibleCardsOnlyIfNeeded() {
 			return;
 		}
 
-		const response = await fetch('/api/concept-instances/batch', {
+		await requestJson('/api/concept-instances/batch', {
 			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ updates })
+			body: { updates },
+			errorMessage: 'Failed to batch update concept instances'
 		});
-
-		if (!response.ok) {
-			console.error('Failed to batch update concept instances');
-			return;
-		}
-
-		await invalidateAll();
 	}
 
 	async function handleWindowKeydown(event: KeyboardEvent) {
@@ -1923,7 +2113,7 @@ function fitVisibleCardsOnlyIfNeeded() {
 			return;
 		}
 
-		const isDoubleEnter = consumeDoubleEnter(`canvas:${currentCanvasInstanceId ?? 'root'}`);
+		const isDoubleEnter = consumeDoubleEnter(`canvas:${currentCanvasOwnerInstanceId ?? 'root'}`);
 
 		if (!isDoubleEnter) {
 			return;
@@ -1932,7 +2122,7 @@ function fitVisibleCardsOnlyIfNeeded() {
 		event.preventDefault();
 		event.stopPropagation();
 
-		const center = getCenterOfCurrentCanvasView();
+		const center = getViewportCenterWorldPoint();
 
 		const position = {
 			x: center.x,
@@ -1989,59 +2179,142 @@ function fitVisibleCardsOnlyIfNeeded() {
 		});
 	}
 
-	function openCanvasForCard(card: ConceptCardView) {
-		dragState = {
+	function emptyChildTileDragState(): ChildTileDragState {
+		return {
 			active: false,
-			instanceId: null,
-			startMouseX: 0,
-			startMouseY: 0,
-			startInstanceX: 0,
-			startInstanceY: 0,
-			draggedCards: []
+			childCard: null,
+			mouseX: 0,
+			mouseY: 0
 		};
+	}
 
-		resizeState = {
-			active: false,
-			instanceId: null,
-			startMouseX: 0,
-			startMouseY: 0,
-			startWidth: 0,
-			startHeight: 0
-		};
-
+	function clearInteractiveState() {
 		isPanning = false;
-		currentCanvasInstanceId = card.instance.id;
-		activeInstanceId = null;
-		clearSelection();
-		closeContextMenu();
+		dragState = emptyDragState();
+		pendingDragState = emptyPendingDragState();
+		resizeState = emptyResizeState();
+		selectionBoxState = emptySelectionBoxState();
+		childTileDragState = emptyChildTileDragState();
 	}
 
-	function goToRootCanvas() {
-		currentCanvasInstanceId = null;
-		activeInstanceId = null;
+	async function prepareCanvasNavigation(nextOwnerInstanceId: string | null) {
+		clearInteractiveState();
 		clearSelection();
 		closeContextMenu();
-	}
 
-	function goToCanvas(instanceId: string) {
-		currentCanvasInstanceId = instanceId;
+		currentCanvasOwnerInstanceId = nextOwnerInstanceId;
 		activeInstanceId = null;
-		clearSelection();
-		closeContextMenu();
+
+		await tick();
+	}
+	async function openCardCanvas(card: ConceptCardView) {
+		await openInstanceCanvas(card.instance.id);
 	}
 
-	function goUpOneLevel() {
-		if (currentCanvasInstanceId === null) {
+	// Root canvas should have its own camera positioning, but for now, frame all cards to make it feel like home
+	async function openRootCanvas() {
+		await saveCurrentCanvasCamera();
+
+		prepareCanvasNavigation(null);
+
+		if (cardsInCurrentCanvas.length > 0) {
+			frameCardsInCurrentCanvas();
+		} else {
+			applyCamera({
+				panX: 0,
+				panY: 0,
+				zoom: 1
+			});
+		}
+	}
+
+	async function openInstanceCanvas(instanceId: string) {
+		const targetCard = getCardByInstanceId(instanceId);
+
+		if (!targetCard) {
 			return;
 		}
 
-		const currentCard = getCardByInstanceId(currentCanvasInstanceId);
+		if (instanceId === currentCanvasOwnerInstanceId) {
+			return;
+		}
 
-		currentCanvasInstanceId = currentCard?.instance.parentInstanceId ?? null;
+		await saveCurrentCanvasCamera();
+
+		clearInteractiveState();
+
+		currentCanvasOwnerInstanceId = instanceId;
 		activeInstanceId = null;
+
 		clearSelection();
 		closeContextMenu();
+
+		await tick();
+
+		const savedCamera = getSavedCameraForInstance(targetCard.instance);
+
+		if (savedCamera) {
+			applyCamera(savedCamera);
+		} else if (cardsInCurrentCanvas.length > 0) {
+			frameCardsInCurrentCanvas();
+		} else {
+			applyCamera({
+				panX: 0,
+				panY: 0,
+				zoom: 1
+			});
+		}
 	}
+
+	// Not strictly necessary except for root, but could be nice to have a back button
+	async function openInstanceParentCanvas() {
+		// Can't do this from root
+		if (currentCanvasOwnerInstanceId === null) {
+			return;
+		}
+
+		const currentCard = getCardByInstanceId(currentCanvasOwnerInstanceId);
+		const parentInstanceId = currentCard?.instance.parentInstanceId ?? null;
+
+		if (parentInstanceId === null) {
+			await openRootCanvas();
+			return;
+		}
+
+		await openInstanceCanvas(parentInstanceId);
+	}
+
+	async function requestJson<T>(
+		url: string,
+		options: {
+			method: string;
+			body?: unknown;
+			errorMessage: string;
+			invalidate?: boolean;
+		}
+	): Promise<T | null> {
+		const response = await fetch(url, {
+			method: options.method,
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: options.body === undefined ? undefined : JSON.stringify(options.body)
+		});
+
+		if (!response.ok) {
+			console.error(options.errorMessage);
+			return null;
+		}
+
+		const result = (await response.json().catch(() => null)) as T | null;
+
+		if (options.invalidate ?? true) {
+			await invalidateAll();
+		}
+
+		return result;
+	}
+
 </script>
 
 <svelte:window
@@ -2054,24 +2327,35 @@ function fitVisibleCardsOnlyIfNeeded() {
 <section class="concept-workspace">
 	<CanvasTopbar
 		{currentBreadcrumb}
-		{currentCanvasCard}
-		{currentCanvasInstanceId}
+		{currentCanvasOwnerCard}
+		{currentCanvasOwnerInstanceId}
 		{mainView}
-		onGoToRootCanvas={goToRootCanvas}
-		onGoToCanvas={goToCanvas}
-		onGoUpOneLevel={goUpOneLevel}
+		onGoToRootCanvas={openRootCanvas}
+		onGoToCanvas={openInstanceCanvas}
+		onGoUpOneLevel={openInstanceParentCanvas}
 		onMainViewChange={setMainView}
 		onFocus={focusSelectionOrNearestCard}
-		onFrameAll={frameVisibleCards}
-		onArrangeGrid={arrangeVisibleCardsInGrid}
+		onFrameAll={frameCardsInCurrentCanvas}
+		onArrangeGrid={arrangeCardsInCurrentCanvasInGrid}
 	/>
 
 	<div class="concept-workspace-body">
+{#if sidebarVisible}
+	<div
+		bind:this={sidebarElement}
+		class="sidebar-shell"
+		style:width={sidebarWidth === null
+			? undefined
+			: `${sidebarWidth}px`}
+	>
 		<ConceptSidebar
 			{sidebarTab}
-			{currentCanvasCard}
+			{currentCanvasOwnerCard}
 			{sidebarNewTag}
 			{getTagConcepts}
+			{getConceptChildren}
+			{getRootConceptInstances}
+			onGoUpOneLevel={openInstanceParentCanvas}
 			onSidebarTabChange={(tab) => {
 				sidebarTab = tab;
 			}}
@@ -2083,12 +2367,30 @@ function fitVisibleCardsOnlyIfNeeded() {
 			onSidebarTagAdd={addSidebarTag}
 			onTagOpen={openTagCanvas}
 			onTagRemove={handleTagRemove}
+			onPropertiesChange={handlePropertiesChange}
+			relationships={currentConceptRelationships}
+			relationshipDefinitions={initialRelationshipDefinitions}
+			{getConceptById}
+			
 		/>
 
+		<button
+			class="sidebar-resize-handle"
+			class:active={isResizingSidebar}
+			type="button"
+			aria-label="Resize sidebar"
+			onpointerdown={handleSidebarResizePointerDown}
+			onpointermove={handleSidebarResizePointerMove}
+			onpointerup={handleSidebarResizePointerUp}
+			onpointercancel={handleSidebarResizePointerUp}
+		></button>
+	</div>
+{/if}
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<section
-			bind:this={canvasElement}
+			bind:this={canvasElement} // very javascript
 			class="canvas"
+			class:sidebar-hidden={!sidebarVisible}
 			class:is-panning={isPanning}
 			role="application"
 			aria-label="Concept canvas"
@@ -2129,10 +2431,10 @@ function fitVisibleCardsOnlyIfNeeded() {
 					style={`transform: translate(${panX}px, ${panY}px) scale(${zoom});`}
 					class:is-arranging-camera={arrangingCamera}
 				>
-					{#each visibleCards as card (card.instance.id)}
+					{#each cardsInCurrentCanvas as card (card.instance.id)}
 						<ConceptCard
 							{card}
-							childCards={getChildCards(card.instance.id)}
+							conceptChildren={getConceptChildren(card.instance.id)}
 							isActive={activeInstanceId === card.instance.id}
 							isDragging={(dragState.active &&
 								dragState.draggedCards.some(
@@ -2148,8 +2450,8 @@ function fitVisibleCardsOnlyIfNeeded() {
 									pendingFocusInstanceId = null;
 								}
 							}}
-							onChildOpen={openCanvasForCard}
-							onOverflowOpen={openCanvasForCard}
+							onChildOpen={openCardCanvas}
+							onOverflowOpen={openCardCanvas}
 							onChildDragStart={handleChildTileDragStart}
 							onPointerDown={handleCardPointerDown}
 							onContextMenu={handleCardContextMenu}
@@ -2157,11 +2459,12 @@ function fitVisibleCardsOnlyIfNeeded() {
 							onTitleKeydown={handleConceptTitleKeydown}
 							onPropertiesChange={handlePropertiesChange}
 							onResizePointerDown={handleResizePointerDown}
-							onCardOpen={openCanvasForCard}
+							onCardOpen={openCardCanvas}
 							tagConcepts={getTagConcepts(card.concept.tagConceptIds ?? [])}
 							onManualTagAdd={handleManualTagAdd}
 							onTagOpen={openTagCanvas}
 							onTagRemove={handleTagRemove}
+							getConceptChildren={getConceptChildren}
 						/>
 					{/each}
 				</div>
@@ -2188,7 +2491,7 @@ function fitVisibleCardsOnlyIfNeeded() {
 				{importChildrenMenu}
 				importOptions={importChildrenOptions}
 				onCreateConceptFromMenu={createConceptFromMenu}
-				onGoToCanvas={goToCanvas}
+				onGoToCanvas={openInstanceCanvas}
 				onCloseContextMenu={closeContextMenu}
 				onOpenImportChildrenMenu={openImportChildrenMenu}
 				onDeleteInstanceFromMenu={deleteInstanceFromMenu}
@@ -2204,9 +2507,11 @@ function fitVisibleCardsOnlyIfNeeded() {
 <style>
 	.child-tile-drag-ghost {
 		position: fixed;
-		z-index: 2000;
-		width: var(--child-tile-size-drag);
-		height: var(--child-tile-size-drag);
+		z-index: var(--maximum-z-index);
+		width: fit-content;
+		max-width: 500px;
+		text-overflow: ellipsis;
+		height: var(--child-tile-height);
 		transform: translate(-50%, -50%);
 		pointer-events: none;
 
@@ -2217,9 +2522,9 @@ function fitVisibleCardsOnlyIfNeeded() {
 		padding: 0.75rem;
 		border-radius: var(--child-tile-radius);
 		border: 1px solid var(--child-tile-border-drag);
-		background: var(--child-tile-bg-drag);
+		background: var(--child-tile-bg);
 		color: var(--child-tile-text);
-		box-shadow: var(--child-tile-shadow);
+		box-shadow: 2px 2px 1px black;
 
 		user-select: none;
 		box-sizing: border-box;
@@ -2260,9 +2565,46 @@ function fitVisibleCardsOnlyIfNeeded() {
 	.concept-workspace-body {
 		min-height: 0;
 		display: grid;
-		grid-template-columns: minmax(260px, 25vw) minmax(0, 1fr);
+		grid-template-columns: auto minmax(0, 1fr);
 		overflow: hidden;
 	}
+
+	.concept-workspace-body.sidebar-hidden {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+.sidebar-shell {
+	position: relative;
+	display: flex;
+	width: max(260px, 25vw);
+	min-width: 0;
+	min-height: 0;
+}
+
+.sidebar-shell :global(.concept-sidebar) {
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+}
+
+.sidebar-resize-handle {
+	position: absolute;
+	z-index: 30;
+	top: 0;
+	right: -3px;
+	bottom: 0;
+	width: 6px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	cursor: col-resize;
+	touch-action: none;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.active {
+	background: hsl(210 90% 55% / 45%);
+}
 
 	.canvas {
 		position: relative;
@@ -2301,6 +2643,6 @@ function fitVisibleCardsOnlyIfNeeded() {
 	}
 
 	.canvas-world.is-arranging-camera {
-	transition: transform 4000ms ease;
-}
+		transition: transform 4000ms ease;
+	}
 </style>

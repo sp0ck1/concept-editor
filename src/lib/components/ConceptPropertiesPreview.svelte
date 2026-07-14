@@ -1,11 +1,14 @@
 <script lang="ts">
-  let {
-    properties = {},
-    onChange
-  } = $props<{
-    properties?: Record<string, string>;
-    onChange: (properties: Record<string, string>) => void;
-  }>();
+let {
+	properties,
+	onChange
+}: {
+	properties: Record<string, string>;
+	onChange: (properties: Record<string, string>) => void;
+} = $props<{
+	properties: Record<string, string>;
+	onChange: (properties: Record<string, string>) => void;
+}>();
 
   let entries = $derived(Object.entries(properties));
 

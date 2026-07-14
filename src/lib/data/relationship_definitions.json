@@ -1,0 +1,16 @@
+[
+  {
+    "conceptId": "concept-married-to",
+    "inverseConceptId": "concept-married-to",
+    "isMutual": true,
+    "forwardPattern": "[0] is married to [1]"
+  },
+  {
+    "conceptId": "concept-employee-of",
+    "inverseConceptId": "concept-employs",
+    "isMutual": false,
+    "forwardPattern": "[0] works at [1]",
+    "inversePattern": "[1] employs [0]"
+  }
+
+]

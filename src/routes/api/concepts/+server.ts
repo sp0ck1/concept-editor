@@ -1,198 +1,128 @@
 import { json } from '@sveltejs/kit';
-import { readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import type { Concept } from '$lib/types/Concept';
-import type { ConceptInstance } from '$lib/types/ConceptInstance';
-import { normalizeConcept } from '$lib/concepts/normalizeConcept';
+import type { RequestHandler } from './$types';
+
 import {
-	normalizeConceptInstance,
-	defaultConceptWidth,
-	defaultConceptHeight
-} from '$lib/concepts/normalizeConceptInstance';
+	createConceptWithInstance,
+	updateConceptTitleFromInstance,
+	type CreateConceptWithInstanceInput,
+	type TitleConflictMode
+} from '$lib/services/conceptService';
 
-const conceptsPath = path.resolve('src/lib/data/concepts.json');
-const instancesPath = path.resolve('src/lib/data/concept_instances.json');
+import {
+	updateConcept,
+	type UpdateConceptInput
+} from '$lib/repositories/conceptRepository';
 
-async function readConcepts() {
-	const file = await readFile(conceptsPath, 'utf-8');
-	const rawConcepts = JSON.parse(file) as Partial<Concept>[];
+export const POST: RequestHandler = async ({ request }) => {
+	const input = ((await request.json().catch(() => ({}))) ??
+		{}) as CreateConceptWithInstanceInput;
 
-	return rawConcepts.map((concept, index) => normalizeConcept(concept, index));
-}
+	const result = await createConceptWithInstance(input);
 
-async function writeConcepts(concepts: Concept[]) {
-	await writeFile(conceptsPath, JSON.stringify(concepts, null, 2), 'utf-8');
-}
-
-async function readInstances() {
-	const file = await readFile(instancesPath, 'utf-8');
-	const rawInstances = JSON.parse(file) as Partial<ConceptInstance>[];
-
-	return rawInstances.map((instance, index) => normalizeConceptInstance(instance, index));
-}
-
-async function writeInstances(instances: ConceptInstance[]) {
-	await writeFile(instancesPath, JSON.stringify(instances, null, 2), 'utf-8');
-}
-
-function createConceptId() {
-	return `concept-${crypto.randomUUID()}`;
-}
-
-function createInstanceId() {
-	return `instance-${crypto.randomUUID()}`;
-}
-
-type CreateConceptBody = {
-	title?: unknown;
-	x?: unknown;
-	y?: unknown;
-	width?: unknown;
-	height?: unknown;
-	parentInstanceId?: unknown;
+	return json(result, { status: 201 });
 };
 
-export async function POST({ request }) {
-	const concepts = await readConcepts();
-	const instances = await readInstances();
+export const PATCH: RequestHandler = async ({ request }) => {
+	const body = (await request.json()) as Record<string, unknown>;
 
-	let body: CreateConceptBody = {};
-
-	try {
-		body = await request.json();
-	} catch {
-		body = {};
-	}
-
-	const title = typeof body.title === 'string' ? body.title.trim() : '';
-
-	const concept: Concept = {
-		id: createConceptId(),
-		title,
-		properties: {},
-		tagConceptIds: []
-	};
-
-	const instance: ConceptInstance = {
-		id: createInstanceId(),
-		conceptId: concept.id,
-		parentInstanceId:
-			body.parentInstanceId === null || typeof body.parentInstanceId === 'string'
-				? body.parentInstanceId
-				: null,
-		x: typeof body.x === 'number' ? body.x : 32 + instances.length * 248,
-		y: typeof body.y === 'number' ? body.y : 32,
-		width: typeof body.width === 'number' ? body.width : defaultConceptWidth,
-		height: typeof body.height === 'number' ? body.height : defaultConceptHeight
-	};
-
-	concepts.push(concept);
-	instances.push(instance);
-
-	await writeConcepts(concepts);
-	await writeInstances(instances);
-
-	return json({ concept, instance }, { status: 201 });
-}
-
-export async function PATCH({ request }) {
-	const body = await request.json();
-
-	const id = body.id as string | undefined;
+	const id = typeof body.id === 'string' ? body.id : undefined;
 
 	if (!id) {
-		return json({ message: 'Concept id is required.' }, { status: 400 });
-	}
-
-	const concepts = await readConcepts();
-	const concept = concepts.find((item) => item.id === id);
-
-	if (!concept) {
-		return json({ message: 'Concept not found.' }, { status: 404 });
+		return json(
+			{ error: 'Concept id is required.' },
+			{ status: 400 }
+		);
 	}
 
 	if (typeof body.title === 'string') {
-		const nextTitle = body.title.trim();
-		const instanceId = body.instanceId as string | undefined;
+		const instanceId =
+			typeof body.instanceId === 'string'
+				? body.instanceId
+				: undefined;
 
 		if (!instanceId) {
 			return json(
-				{ message: 'Concept instance id is required when changing title.' },
+				{
+					error:
+						'Concept instance id is required when changing title.'
+				},
 				{ status: 400 }
 			);
 		}
 
-		const instances = await readInstances();
-		const instance = instances.find((item) => item.id === instanceId);
+		const conflictMode: TitleConflictMode =
+			body.conflictMode === 'use-existing' ||
+			body.conflictMode === 'create-duplicate'
+				? body.conflictMode
+				: 'report-conflict';
 
-		if (!instance) {
-			return json({ message: 'Concept instance not found.' }, { status: 404 });
+		const result = await updateConceptTitleFromInstance(
+			id,
+			instanceId,
+			body.title,
+			conflictMode
+		);
+
+		if (result.status === 'concept-not-found') {
+			return json(
+				{ error: 'Concept not found.' },
+				{ status: 404 }
+			);
 		}
 
-		const matchingConcept =
-			nextTitle.length > 0
-				? concepts.find((item) => item.title.trim().toLowerCase() === nextTitle.toLowerCase())
-				: undefined;
-
-		if (matchingConcept) {
-			instance.conceptId = matchingConcept.id;
-
-			await writeInstances(instances);
-
-			return json({
-				concept: matchingConcept,
-				instance
-			});
+		if (result.status === 'instance-not-found') {
+			return json(
+				{ error: 'Concept instance not found.' },
+				{ status: 404 }
+			);
 		}
 
-		const usageCount = instances.filter((item) => item.conceptId === concept.id).length;
-
-		const currentConceptIsUntitled = concept.title.trim().length === 0;
-		const currentConceptIsOnlyUsedHere = usageCount === 1;
-
-		if (nextTitle.length > 0 && currentConceptIsUntitled && currentConceptIsOnlyUsedHere) {
-			concept.title = nextTitle;
-
-			await writeConcepts(concepts);
-
-			return json({
-				concept,
-				instance
-			});
+		if (result.status === 'title-conflict') {
+			return json(
+				{
+					error:
+						'A concept with this title already exists.',
+					code: 'TITLE_CONFLICT',
+					matchingConcepts:
+						result.matchingConcepts
+				},
+				{ status: 409 }
+			);
 		}
-
-		const newConcept: Concept = {
-			id: createConceptId(),
-			title: nextTitle,
-			properties: {
-				...concept.properties
-			},
-			tagConceptIds: [...(concept.tagConceptIds ?? [])]
-		};
-
-		concepts.push(newConcept);
-		instance.conceptId = newConcept.id;
-
-		await writeConcepts(concepts);
-		await writeInstances(instances);
 
 		return json({
-			concept: newConcept,
-			instance
+			concept: result.concept,
+			instance: result.instance
 		});
 	}
 
-	if (body.properties && typeof body.properties === 'object' && !Array.isArray(body.properties)) {
-		concept.properties = body.properties;
+	const updates: UpdateConceptInput = {};
+
+	if (
+		typeof body.properties === 'object' &&
+		body.properties !== null &&
+		!Array.isArray(body.properties)
+	) {
+		updates.properties =
+			body.properties as Record<string, string>;
 	}
 
 	if (Array.isArray(body.tagConceptIds)) {
-		concept.tagConceptIds = body.tagConceptIds.filter((id: unknown): id is string => {
-			return typeof id === 'string';
-		});
+		updates.tagConceptIds =
+			body.tagConceptIds.filter(
+				(value): value is string =>
+					typeof value === 'string'
+			);
 	}
 
-	await writeConcepts(concepts);
+	const concept = await updateConcept(id, updates);
+
+	if (!concept) {
+		return json(
+			{ error: 'Concept not found.' },
+			{ status: 404 }
+		);
+	}
 
 	return json(concept);
-}
+};

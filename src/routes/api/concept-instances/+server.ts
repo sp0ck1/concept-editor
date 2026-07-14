@@ -1,85 +1,42 @@
 import { json } from '@sveltejs/kit';
-import { readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import type { ConceptInstance } from '$lib/types/ConceptInstance';
-import { normalizeConceptInstance } from '$lib/concepts/normalizeConceptInstance';
+import type { RequestHandler } from './$types';
+import {
+	deleteConceptInstance,
+	updateConceptInstance,
+	type UpdateConceptInstanceInput
+} from '$lib/repositories/conceptInstanceRepository';
 
-const filePath = path.resolve('src/lib/data/concept_instances.json');
+export const PATCH: RequestHandler = async ({ request }) => {
+	const body = (await request.json()) as Record<string, unknown>;
+	const id = typeof body.id === 'string' ? body.id : undefined;
 
-async function readInstances() {
-  const file = await readFile(filePath, 'utf-8');
-  const rawInstances = JSON.parse(file) as Partial<ConceptInstance>[];
+	if (!id) {
+		return json({ error: 'Concept instance id is required.' }, { status: 400 });
+	}
 
-  return rawInstances.map((instance, index) =>
-    normalizeConceptInstance(instance, index)
-  );
-}
+	const updates = body as UpdateConceptInstanceInput;
+	const instance = await updateConceptInstance(id, updates);
 
-async function writeInstances(instances: ConceptInstance[]) {
-  await writeFile(filePath, JSON.stringify(instances, null, 2), 'utf-8');
-}
+	if (!instance) {
+		return json({ error: 'Concept instance not found.' }, { status: 404 });
+	}
 
-export async function PATCH({ request }) {
-  const body = await request.json();
+	return json(instance);
+};
 
-  const id = body.id as string | undefined;
+export const DELETE: RequestHandler = async ({ request }) => {
+	const body = (await request.json()) as { id?: unknown };
+	const id = typeof body.id === 'string' ? body.id : undefined;
 
-  if (!id) {
-    return json({ message: 'Concept instance id is required.' }, { status: 400 });
-  }
+	if (!id) {
+		return json({ error: 'Concept instance id is required.' }, { status: 400 });
+	}
 
-  const instances = await readInstances();
-  const instance = instances.find((item) => item.id === id);
+	const deleted = await deleteConceptInstance(id);
 
-  if (!instance) {
-    return json({ message: 'Concept instance not found.' }, { status: 404 });
-  }
+	if (!deleted) {
+		return json({ error: 'Concept instance not found.' }, { status: 404 });
+	}
 
-  if (typeof body.x === 'number') {
-    instance.x = body.x;
-  }
-
-  if (typeof body.y === 'number') {
-    instance.y = body.y;
-  }
-
-  if (typeof body.width === 'number') {
-    instance.width = body.width;
-  }
-
-  if (typeof body.height === 'number') {
-    instance.height = body.height;
-  }
-
-  if (
-    body.parentInstanceId === null ||
-    typeof body.parentInstanceId === 'string'
-  ) {
-    instance.parentInstanceId = body.parentInstanceId;
-  }
-
-  await writeInstances(instances);
-
-  return json(instance);
-}
-
-export async function DELETE({ request }) {
-  const body = await request.json();
-
-  const id = body.id as string | undefined;
-
-  if (!id) {
-    return json({ message: 'Concept instance id is required.' }, { status: 400 });
-  }
-
-  const instances = await readInstances();
-  const nextInstances = instances.filter((instance) => instance.id !== id);
-
-  if (nextInstances.length === instances.length) {
-    return json({ message: 'Concept instance not found.' }, { status: 404 });
-  }
-
-  await writeInstances(nextInstances);
-
-  return json({ id });
-}
+	return new Response(null, { status: 204 });
+};

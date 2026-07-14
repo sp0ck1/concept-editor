@@ -43,7 +43,7 @@ export function getRectOverlapRatio(targetRect: Rect, selectionRect: Rect) {
 	return targetArea === 0 ? 0 : overlapArea / targetArea;
 }
 
-	function canvasPointToWorldPoint(point: { x: number; y: number }, panX: number, panY: number, zoom: number) {
+export	function canvasPointToWorldPoint(point: { x: number; y: number }, panX: number, panY: number, zoom: number) {
 		return {
 			x: (point.x - panX) / zoom,
 			y: (point.y - panY) / zoom

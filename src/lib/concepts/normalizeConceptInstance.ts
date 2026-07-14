@@ -14,6 +14,9 @@ export function normalizeConceptInstance(
     x: instance.x ?? 32 + index * 248,
     y: instance.y ?? 32,
     width: instance.width ?? defaultConceptWidth,
-    height: instance.height ?? defaultConceptHeight
+    height: instance.height ?? defaultConceptHeight,
+    lastCameraPanX: instance.lastCameraPanX ?? 0,
+    lastCameraPanY: instance.lastCameraPanY ?? 0,
+    lastCameraZoom: instance.lastCameraZoom ?? 0
   };
 }

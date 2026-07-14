@@ -1,87 +1,45 @@
 <script lang="ts">
+	import TreeView from '$lib/components/tree/TreeView.svelte';
 	import type { ConceptCardView } from '$lib/types/ConceptCardView';
-    import ConceptChildTile from '$lib/components/card/ConceptChildTile.svelte';
-
-	type ChildTileModeName = 'full' | 'compact' | 'tight' | 'symbol';
-
-	type ConceptDropAreaTile =
-		| {
-				type: 'child';
-				key: string;
-				card: ConceptCardView;
-				mode: ChildTileModeName;
-				label: string;
-				fullTitle: string;
-				width: number;
-			}
-		| {
-				type: 'overflow';
-				key: string;
-				mode: ChildTileModeName;
-				label: string;
-				hiddenCount: number;
-				width: number;
-			};
-
-	type ConceptDropAreaLayout = {
-		gap: number;
-		tiles: ConceptDropAreaTile[];
-	};
 
 	let {
 		card,
-		childCardsCount,
-		childTileLayout,
+		getConceptChildren,
 		dropAreaElement = $bindable<HTMLElement | null>(null),
-		onCardOpen,
-		onOverflowOpen,
-		onChildOpen,
-		onChildPointerDown,
-		onChildTileHoldCancel,
-		onChildPreviewShow,
-		onChildPreviewHide
+		onCardOpen
 	} = $props<{
 		card: ConceptCardView;
-		childCardsCount: number;
-		childTileLayout: ConceptDropAreaLayout;
+		getConceptChildren: (conceptInstanceId: string) => ConceptCardView[];
 		dropAreaElement?: HTMLElement | null;
 		onCardOpen?: (card: ConceptCardView) => void;
-		onOverflowOpen?: (card: ConceptCardView) => void;
-		onChildOpen?: (card: ConceptCardView) => void;
-		onChildPointerDown: (event: PointerEvent, childCard: ConceptCardView) => void;
-		onChildTileHoldCancel: () => void;
-		onChildPreviewShow: (event: MouseEvent, childCard: ConceptCardView) => void;
-		onChildPreviewHide: () => void;
 	}>();
 
 	let concept = $derived(card.concept);
 	let instance = $derived(card.instance);
 
+	let conceptChildren = $derived.by(() =>
+		getConceptChildren(instance.id)
+	);
+
 	function openCardFromDropArea(event: MouseEvent) {
-		event.preventDefault();
-		event.stopPropagation();
-		onChildTileHoldCancel();
-		onChildPreviewHide();
-		onCardOpen?.(card);
-	}
+		const target = event.target;
 
-	function openOverflow(event: MouseEvent | KeyboardEvent) {
-		event.preventDefault();
-		event.stopPropagation();
-		onChildTileHoldCancel();
-		onChildPreviewHide();
-		onOverflowOpen?.(card);
-	}
-
-	function handleKeyboardOpen(event: KeyboardEvent, open: () => void) {
-		if (event.key !== 'Enter' && event.key !== ' ') {
+		/*
+		 * Do not open the parent card when the user double-clicks
+		 * an actual tree row or expansion button.
+		 */
+		if (
+			target instanceof Element &&
+			target.closest('.tree-root-row, .tree-node-row')
+		) {
 			return;
 		}
 
-		open();
-	}
+		event.preventDefault();
+		event.stopPropagation();
 
-   
+		onCardOpen?.(card);
+	}
 </script>
 
 <div
@@ -92,53 +50,43 @@
 	aria-label="Child concept area"
 	ondblclick={openCardFromDropArea}
 >
-	{#if childCardsCount === 0}
-		<div class="concept-drop-empty">Drop children here</div>
-	{:else}
-		<div class="concept-child-list" style={`--child-tile-gap: ${childTileLayout.gap}px;`}>
-			{#each childTileLayout.tiles as tile (tile.key)}
-				{#if tile.type === 'overflow'}
-					<div
-	class={`concept-child-overflow concept-child-overflow-${tile.mode}`}
-	style={`--child-tile-width: ${tile.width}px;`}
-	role="button"
-	tabindex="0"
-	title="See all child concepts"
-	aria-label={`See ${tile.hiddenCount} hidden child concepts`}
-	ondblclick={(event) => openOverflow(event)}
-	onkeydown={(event) => handleKeyboardOpen(event, () => openOverflow(event))}
->
-	<div class="concept-child-tile-title">{tile.label}</div>
-</div>
-				{:else}
-					<ConceptChildTile
-	{tile}
-	onPointerDown={onChildPointerDown}
-	onHoldCancel={onChildTileHoldCancel}
-	onPreviewShow={onChildPreviewShow}
-	onPreviewHide={onChildPreviewHide}
-	onOpen={onChildOpen}
-/>
-				{/if}
-			{/each}
+	{#if conceptChildren.length === 0}
+		<div class="concept-drop-empty">
+			Drop children here
 		</div>
+	{:else}
+		<TreeView
+			rootCard={card}
+			{getConceptChildren}
+		/>
 	{/if}
 </div>
 
 <style>
-
-
 	.concept-drop-area {
 		min-width: 0;
 		min-height: 0;
 		position: relative;
 		padding: 8px;
 		box-sizing: border-box;
-		overflow: hidden;
+		overflow: auto;
 		background-color: #deefff;
 		box-shadow:
 			inset 2px 2px 4px rgba(0, 0, 0, 0.2),
 			inset -2px -2px 4px rgba(208, 208, 208, 0.761);
+
+		/*
+		 * Tree colors for the light card background.
+		 * These can be consumed by TreeView and TreeViewNode.
+		 */
+		--tree-text-color: #202124;
+		--tree-root-text-color: #151515;
+		--tree-muted-color: #60646c;
+		--tree-line-color: rgba(0, 0, 0, 0.2);
+		--tree-row-hover-background: rgba(0, 0, 0, 0.07);
+		--tree-toggle-background: rgba(255, 255, 255, 0.65);
+		--tree-toggle-hover-background: rgba(255, 255, 255, 0.95);
+		--tree-toggle-border-color: rgba(0, 0, 0, 0.38);
 	}
 
 	.concept-drop-empty {
@@ -153,60 +101,33 @@
 		user-select: none;
 	}
 
-	.concept-child-list {
-		display: flex;
-		flex-wrap: wrap;
-		align-content: flex-start;
-		align-items: flex-start;
-		gap: var(--child-tile-gap, 6px);
-		height: 100%;
-		overflow: hidden;
-	}
+	.concept-drop-area :global(.tree-view) {
+	color: #202124;
+	font-size: 0.75rem;
+}
 
-	/* Only needed because overflow is still rendered here */
-	.concept-child-overflow {
-		flex: 0 0 var(--child-tile-width);
-		width: var(--child-tile-width);
-		min-width: 0;
-		min-height: 0;
+.concept-drop-area :global(.tree-root-label),
+.concept-drop-area :global(.tree-node-label) {
+	color: #202124;
+}
 
-		display: flex;
-		align-items: center;
-		justify-content: center;
+.concept-drop-area :global(.tree-toggle) {
+	border-color: rgba(0, 0, 0, 0.35);
+	background: rgba(255, 255, 255, 0.65);
+	color: #202124;
+}
 
-		height: 24px;
-		padding-inline: 6px;
-		border-radius: var(--child-tile-radius-small);
-		border: 1px solid var(--child-tile-border);
+.concept-drop-area :global(.tree-toggle:hover) {
+	background: rgba(255, 255, 255, 0.95);
+}
 
-		cursor: default;
-		user-select: none;
-		box-sizing: border-box;
-		overflow: hidden;
+.concept-drop-area :global(.tree-root-children),
+.concept-drop-area :global(.tree-node-children) {
+	border-left-color: rgba(0, 0, 0, 0.2);
+}
 
-		color: hsl(224 8% 88%);
-		background: hsl(224 8% 32%);
-	}
+.concept-drop-area :global(.tree-node-row:hover) {
+	background: rgba(0, 0, 0, 0.07);
+}
 
-	.concept-child-overflow:hover,
-	.concept-child-overflow:focus {
-		filter: brightness(1.08);
-		outline: none;
-	}
-
-	.concept-child-overflow .concept-child-tile-title {
-		min-width: 0;
-		max-width: 100%;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-
-		font-size: var(--child-tile-font-size);
-		font-weight: var(--child-tile-font-weight);
-		line-height: var(--child-tile-line-height);
-		text-align: center;
-	}
-
-
-
-    </style>
+</style>

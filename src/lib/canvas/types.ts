@@ -18,6 +18,9 @@ export type ConceptInstance = {
   y: number;
   width: number;
   height: number;
+  lastCameraPanX: number;
+  lastCameraPanY: number;
+  lastCameraZoom: number;
 };
 
 export type ConceptCardView = {
@@ -116,50 +119,50 @@ export type SelectionBoxState =
 	  };
 
 export type DraggedCardStart = {
-	instanceId: string;
-	startX: number;
-	startY: number;
+			instanceId: string;
+			startX: number;
+			startY: number;
 };
 
-export type ContextMenu =
+type ContextMenuTarget =
 	| {
-			visible: false;
-			x: 0;
-			y: 0;
 			targetType: null;
 			instanceId: null;
 	  }
 	| {
-			visible: true;
-			x: number;
-			y: number;
+			targetType: 'canvas';
 			worldX: number;
 			worldY: number;
-			targetType: 'canvas';
 			instanceId: null;
 	  }
 	| {
-			visible: true;
-			x: number;
-			y: number;
 			targetType: 'card';
 			instanceId: string;
 	  };
 
+export type ContextMenu = {
+	visible: boolean;
+	x: number;
+	y: number;
+} & ContextMenuTarget;
+
 export type CreateConceptOptions = {
-	position?: {x: number; y: number };
-	title?: string;
-	width?: number;
-	height?: number;
-	parentInstanceId?: string | null;
-	sizePreset?: ConceptSizePreset;
-	focusAfterCreate?:boolean;
+			position?: {x: number; y: number };
+			title?: string;
+			width?: number;
+			height?: number;
+			parentInstanceId?: string | null;
+			sizePreset?: ConceptSizePreset;
+			focusAfterCreate?:boolean;
+			lastCameraPanX?: number;
+			lastCameraPanY?: number;
+			lastCameraZoom?: number;
 };
 
-
-
 export type SidebarTab = 'concept' | 'tree';
+
 export type MainView = 'canvas' | 'table';
+
 export const conceptSizePresets = {
 		small: { width: 180, height: 64 },
 		medium: { width: defaultConceptWidth, height: defaultConceptHeight },
@@ -168,48 +171,3 @@ export const conceptSizePresets = {
 
 export type ConceptSizePreset = keyof typeof conceptSizePresets;
 
-export function emptySelectionBoxState(): SelectionBoxState {
-	return {
-		active: false,
-		startCanvasX: 0,
-		startCanvasY: 0,
-		currentCanvasX: 0,
-		currentCanvasY: 0,
-		additive: false
-	};
-}
-
-export function emptyDragState(): DragState {
-	return {
-		active: false,
-		instanceId: null,
-		startMouseX: 0,
-		startMouseY: 0,
-		startInstanceX: 0,
-		startInstanceY: 0,
-		draggedCards: []
-	};
-}
-
-export function emptyPendingDragState(): PendingDragState {
-	return {
-		active: false,
-		instanceId: null,
-		startMouseX: 0,
-		startMouseY: 0,
-		startInstanceX: 0,
-		startInstanceY: 0,
-		draggedCards: []
-	};
-}
-
-export function emptyResizeState(): ResizeState {
-	return {
-		active: false,
-		instanceId: null,
-		startMouseX: 0,
-		startMouseY: 0,
-		startWidth: 0,
-		startHeight: 0
-	};
-}

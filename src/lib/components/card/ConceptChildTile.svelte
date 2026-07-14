@@ -15,6 +15,7 @@
 
 	let {
 		tile,
+		isDragging = false,
 		onPointerDown,
 		onHoldCancel,
 		onPreviewShow,
@@ -27,6 +28,7 @@
 		onPreviewShow: (event: MouseEvent, childCard: ConceptCardView) => void;
 		onPreviewHide: () => void;
 		onOpen?: (childCard: ConceptCardView) => void;
+		isDragging?: boolean;
 	}>();
 
 	function openTile(event: MouseEvent | KeyboardEvent) {
@@ -50,6 +52,7 @@
 
 <div
 	class={`concept-child-tile concept-child-tile-${tile.mode}`}
+	class:is-dragging={isDragging}
 	style={`--child-tile-width: ${tile.width}px;`}
 	role="button"
 	tabindex="0"
@@ -62,6 +65,7 @@
 	onmouseleave={onPreviewHide}
 	ondblclick={openTile}
 	onkeydown={handleKeyboardOpen}
+	
 >
 	<div class="concept-child-tile-title">{tile.label}</div>
 </div>
@@ -147,4 +151,5 @@
 		font-weight: 700;
 		letter-spacing: 0.02em;
 	}
+
 </style>

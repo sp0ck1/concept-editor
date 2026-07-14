@@ -6,4 +6,7 @@ export type ConceptInstance = {
   y: number;
   width: number;
   height: number;
+  lastCameraPanX: number;
+  lastCameraPanY: number;
+  lastCameraZoom: number;
 };

@@ -7,8 +7,8 @@ import {
 
 let	{ 
 	currentBreadcrumb,
-	currentCanvasCard,
-	currentCanvasInstanceId,
+	currentCanvasOwnerCard,
+	currentCanvasOwnerInstanceId,
 	mainView,
 	onGoToRootCanvas,
 	onGoToCanvas,
@@ -19,8 +19,8 @@ let	{
 	onArrangeGrid
 } = $props<{
 	currentBreadcrumb: ConceptCardView[];
-	currentCanvasCard: ConceptCardView | null;
-	currentCanvasInstanceId: string | null;
+	currentCanvasOwnerCard: ConceptCardView | null;
+	currentCanvasOwnerInstanceId: string | null;
 	mainView: MainView;
 	onGoToRootCanvas: () => void;
 	onGoToCanvas: (instanceId: string) => void;
@@ -52,14 +52,11 @@ let	{
 				</button>
 			{/each}
 
-			{#if currentCanvasInstanceId !== null}
-				<button class="canvas-breadcrumb-up" type="button" onclick={onGoUpOneLevel}>Up</button>
-			{/if}
 		</nav>
 
 		<div class="concept-topbar-title">
-			{#if currentCanvasCard}
-				{currentCanvasCard.concept.title || currentCanvasCard.concept.id}
+			{#if currentCanvasOwnerCard}
+				{currentCanvasOwnerCard.concept.title || currentCanvasOwnerCard.concept.id}
 			{:else}
 				Context Name (Placeholder)
 			{/if}

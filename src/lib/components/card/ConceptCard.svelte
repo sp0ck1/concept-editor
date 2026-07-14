@@ -7,7 +7,7 @@
 
 	let {
 		card,
-		childCards = [],
+		conceptChildren = [],
 		isActive = false,
 		isDragging = false,
 		isSelected = false,
@@ -28,10 +28,11 @@
 		tagConcepts = [],
 		onManualTagAdd,
 		onTagOpen,
-		onTagRemove
+		onTagRemove,
+		getConceptChildren
 	} = $props<{
 		card: ConceptCardView;
-		childCards?: ConceptCardView[];
+		conceptChildren?: ConceptCardView[];
 		isActive?: boolean;
 		isDragging?: boolean;
 		isSelected?: boolean;
@@ -54,8 +55,10 @@
 		onManualTagAdd?: (card: ConceptCardView, title: string) => void;
 		onTagOpen?: (tagConcept: Concept) => void;
 		onTagRemove?: (card: ConceptCardView, tagConcept: Concept) => void;
+		getConceptChildren: (conceptInstanceId: string) => ConceptCardView[];
 	}>();
 
+	// Need to export this state and add ConcerCardPreview to ConceptCanvas
 	let previewChildCard = $state<ConceptCardView | null>(null);
 	let previewX = $state(0);
 	let previewY = $state(0);
@@ -142,6 +145,9 @@
 	let dropAreaWidth = $state(0);
 	let dropAreaHeight = $state(0);
 
+	// {#if currentCardLayout}
+	let currentCardLayout = $state<'notes' | 'children' | 'tags' | 'properties' | 'drawing'>('children');
+
 	let textMeasureCanvas: HTMLCanvasElement | null = null;
 	const textWidthCache = new Map<string, number>();
 
@@ -172,7 +178,7 @@
 	});
 
 	let childTileLayout = $derived.by(() =>
-		buildChildTileLayout(childCards, dropAreaWidth, dropAreaHeight)
+		buildChildTileLayout(conceptChildren, dropAreaWidth, dropAreaHeight)
 	);
 
 	function buildChildTileLayout(
@@ -326,7 +332,7 @@ function makeRowAwareChildTiles(
 		const source = (title || fallback).trim();
 		const words = source.match(/[A-Za-z0-9]+/g) ?? [];
 
-		if (words.length >= 2) {
+		if (words.length >= 2 && words[0]) {
 			return `${words[0][0]}${words[1][0]}`.toUpperCase();
 		}
 
@@ -583,15 +589,21 @@ function getRowAwareChildTileWidth(
 
 	{#if !isCollapsed}
 		<div class="concept-body">
-			<div class="cardLeftPanel">
+		<!-- {#if !isSidebarCollapsed Add to toggle sidebar off and on--> 
+			
+		
+			<div class="card-sidebar">
+	
 				<ConceptTagsPreview
 					tags={tagConcepts}
 					onManualTagAdd={(title) => onManualTagAdd?.(card, title)}
 					{onTagOpen}
 					onTagRemove={(tagConcept) => onTagRemove?.(card, tagConcept)}
 				/>
-			</div>
 
+				<div class="card-sidebar-overlay" style="width:30px; height:max-content; background-color: red;">
+			</div>
+</div>
 			{#if previewChildCard}
 				<div
 					class={`concept-child-preview concept-child-preview-${previewPlacement}`}
@@ -614,16 +626,9 @@ function getRowAwareChildTileWidth(
 
 <ConceptDropArea
 	{card}
-	childCardsCount={childCards.length}
-	{childTileLayout}
+	{getConceptChildren}
 	bind:dropAreaElement
 	{onCardOpen}
-	{onOverflowOpen}
-	{onChildOpen}
-	onChildPointerDown={handleChildTilePointerDown}
-	onChildTileHoldCancel={cancelChildTileHold}
-	onChildPreviewShow={showChildPreview}
-	onChildPreviewHide={hideChildPreview}
 />
 		</div>
 	{/if}
@@ -650,8 +655,9 @@ function getRowAwareChildTileWidth(
 		min-height: 48px;
 		background: white;
 		border: 1px solid #d0d0d0;
-		border-radius: 12px;
-		box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+		border-radius: 2.5px;
+	transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease;
+		box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.314);
 		overflow: hidden;
 		pointer-events: auto;
 		cursor: grab;
@@ -659,6 +665,7 @@ function getRowAwareChildTileWidth(
 		z-index: 1;
 		border-bottom-right-radius: 0px;
 		border-top-left-radius: 0px;
+
 	}
 
 	
@@ -681,7 +688,14 @@ function getRowAwareChildTileWidth(
 		user-select: text;
 	}
 
+	.concept-card.is-collapsed {
+		justify-content: center;
+		align-items: center;
+	}
 
+	.concept-card.is-collapsed:hover {
+		background:var(--is-collapsed-bg-hover);
+	}
 
 	.concept-card.is-collapsed .concept-title-input {
 		flex: 0 0 auto;
@@ -691,16 +705,22 @@ function getRowAwareChildTileWidth(
 		padding: 4px 6px;
 		min-width: 2ch;
 		text-align: center;
-		
-		/*
-		
-		
-		
+		background: white;
+	}
 
-		
-		border: 0;
-		
-		background: transparent; */
+	.concept-resize-handle {
+		position: absolute;
+  		right: 1px;
+  		bottom: 1px;
+  		width: 14px;
+  		height: 14px;
+  		border: 0;
+		background: #D4E2EF;
+  		cursor: nwse-resize;
+  box-shadow: 
+   /* 1px 1px 0px 0px #000,     /* Outer black outline */
+    inset 1px 1px 0px 0px #fff, /* Top/Left highlight */
+    inset -0.5px -0.5px 0px 0px #808080; /* Bottom/Right inner shadow */
 	}
 
 	.concept-body {
@@ -748,33 +768,26 @@ function getRowAwareChildTileWidth(
 	}
 
 
-
 	.concept-card.is-marquee-previewed {
-		border-color: hsl(160 80% 45%);
-		box-shadow:
-			0 0 0 2px hsl(160 80% 45% / 55%),
-			0 2px 8px rgb(0 0 0 / 16%);
+		border-color: var(--marquee-preview-border-color);
+		box-shadow: var(--marquee-preview-box-shadow);
+			
 	}
 
 	.concept-card.is-selected.is-marquee-previewed {
-		border-color: hsl(210 90% 50%);
-		box-shadow:
-			0 0 0 2px hsl(210 90% 50% / 70%),
-			0 0 0 5px hsl(160 80% 45% / 25%),
-			0 2px 8px rgb(0 0 0 / 18%);
+		border-color: var(--selection-box-border-color);
+
 	}
 
-	.concept-card.is-collapsed {
-		justify-content: center;
-		align-items: center;
-	}
+
 
 	.concept-card.is-active {
 		z-index: 10;
 	}
 
 	.concept-card.is-selected {
-		border-color: var(--selection-box-border-color);
+		transition: all 100ms ease;
+		/* SHOULD SCALE WITH ZOOM, WITH A MAXIMUM */
 		box-shadow: var(--selection-box-box-shadow);
 	}
 
@@ -786,13 +799,18 @@ function getRowAwareChildTileWidth(
 		z-index: 20;
 		cursor: grabbing;
 		pointer-events: none;
-		box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
-		transition: transform 100ms ease ;
+		box-shadow: var(--is-dragging-box-shadow);
+		border-color: hsla(210, 90%, 50%, 0);
+		transition: all cubic-bezier(0.55, 0.055) 100ms;
+		
+
 	}
 
+	/* will not affect dragging cards */
 	.concept-card.is-arranging:not(.is-dragging) {
 	transition: transform 4000ms ease-in 1.5s;
 	
 }
+
 
 </style>

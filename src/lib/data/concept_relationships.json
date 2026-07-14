@@ -1,0 +1,56 @@
+[
+  {
+    "id": "relationship-marriage-test",
+    "relationshipConceptId": "concept-married-to",
+    "participantGroups": [
+      {
+        "participants": [
+          {
+            "type": "concept",
+            "id": "concept-makayla"
+          }
+        ]
+      },
+      {
+        "participants": [
+          {
+            "type": "concept",
+            "id": "concept-josh"
+          }
+        ]
+      }
+    ],
+    "properties": {
+      "testCase": "mutual-forward-pattern-only",
+      "expectedOnMakayla": "is married to Josh",
+      "expectedOnJosh": "is married to Makayla"
+    }
+  },
+  {
+    "id": "relationship-employment-test",
+    "relationshipConceptId": "concept-employee-of",
+    "participantGroups": [
+      {
+        "participants": [
+          {
+            "type": "concept",
+            "id": "concept-ashley"
+          }
+        ]
+      },
+      {
+        "participants": [
+          {
+            "type": "concept",
+            "id": "concept-family-video"
+          }
+        ]
+      }
+    ],
+    "properties": {
+      "testCase": "directional-forward-and-inverse",
+      "expectedOnAshley": "works at Family Video",
+      "expectedOnFamilyVideo": "employs Ashley"
+    }
+  }
+]

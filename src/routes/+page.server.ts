@@ -3,8 +3,11 @@ import path from 'node:path';
 import type { Concept } from '$lib/types/Concept';
 import type { ConceptInstance } from '$lib/types/ConceptInstance';
 import type { ConceptCardView } from '$lib/types/ConceptCardView';
+import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
 import { normalizeConcept } from '$lib/concepts/normalizeConcept';
 import { normalizeConceptInstance } from '$lib/concepts/normalizeConceptInstance';
+import { getAllConceptRelationships } from '$lib/repositories/conceptRelationshipRepository';
+import { getAllRelationshipDefinitions } from '$lib/repositories/relationshipDefinitionRepository';
 
 export async function load() {
   const conceptsPath = path.resolve('src/lib/data/concepts.json');
@@ -39,9 +42,15 @@ export async function load() {
     })
     .filter((card): card is ConceptCardView => card !== null);
 
+    const relationships = await getAllConceptRelationships();
+    const relationshipDefinitions = await getAllRelationshipDefinitions();
+
+  // Corresponding to the items in $lib/data
   return {
     concepts,
     instances,
-    cards
+    cards,
+    relationships,
+    relationshipDefinitions
   };
 }
