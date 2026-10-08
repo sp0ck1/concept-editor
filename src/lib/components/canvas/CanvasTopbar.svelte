@@ -1,8 +1,6 @@
 <script lang="ts">
-import { 
-	type ConceptCardView,
-	type MainView 
-	} from '$lib/canvas/types';
+import type { ConceptCardView } from '$lib/model/ConceptCardView';
+import type { MainView } from '$lib/canvas/types';
 
 
 let	{ 

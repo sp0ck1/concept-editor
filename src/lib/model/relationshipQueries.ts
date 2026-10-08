@@ -1,6 +1,6 @@
-import type { ConceptRelationship } from '$lib/types/ConceptRelationship';
-import type { Concept } from '$lib/types/Concept';
-import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
+import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
+import type { Concept } from '$lib/model/Concept';
+import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
 
 /**
  * Returns relationships where the concept is an actual participant.

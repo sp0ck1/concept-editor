@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
+import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
 
 const relationshipDefinitionsFilePath = path.resolve(
 	process.cwd(),

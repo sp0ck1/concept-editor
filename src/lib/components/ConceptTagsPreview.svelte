@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Concept } from '$lib/types/Concept';
+	import type { Concept } from '$lib/model/Concept';
 
 	// Props
 

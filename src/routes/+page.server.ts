@@ -1,10 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { Concept } from '$lib/types/Concept';
-import type { ConceptInstance } from '$lib/types/ConceptInstance';
-import type { ConceptCardView } from '$lib/types/ConceptCardView';
-import { normalizeConcept } from '$lib/concepts/normalizeConcept';
-import { normalizeConceptInstance } from '$lib/concepts/normalizeConceptInstance';
+import type { Concept } from '$lib/model/Concept';
+import type { ConceptInstance } from '$lib/model/ConceptInstance';
+import type { ConceptCardView } from '$lib/model/ConceptCardView';
+import { normalizeConcept } from '$lib/model/normalizeConcept';
+import { normalizeConceptInstance } from '$lib/model/normalizeConceptInstance';
 import { getAllConceptRelationships } from '$lib/repositories/conceptRelationshipRepository';
 import { getAllRelationshipDefinitions } from '$lib/repositories/relationshipDefinitionRepository';
 

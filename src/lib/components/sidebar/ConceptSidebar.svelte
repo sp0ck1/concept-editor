@@ -1,11 +1,11 @@
 <script lang="ts">
 	import ConceptTagsPreview from '$lib/components/ConceptTagsPreview.svelte';
-	import type { Concept } from '$lib/types/Concept';
-	import type { ConceptCardView } from '$lib/types/ConceptCardView';
+	import type { Concept } from '$lib/model/Concept';
+	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 	import TreeView from '$lib/components/tree/TreeView.svelte';
-	import type { ConceptRelationship } from '$lib/types/ConceptRelationship';
-	import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
-	import { getRelationshipDisplayParts } from '$lib/queries/conceptRelationshipQueries';
+	import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
+	import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
+	import { getRelationshipDisplayParts } from '$lib/model/relationshipQueries';
 
 	let {
 		sidebarTab,

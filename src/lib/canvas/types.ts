@@ -1,32 +1,8 @@
 	import {
 		defaultConceptWidth,
 		defaultConceptHeight
-	} from '$lib/concepts/normalizeConceptInstance';
-
-export type Concept = {
-  id: string;
-  title: string;
-  properties: Record<string, string>;
-  tagConceptIds: string[];
-};
-
-export type ConceptInstance = {
-  id: string;
-  conceptId: string;
-  parentInstanceId: string | null;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  lastCameraPanX: number;
-  lastCameraPanY: number;
-  lastCameraZoom: number;
-};
-
-export type ConceptCardView = {
-  instance: ConceptInstance;
-  concept: Concept;
-};
+	} from '$lib/model/normalizeConceptInstance';
+	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
 export type DragState =
 	| {

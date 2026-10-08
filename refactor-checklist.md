@@ -129,8 +129,8 @@ currentCardLayout
 
 ## 2. Establish one definition of each model
 
-* [ ] Rename `src/lib/types/` to `src/lib/model/`.
-* [ ] Keep these model files separate:
+* [x] Rename `src/lib/types/` to `src/lib/model/`.
+* [x] Keep these model files separate:
 
 ```text
 src/lib/model/Concept.ts
@@ -141,32 +141,32 @@ src/lib/model/RelationshipDefinition.ts
 src/lib/model/TitleConflictMode.ts
 ```
 
-* [ ] Move `src/lib/concepts/normalizeConcept.ts` to `src/lib/model/normalizeConcept.ts`.
+* [x] Move `src/lib/concepts/normalizeConcept.ts` to `src/lib/model/normalizeConcept.ts`.
 
-* [ ] Move `src/lib/concepts/normalizeConceptInstance.ts` to `src/lib/model/normalizeConceptInstance.ts`.
+* [x] Move `src/lib/concepts/normalizeConceptInstance.ts` to `src/lib/model/normalizeConceptInstance.ts`.
 
-* [ ] Move and rename `src/lib/queries/conceptRelationshipQueries.ts` to `src/lib/model/relationshipQueries.ts`.
+* [x] Move and rename `src/lib/queries/conceptRelationshipQueries.ts` to `src/lib/model/relationshipQueries.ts`.
 
-* [ ] Delete the duplicate `Concept`, `ConceptInstance`, and `ConceptCardView` definitions from `src/lib/canvas/types.ts`.
+* [x] Delete the duplicate `Concept`, `ConceptInstance`, and `ConceptCardView` definitions from `src/lib/canvas/types.ts`.
 
-* [ ] Import the canonical model types into `src/lib/canvas/types.ts` where its remaining declarations require them.
+* [x] Import the canonical model types into `src/lib/canvas/types.ts` where its remaining declarations require them.
 
-* [ ] Change consumers that import model types from `$lib/canvas/types` to import them directly from `$lib/model/Concept`, `$lib/model/ConceptInstance`, or `$lib/model/ConceptCardView`.
+* [x] Change consumers that import model types from `$lib/canvas/types` to import them directly from `$lib/model/Concept`, `$lib/model/ConceptInstance`, or `$lib/model/ConceptCardView`.
 
-* [ ] Update all remaining `$lib/types`, `$lib/concepts`, and relationship-query imports.
+* [x] Update all remaining `$lib/types`, `$lib/concepts`, and relationship-query imports.
 
-* [ ] Change `src/routes/api/concepts/+server.ts` to import `TitleConflictMode` directly from `$lib/model/TitleConflictMode`, rather than from `conceptService`.
+* [x] Change `src/routes/api/concepts/+server.ts` to import `TitleConflictMode` directly from `$lib/model/TitleConflictMode`, rather than from `conceptService`.
 
-* [ ] Delete the old `concepts/` and `queries/` directories once empty.
+* [x] Delete the old `concepts/` and `queries/` directories once empty.
 
-* [ ] Keep the existing model shapes unchanged.
+* [x] Keep the existing model shapes unchanged.
 
-* [ ] Record the differing missing-camera-zoom defaults in `docs/refactor-notes.md`. Do not silently change normalization defaults while moving files.
+* [x] Record the differing missing-camera-zoom defaults in `docs/refactor-notes.md`. Do not silently change normalization defaults while moving files.
 
 **Checkpoint**
 
-* [ ] Search for `type Concept`, `type ConceptInstance`, and `type ConceptCardView`.
-* [ ] Verify that each core model has one definition.
+* [x] Search for `type Concept`, `type ConceptInstance`, and `type ConceptCardView`.
+* [x] Verify that each core model has one definition.
 * [ ] Verify loading and saving without changing the stored data format.
 
 ## 3. Put the editor implementation together

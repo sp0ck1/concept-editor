@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { Concept } from '$lib/types/Concept';
-import { normalizeConcept } from '$lib/concepts/normalizeConcept';
+import type { Concept } from '$lib/model/Concept';
+import { normalizeConcept } from '$lib/model/normalizeConcept';
 
 const conceptsPath = path.resolve(process.cwd(), 'src/lib/data/concepts.json');
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ConceptTagsPreview from '$lib/components/ConceptTagsPreview.svelte';
-	import type { Concept } from '$lib/types/Concept';
-	import type { ConceptCardView } from '$lib/types/ConceptCardView';
+	import type { Concept } from '$lib/model/Concept';
+	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
 	import ConceptDropArea from '$lib/components/card/ConceptDropArea.svelte';
 

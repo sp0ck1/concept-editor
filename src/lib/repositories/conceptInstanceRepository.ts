@@ -1,11 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { ConceptInstance } from '$lib/types/ConceptInstance';
+import type { ConceptInstance } from '$lib/model/ConceptInstance';
 import {
 	defaultConceptHeight,
 	defaultConceptWidth,
 	normalizeConceptInstance
-} from '$lib/concepts/normalizeConceptInstance';
+} from '$lib/model/normalizeConceptInstance';
 
 const instancesPath = path.resolve(
 	process.cwd(),

@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getAllConceptRelationships } from '$lib/repositories/conceptRelationshipRepository';
-import { getRelationshipsForConcept } from '$lib/queries/conceptRelationshipQueries';
+import { getRelationshipsForConcept } from '$lib/model/relationshipQueries';
 
 export const GET: RequestHandler = async ({ url }) => {
 	const conceptId = url.searchParams.get('conceptId');

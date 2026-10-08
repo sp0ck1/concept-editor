@@ -1,4 +1,4 @@
-import type { Concept } from '$lib/types/Concept';
+import type { Concept } from '$lib/model/Concept';
 
 export function normalizeConcept(concept: Partial<Concept>, index = 0): Concept {
 	return {

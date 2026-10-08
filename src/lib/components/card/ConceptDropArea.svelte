@@ -1,6 +1,6 @@
 <script lang="ts">
 	import TreeView from '$lib/components/tree/TreeView.svelte';
-	import type { ConceptCardView } from '$lib/types/ConceptCardView';
+	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
 	let {
 		card,

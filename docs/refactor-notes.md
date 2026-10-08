@@ -117,3 +117,22 @@ svelte-check found 0 errors and 19 warnings in 8 files
 ```
 
 The warning count matches the Phase 0 baseline after deleting styles used only by the retired property-preview markup. Source inspection confirms the title-focus effect, 300 ms child-hold timer and cancellation, `.concept-drop-area`, `data-instance-id`, and active tree rendering remain. Interactive browser verification is deferred to the final regression pass; no mutation tests were run against live JSON data.
+
+## Phase 2 — canonical models
+
+Core model definitions now live only in `src/lib/model/`. The persisted shapes of Concept, ConceptInstance, ConceptCardView, ConceptRelationship, RelationshipDefinition, and TitleConflictMode are unchanged.
+
+The pre-existing missing-camera-zoom defaults intentionally remain different:
+
+- `normalizeConceptInstance()` defaults a missing `lastCameraZoom` to `0`.
+- instance creation and editor-local normalization paths default a missing `lastCameraZoom` to `1`.
+
+This discrepancy is recorded rather than resolved because changing it during file consolidation could change behavior or the interpretation of older records.
+
+Phase 2 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+```
+
+Search confirms that `Concept`, `ConceptInstance`, and `ConceptCardView` each have one declaration and source imports no longer reference `$lib/types`, `$lib/concepts`, or the old relationship-query path. The production build succeeds and loads all four JSON collections. SHA-256 hashes for all four live JSON files were identical before and after the build, confirming that validation did not mutate them. Runtime mutation-based save verification remains deferred to protect the live JSON data.

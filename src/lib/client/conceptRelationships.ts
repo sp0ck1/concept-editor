@@ -1,7 +1,7 @@
 import type {
 	ConceptRelationship,
 	RelationshipParticipantGroup
-} from '$lib/types/ConceptRelationship';
+} from '$lib/model/ConceptRelationship';
 
 export type CreateConceptRelationshipInput = Omit<ConceptRelationship, 'id'>;
 

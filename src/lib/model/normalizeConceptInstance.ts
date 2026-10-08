@@ -1,4 +1,4 @@
-import type { ConceptInstance } from '$lib/types/ConceptInstance';
+import type { ConceptInstance } from '$lib/model/ConceptInstance';
 
 export const defaultConceptWidth = 350;
 export const defaultConceptHeight = 250;

@@ -1,6 +1,6 @@
-import type { Concept } from '$lib/types/Concept';
-import type { ConceptInstance } from '$lib/types/ConceptInstance';
-import type { TitleConflictMode } from '$lib/types/TitleConflictMode';
+import type { Concept } from '$lib/model/Concept';
+import type { ConceptInstance } from '$lib/model/ConceptInstance';
+import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
 
 
 export type CreateConceptRequest = {

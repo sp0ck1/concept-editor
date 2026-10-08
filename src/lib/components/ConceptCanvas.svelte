@@ -5,14 +5,14 @@
 	import CanvasContextMenu from '$lib/components/canvas/CanvasContextMenu.svelte';
 	import CanvasTopbar from '$lib/components/canvas/CanvasTopbar.svelte';
 	import ConceptSidebar from '$lib/components/sidebar/ConceptSidebar.svelte';
-	import type { TitleConflictMode } from '$lib/types/TitleConflictMode';
-	import type { ConceptRelationship } from '$lib/types/ConceptRelationship';
-	import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
+	import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
+	import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
+	import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
+	import type { Concept } from '$lib/model/Concept';
+	import type { ConceptInstance } from '$lib/model/ConceptInstance';
+	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 	import {
 		conceptSizePresets,
-		type Concept,
-		type ConceptInstance,
-		type ConceptCardView,
 		type ConceptSizePreset,
 		type ChildTileDragState,
 		type ContextMenu,
@@ -28,13 +28,13 @@
 	import {
 		defaultConceptWidth,
 		defaultConceptHeight
-	} from '$lib/concepts/normalizeConceptInstance';
+	} from '$lib/model/normalizeConceptInstance';
 	import { lineParser, type ParsedConceptInput } from '$lib/parsers';
 	import PasteImportConfirmation from '$lib/components/canvas/PasteImportConfirmation.svelte';
 	import CanvasSelectionBox from '$lib/components/canvas/CanvasSelectionBox.svelte';
 	import { createConceptRecord, updateConceptTitleFromInstanceRecord } from '$lib/client/concepts';
 	import { updateConceptInstanceRecord } from '$lib/client/conceptInstances';
-	import { getRelationshipsForConcept } from '$lib/queries/conceptRelationshipQueries';
+	import { getRelationshipsForConcept } from '$lib/model/relationshipQueries';
 	import {SvelteSet} from "svelte/reactivity";
 
 	// let Declarations

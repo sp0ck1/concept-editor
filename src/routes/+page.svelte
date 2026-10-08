@@ -1,9 +1,9 @@
 <script lang="ts">
 	import ConceptCanvas from '$lib/components/ConceptCanvas.svelte';
-	import type { Concept } from '$lib/types/Concept';
-	import type { ConceptCardView } from '$lib/types/ConceptCardView';
-	import type { ConceptRelationship } from '$lib/types/ConceptRelationship';
-	import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
+	import type { Concept } from '$lib/model/Concept';
+	import type { ConceptCardView } from '$lib/model/ConceptCardView';
+	import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
+	import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
 
 	let { data } = $props<{
 		data: {

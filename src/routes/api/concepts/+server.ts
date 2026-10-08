@@ -6,7 +6,7 @@ import {
 	updateConceptTitleFromInstance,
 	type CreateConceptWithInstanceInput
 } from '$lib/services/conceptService';
-import type { TitleConflictMode } from '$lib/types/TitleConflictMode';
+import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
 
 import {
 	updateConcept,

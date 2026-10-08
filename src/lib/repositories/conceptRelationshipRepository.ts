@@ -3,7 +3,7 @@ import path from 'node:path';
 import type {
 	ConceptRelationship,
 	RelationshipParticipantGroup
-} from '$lib/types/ConceptRelationship';
+} from '$lib/model/ConceptRelationship';
 
 const relationshipsFilePath = path.resolve(
 	process.cwd(),

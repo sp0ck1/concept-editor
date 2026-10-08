@@ -1,4 +1,4 @@
-import type { ConceptInstance } from '$lib/types/ConceptInstance';
+import type { ConceptInstance } from '$lib/model/ConceptInstance';
 
 export type ConceptInstanceUpdates = Partial<
 	Omit<ConceptInstance, 'id' | 'conceptId'>

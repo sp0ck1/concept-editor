@@ -1,5 +1,4 @@
-
-// src/lib/types/ConceptRelationship.ts
+// src/lib/model/ConceptRelationship.ts
 
 export type RelationshipParticipantReference =
 	| {

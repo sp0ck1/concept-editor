@@ -1,6 +1,6 @@
-import type { Concept } from '$lib/types/Concept';
-import type { TitleConflictMode } from '$lib/types/TitleConflictMode';
-import type { ConceptInstance } from '$lib/types/ConceptInstance';
+import type { Concept } from '$lib/model/Concept';
+import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
+import type { ConceptInstance } from '$lib/model/ConceptInstance';
 import {
 	createConceptId,
 	getAllConcepts,
@@ -14,7 +14,7 @@ import {
 import {
 	defaultConceptHeight,
 	defaultConceptWidth
-} from '$lib/concepts/normalizeConceptInstance';
+} from '$lib/model/normalizeConceptInstance';
 
 
 
