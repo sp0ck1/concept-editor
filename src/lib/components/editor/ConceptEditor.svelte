@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import ConceptCard from '$lib/components/card/ConceptCard.svelte';
-	import CanvasContextMenu from '$lib/components/canvas/CanvasContextMenu.svelte';
-	import CanvasTopbar from '$lib/components/canvas/CanvasTopbar.svelte';
-	import ConceptSidebar from '$lib/components/sidebar/ConceptSidebar.svelte';
+	import ConceptCard from '$lib/components/editor/card/ConceptCard.svelte';
+	import CanvasContextMenu from '$lib/components/editor/canvas/CanvasContextMenu.svelte';
+	import CanvasTopbar from '$lib/components/editor/canvas/CanvasTopbar.svelte';
+	import ConceptSidebar from '$lib/components/editor/sidebar/ConceptSidebar.svelte';
 	import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
 	import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
 	import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
@@ -23,15 +23,19 @@
 		type SelectionBoxState,
 		type SidebarTab,
 		type CreateConceptOptions
-	} from '$lib/canvas/types';
-	import { clamp, normalizeRectangle, getRectangleOverlapRatio } from '$lib/canvas/geometry';
+	} from '$lib/components/editor/canvas/CanvasTypes';
+	import {
+		clamp,
+		normalizeRectangle,
+		getRectangleOverlapRatio
+	} from '$lib/components/editor/canvas/geometry';
 	import {
 		defaultConceptWidth,
 		defaultConceptHeight
 	} from '$lib/model/normalizeConceptInstance';
 	import { lineParser, type ParsedConceptInput } from '$lib/parsers';
-	import PasteImportConfirmation from '$lib/components/canvas/PasteImportConfirmation.svelte';
-	import CanvasSelectionBox from '$lib/components/canvas/CanvasSelectionBox.svelte';
+	import PasteImportConfirmation from '$lib/components/editor/canvas/PasteImportConfirmation.svelte';
+	import CanvasSelectionBox from '$lib/components/editor/canvas/CanvasSelectionBox.svelte';
 	import { createConceptRecord, updateConceptTitleFromInstanceRecord } from '$lib/client/concepts';
 	import { updateConceptInstanceRecord } from '$lib/client/conceptInstances';
 	import { getRelationshipsForConcept } from '$lib/model/relationshipQueries';

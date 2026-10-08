@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ConceptSizePreset, ContextMenu } from '$lib/canvas/types';
+	import type { ConceptSizePreset, ContextMenu } from '$lib/components/editor/canvas/CanvasTypes';
 
 	type ImportChildrenMenuState = {
 		visible: boolean;

@@ -136,3 +136,17 @@ svelte-check found 0 errors and 19 warnings in 8 files
 ```
 
 Search confirms that `Concept`, `ConceptInstance`, and `ConceptCardView` each have one declaration and source imports no longer reference `$lib/types`, `$lib/concepts`, or the old relationship-query path. The production build succeeds and loads all four JSON collections. SHA-256 hashes for all four live JSON files were identical before and after the build, confirming that validation did not mutate them. Runtime mutation-based save verification remains deferred to protect the live JSON data.
+
+## Phase 3 — editor component grouping
+
+The workspace-sized `ConceptCanvas.svelte` is now named `ConceptEditor.svelte`, and editor-only canvas, card, tree, sidebar, and support components are grouped under `src/lib/components/editor/`. No state or behavior was extracted in this phase, and the future rendering-only `canvas/ConceptCanvas.svelte` has not been created yet.
+
+The post-move audit caught that `TreeViewNode.svelte` had not arrived at its destination even though an earlier delegated check reported success. The exact committed file was restored under `components/editor/tree/`, the obsolete copy was removed, and the authoritative WSL check was rerun.
+
+Phase 3 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+```
+
+Search confirms no source imports reference `$lib/components/ConceptCanvas`, the old component subdirectories, or `$lib/canvas`. Manual browser behavior verification remains deferred to the final regression pass.

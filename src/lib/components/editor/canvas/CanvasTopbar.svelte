@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { ConceptCardView } from '$lib/model/ConceptCardView';
-import type { MainView } from '$lib/canvas/types';
+import type { MainView } from '$lib/components/editor/canvas/CanvasTypes';
 
 
 let	{ 

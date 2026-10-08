@@ -1,5 +1,5 @@
 <script lang="ts">
-	import TreeViewNode from '$lib/components/tree/TreeViewNode.svelte';
+	import TreeViewNode from '$lib/components/editor/tree/TreeViewNode.svelte';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
 	let {

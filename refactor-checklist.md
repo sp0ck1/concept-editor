@@ -171,13 +171,13 @@ src/lib/model/TitleConflictMode.ts
 
 ## 3. Put the editor implementation together
 
-* [ ] Create `src/lib/components/editor/`.
+* [x] Create `src/lib/components/editor/`.
 
-* [ ] Move and rename `src/lib/components/ConceptCanvas.svelte` to `src/lib/components/editor/ConceptEditor.svelte`.
+* [x] Move and rename `src/lib/components/ConceptCanvas.svelte` to `src/lib/components/editor/ConceptEditor.svelte`.
 
-* [ ] Update `src/routes/+page.svelte` to import and render `ConceptEditor`.
+* [x] Update `src/routes/+page.svelte` to import and render `ConceptEditor`.
 
-* [ ] Move these directories:
+* [x] Move these directories:
 
 | From                          | To                                   |
 | ----------------------------- | ------------------------------------ |
@@ -186,22 +186,22 @@ src/lib/model/TitleConflictMode.ts
 | `src/lib/components/sidebar/` | `src/lib/components/editor/sidebar/` |
 | `src/lib/components/tree/`    | `src/lib/components/editor/tree/`    |
 
-* [ ] Move `src/lib/components/ConceptTagsPreview.svelte` to `src/lib/components/editor/ConceptTagsPreview.svelte`.
+* [x] Move `src/lib/components/ConceptTagsPreview.svelte` to `src/lib/components/editor/ConceptTagsPreview.svelte`.
 
-* [ ] Move `src/lib/canvas/geometry.ts` to `src/lib/components/editor/canvas/geometry.ts`.
+* [x] Move `src/lib/canvas/geometry.ts` to `src/lib/components/editor/canvas/geometry.ts`.
 
-* [ ] Move and rename `src/lib/canvas/types.ts` to `src/lib/components/editor/canvas/CanvasTypes.ts`.
+* [x] Move and rename `src/lib/canvas/types.ts` to `src/lib/components/editor/canvas/CanvasTypes.ts`.
 
-* [ ] Update imports and delete the old `src/lib/canvas/` directory.
+* [x] Update imports and delete the old `src/lib/canvas/` directory.
 
-* [ ] Keep all existing workspace markup and behavior in `ConceptEditor.svelte` for now.
+* [x] Keep all existing workspace markup and behavior in `ConceptEditor.svelte` for now.
 
-* [ ] Do not create the replacement `ConceptCanvas.svelte` yet.
+* [x] Do not create the replacement `ConceptCanvas.svelte` yet.
 
 **Checkpoint**
 
 * [ ] Verify that the application behaves exactly as it did before these moves.
-* [ ] Resolve broken imports before extracting any state or behavior.
+* [x] Resolve broken imports before extracting any state or behavior.
 
 ## 4. Make the server boundary explicit
 

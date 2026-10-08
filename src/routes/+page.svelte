@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ConceptCanvas from '$lib/components/ConceptCanvas.svelte';
+	import ConceptEditor from '$lib/components/editor/ConceptEditor.svelte';
 	import type { Concept } from '$lib/model/Concept';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 	import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
@@ -16,7 +16,7 @@
 </script>
 
 <main class="app">
-	<ConceptCanvas 
+	<ConceptEditor
 	initialCards={data.cards} 
 	initialConcepts={data.concepts} 
 	initialRelationships={data.relationships}

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import ConceptTagsPreview from '$lib/components/ConceptTagsPreview.svelte';
+	import ConceptTagsPreview from '$lib/components/editor/ConceptTagsPreview.svelte';
 	import type { Concept } from '$lib/model/Concept';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
-	import TreeView from '$lib/components/tree/TreeView.svelte';
+	import TreeView from '$lib/components/editor/tree/TreeView.svelte';
 	import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
 	import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
 	import { getRelationshipDisplayParts } from '$lib/model/relationshipQueries';
