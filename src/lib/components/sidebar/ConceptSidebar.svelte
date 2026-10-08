@@ -2,11 +2,11 @@
 	import ConceptTagsPreview from '$lib/components/ConceptTagsPreview.svelte';
 	import type { Concept } from '$lib/types/Concept';
 	import type { ConceptCardView } from '$lib/types/ConceptCardView';
-    import TreeView from '$lib/components/tree/TreeView.svelte';
+	import TreeView from '$lib/components/tree/TreeView.svelte';
 	import type { ConceptRelationship } from '$lib/types/ConceptRelationship';
 	import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
 	import { getRelationshipDisplayParts } from '$lib/queries/conceptRelationshipQueries';
-	
+
 	let {
 		sidebarTab,
 		currentCanvasOwnerCard,
@@ -25,8 +25,7 @@
 		getRootConceptInstances,
 		relationships,
 		relationshipDefinitions,
-		getConceptById,
-		onRelationshipConceptOpen,
+		getConceptById
 	} = $props<{
 		sidebarTab: 'concept' | 'tree';
 		currentCanvasOwnerCard: ConceptCardView | null;
@@ -46,130 +45,113 @@
 		relationships: ConceptRelationship[];
 		relationshipDefinitions: RelationshipDefinition[];
 		getConceptById: (conceptId: string) => Concept | null;
-		onRelationshipConceptOpen: (concept: Concept) => void;
-		
 	}>();
 
-let newPropertyKey = $state('');
-let newPropertyValue = $state('');
+	let newPropertyKey = $state('');
+	let newPropertyValue = $state('');
 
-$effect(() => {
-	currentCanvasOwnerCard?.instance.id;
+	$effect(() => {
+		currentCanvasOwnerCard?.instance.id;
 
-	newPropertyKey = '';
-	newPropertyValue = '';
-});
-
-function updatePropertyKey(
-	card: ConceptCardView,
-	oldKey: string,
-	nextKey: string,
-	input: HTMLInputElement
-) {
-	const trimmedKey = nextKey.trim();
-
-	if (!trimmedKey || trimmedKey === oldKey) {
-		input.value = oldKey;
-		return;
-	}
-
-	const properties = card.concept.properties ?? {};
-
-	if (trimmedKey in properties) {
-		input.value = oldKey;
-		return;
-	}
-
-	const nextProperties = Object.fromEntries(
-		Object.entries(properties).map(([key, value]) =>
-			key === oldKey ? [trimmedKey, value] : [key, value]
-		)
-	);
-
-	onPropertiesChange(card, nextProperties);
-}
-
-function updatePropertyValue(
-	card: ConceptCardView,
-	key: string,
-	value: string
-) {
-	onPropertiesChange(card, {
-		...(card.concept.properties ?? {}),
-		[key]: value
-	});
-}
-
-function removeProperty(card: ConceptCardView, keyToRemove: string) {
-	const nextProperties = Object.fromEntries(
-		Object.entries(card.concept.properties ?? {}).filter(
-			([key]) => key !== keyToRemove
-		)
-	);
-
-	onPropertiesChange(card, nextProperties);
-}
-
-function commitNewProperty(card: ConceptCardView) {
-	const key = newPropertyKey.trim();
-
-	if (!key) {
-		return;
-	}
-
-	const properties = card.concept.properties ?? {};
-
-	if (key in properties) {
-		return;
-	}
-
-	onPropertiesChange(card, {
-		...properties,
-		[key]: newPropertyValue
+		newPropertyKey = '';
+		newPropertyValue = '';
 	});
 
-	newPropertyKey = '';
-	newPropertyValue = '';
-}
+	function updatePropertyKey(
+		card: ConceptCardView,
+		oldKey: string,
+		nextKey: string,
+		input: HTMLInputElement
+	) {
+		const trimmedKey = nextKey.trim();
 
-function handleNewPropertyKeydown(event: KeyboardEvent) {
-	if (event.key !== 'Enter') {
-		return;
+		if (!trimmedKey || trimmedKey === oldKey) {
+			input.value = oldKey;
+			return;
+		}
+
+		const properties = card.concept.properties ?? {};
+
+		if (trimmedKey in properties) {
+			input.value = oldKey;
+			return;
+		}
+
+		const nextProperties = Object.fromEntries(
+			Object.entries(properties).map(([key, value]) =>
+				key === oldKey ? [trimmedKey, value] : [key, value]
+			)
+		);
+
+		onPropertiesChange(card, nextProperties);
 	}
 
-	event.preventDefault();
-
-	const row = (event.currentTarget as HTMLInputElement).closest(
-		'.sidebar-property-row'
-	);
-
-	const valueInput =
-		row?.querySelector<HTMLInputElement>('.sidebar-property-value');
-
-	valueInput?.focus();
-}
-
-function handleNewPropertyValueKeydown(
-	event: KeyboardEvent,
-	card: ConceptCardView
-) {
-	if (event.key !== 'Enter') {
-		return;
+	function updatePropertyValue(card: ConceptCardView, key: string, value: string) {
+		onPropertiesChange(card, {
+			...(card.concept.properties ?? {}),
+			[key]: value
+		});
 	}
 
-	event.preventDefault();
-	commitNewProperty(card);
-}
+	function removeProperty(card: ConceptCardView, keyToRemove: string) {
+		const nextProperties = Object.fromEntries(
+			Object.entries(card.concept.properties ?? {}).filter(([key]) => key !== keyToRemove)
+		);
 
-function blurOnEnter(event: KeyboardEvent) {
-	if (event.key === 'Enter') {
+		onPropertiesChange(card, nextProperties);
+	}
+
+	function commitNewProperty(card: ConceptCardView) {
+		const key = newPropertyKey.trim();
+
+		if (!key) {
+			return;
+		}
+
+		const properties = card.concept.properties ?? {};
+
+		if (key in properties) {
+			return;
+		}
+
+		onPropertiesChange(card, {
+			...properties,
+			[key]: newPropertyValue
+		});
+
+		newPropertyKey = '';
+		newPropertyValue = '';
+	}
+
+	function handleNewPropertyKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Enter') {
+			return;
+		}
+
 		event.preventDefault();
-		(event.currentTarget as HTMLInputElement).blur();
+
+		const row = (event.currentTarget as HTMLInputElement).closest('.sidebar-property-row');
+
+		const valueInput = row?.querySelector<HTMLInputElement>('.sidebar-property-value');
+
+		valueInput?.focus();
 	}
 
+	function handleNewPropertyValueKeydown(event: KeyboardEvent, card: ConceptCardView) {
+		if (event.key !== 'Enter') {
+			return;
+		}
 
-}
+		event.preventDefault();
+		commitNewProperty(card);
+	}
 
+	function blurOnEnter(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			(event.currentTarget as HTMLInputElement).blur();
+		}
+	}
 </script>
 
 <aside class="concept-sidebar" aria-label="Concept sidebar">
@@ -196,12 +178,12 @@ function blurOnEnter(event: KeyboardEvent) {
 	</div>
 
 	<!-- if sidebarTab is Concept vs. is sidebarTab is Tree -->
-	 <!-- Maybe you should be able to rename Concept to something else. Or change type. I did want everything to have type. Hmmmmmmm -->
+	<!-- Maybe you should be able to rename Concept to something else. Or change type. I did want everything to have type. Hmmmmmmm -->
 	{#if sidebarTab === 'concept'}
 		<div class="sidebar-panel">
 			{#if currentCanvasOwnerCard}
 				{@const sidebarCard = currentCanvasOwnerCard}
-				
+
 				<div class="sidebar-section">
 					<input
 						class="sidebar-title-input"
@@ -213,45 +195,38 @@ function blurOnEnter(event: KeyboardEvent) {
 					/>
 
 					<div class="sidebar-id">{sidebarCard.instance.id}</div>
-					
-			<!-- If not at root, display up button -->
-			{#if currentCanvasOwnerCard !== null}
-				<button class="canvas-breadcrumb-up" type="button" onclick={onGoUpOneLevel}>Up</button>
-			{/if}
-				</div>
-<div class="sidebar-section">
-	<div class="sidebar-label">Relationships</div>
 
-	{#if relationships.length > 0}
-	<div class="sidebar-relationship-list">
-		{#each relationships as relationship (relationship.id)}
-			<div class="sidebar-relationship-row">
-				{#each getRelationshipDisplayParts(
-					relationship,
-					relationshipDefinitions,
-					sidebarCard.concept.id,
-					getConceptById
-				) as part}
-					{#if part.type === 'text'}
-						<span>{part.value}</span>
-					{:else}
-<span
-	class="sidebar-relationship-concept"
-	title={part.concept.title || 'Untitled Concept'}
->
-	{part.concept.title || 'Untitled Concept'}
-</span>
+					<!-- If not at root, display up button -->
+					{#if currentCanvasOwnerCard !== null}
+						<button class="canvas-breadcrumb-up" type="button" onclick={onGoUpOneLevel}>Up</button>
 					{/if}
-				{/each}
-			</div>
-		{/each}
-	</div>
-{:else}
-	<div class="sidebar-empty">
-		No relationships yet.
-	</div>
-{/if}
-</div>
+				</div>
+				<div class="sidebar-section">
+					<div class="sidebar-label">Relationships</div>
+
+					{#if relationships.length > 0}
+						<div class="sidebar-relationship-list">
+							{#each relationships as relationship (relationship.id)}
+								<div class="sidebar-relationship-row">
+									{#each getRelationshipDisplayParts(relationship, relationshipDefinitions, sidebarCard.concept.id, getConceptById) as part}
+										{#if part.type === 'text'}
+											<span>{part.value}</span>
+										{:else}
+											<span
+												class="sidebar-relationship-concept"
+												title={part.concept.title || 'Untitled Concept'}
+											>
+												{part.concept.title || 'Untitled Concept'}
+											</span>
+										{/if}
+									{/each}
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="sidebar-empty">No relationships yet.</div>
+					{/if}
+				</div>
 				<div class="sidebar-section sidebar-tags-section">
 					<div class="tag-label-row">
 						<div class="sidebar-label">Tags</div>
@@ -283,86 +258,81 @@ function blurOnEnter(event: KeyboardEvent) {
 					/>
 				</div>
 
-<div class="sidebar-section sidebar-properties-section">
-	<div class="sidebar-properties-heading">
-		<div class="sidebar-label">Properties</div>
-	</div>
+				<div class="sidebar-section sidebar-properties-section">
+					<div class="sidebar-properties-heading">
+						<div class="sidebar-label">Properties</div>
+					</div>
 
-	<div class="sidebar-property-list">
-		{#each Object.entries(sidebarCard.concept.properties ?? {}) as [key, value] (key)}
-			<div class="sidebar-property-row">
-				<input
-					class="sidebar-property-key"
-					value={key}
-					aria-label="Property name"
-					onkeydown={blurOnEnter}
-					onblur={(event) =>
-						updatePropertyKey(
-							sidebarCard,
-							key,
-							event.currentTarget.value,
-							event.currentTarget
-						)}
-				/>
+					<div class="sidebar-property-list">
+						{#each Object.entries(sidebarCard.concept.properties ?? {}) as [key, value] (key)}
+							<div class="sidebar-property-row">
+								<input
+									class="sidebar-property-key"
+									value={key}
+									aria-label="Property name"
+									onkeydown={blurOnEnter}
+									onblur={(event) =>
+										updatePropertyKey(
+											sidebarCard,
+											key,
+											event.currentTarget.value,
+											event.currentTarget
+										)}
+								/>
 
-				<div class="sidebar-property-divider" aria-hidden="true">:</div>
+								<div class="sidebar-property-divider" aria-hidden="true">:</div>
 
-				<input
-					class="sidebar-property-value"
-					value={value}
-					aria-label={`Value for ${key}`}
-					onkeydown={blurOnEnter}
-					onblur={(event) =>
-						updatePropertyValue(
-							sidebarCard,
-							key,
-							event.currentTarget.value
-						)}
-				/>
+								<input
+									class="sidebar-property-value"
+									{value}
+									aria-label={`Value for ${key}`}
+									onkeydown={blurOnEnter}
+									onblur={(event) =>
+										updatePropertyValue(sidebarCard, key, event.currentTarget.value)}
+								/>
 
-				<button
-					class="sidebar-remove-property"
-					type="button"
-					aria-label={`Remove ${key}`}
-					onclick={() => removeProperty(sidebarCard, key)}
-				>
-					×
-				</button>
-			</div>
-		{/each}
+								<button
+									class="sidebar-remove-property"
+									type="button"
+									aria-label={`Remove ${key}`}
+									onclick={() => removeProperty(sidebarCard, key)}
+								>
+									×
+								</button>
+							</div>
+						{/each}
 
-		<div class="sidebar-property-row sidebar-property-row-new">
-			<input
-				class="sidebar-property-key"
-				bind:value={newPropertyKey}
-				placeholder="property"
-				aria-label="New property name"
-				onkeydown={handleNewPropertyKeydown}
-				onblur={(event) => {
-					const nextTarget = event.relatedTarget as Element | null;
+						<div class="sidebar-property-row sidebar-property-row-new">
+							<input
+								class="sidebar-property-key"
+								bind:value={newPropertyKey}
+								placeholder="property"
+								aria-label="New property name"
+								onkeydown={handleNewPropertyKeydown}
+								onblur={(event) => {
+									const nextTarget = event.relatedTarget as Element | null;
 
-					if (!nextTarget?.closest('.sidebar-property-row-new')) {
-						commitNewProperty(sidebarCard);
-					}
-				}}
-			/>
+									if (!nextTarget?.closest('.sidebar-property-row-new')) {
+										commitNewProperty(sidebarCard);
+									}
+								}}
+							/>
 
-			<div class="sidebar-property-divider" aria-hidden="true">:</div>
+							<div class="sidebar-property-divider" aria-hidden="true">:</div>
 
-			<input
-				class="sidebar-property-value"
-				bind:value={newPropertyValue}
-				placeholder="value"
-				aria-label="New property value"
-				onkeydown={(event) =>
-					handleNewPropertyValueKeydown(event, sidebarCard)}
-				onblur={() => commitNewProperty(sidebarCard)}
-			/>
+							<input
+								class="sidebar-property-value"
+								bind:value={newPropertyValue}
+								placeholder="value"
+								aria-label="New property value"
+								onkeydown={(event) => handleNewPropertyValueKeydown(event, sidebarCard)}
+								onblur={() => commitNewProperty(sidebarCard)}
+							/>
 
-			<div class="sidebar-property-row-spacer" aria-hidden="true"></div>
-		</div>
-	</div>
-</div>
+							<div class="sidebar-property-row-spacer" aria-hidden="true"></div>
+						</div>
+					</div>
+				</div>
 			{:else}
 				<div class="sidebar-section">
 					<input
@@ -378,16 +348,13 @@ function blurOnEnter(event: KeyboardEvent) {
 				</div>
 			{/if}
 		</div>
-{:else}
-	<div class="sidebar-panel sidebar-tree-panel">
-	<div class="sidebar-section">
-		<TreeView
-			{getConceptChildren}
-			{getRootConceptInstances}
-		/>
-	</div>
-</div>
-{/if}
+	{:else}
+		<div class="sidebar-panel sidebar-tree-panel">
+			<div class="sidebar-section">
+				<TreeView {getConceptChildren} {getRootConceptInstances} />
+			</div>
+		</div>
+	{/if}
 </aside>
 
 <style>
@@ -397,7 +364,7 @@ function blurOnEnter(event: KeyboardEvent) {
 		display: flex;
 		flex-direction: column;
 		border-right: 1px solid hsl(224 8% 24%);
-		background: hsl(224 8% 14%);
+		background: hsl(0, 0%, 100%);
 		overflow: hidden;
 	}
 
@@ -500,135 +467,146 @@ function blurOnEnter(event: KeyboardEvent) {
 	}
 
 	.sidebar-properties-heading {
-	margin-bottom: 0.5rem;
-}
+		margin-bottom: 0.5rem;
+	}
 
-.sidebar-properties-heading .sidebar-label {
-	margin-bottom: 0;
-}
+	.sidebar-properties-heading .sidebar-label {
+		margin-bottom: 0;
+	}
 
-.sidebar-property-list {
-	display: grid;
-	gap: 0.5rem;
-	border-top: var(--properties-divider-color);
-}
+	.sidebar-property-list {
+		display: grid;
+		gap: 0.5rem;
+		border-top: var(--properties-divider-color);
+	}
 
-.sidebar-property-row {
-	display: grid;
-	grid-template-columns:
-		minmax(0, 1fr)
-		1px
-		minmax(0, 1fr)
-		auto;
-	align-items: stretch;
-	min-width: 0;
-	overflow: hidden;
-	border-bottom: 1px dotted rgba(128, 128, 128, 0.299);
-}
+	.sidebar-property-row {
+		display: grid;
+		grid-template-columns:
+			minmax(0, 1fr)
+			1px
+			minmax(0, 1fr)
+			auto;
+		align-items: start;
+		min-width: 0;
+		overflow: hidden;
+		border-bottom: 1px dotted rgba(128, 128, 128, 0.299);
+	}
 
-.sidebar-property-row:hover,
-.sidebar-property-row:focus-within {
-	background: hsl(224 8% 17%);
-}
+/* .sidebar-property-row {
+  background: #282a2f;
+  border: 1px solid #3b3d45;
+  border-radius: .375rem;
+  grid-template-columns: minmax(90px,40%) minmax(0,1fr);
+  align-items: start;
+  gap: .5rem;
+  padding: .45rem .5rem;
+  display: grid;
+} */
 
-.sidebar-property-key,
-.sidebar-property-value {
-	width: 100%;
-	min-width: 0;
-	box-sizing: border-box;
-	border: 0;
-	background: transparent;
-	padding: 0.45rem 0.5rem;
-	outline: none;
-	color: inherit;
-	font: inherit;
-	font-size: 1em;
-}
+	.sidebar-property-row:hover,
+	.sidebar-property-row:focus-within {
+		background: hsl(224 8% 17%);
+	}
 
-.sidebar-property-key {
-	color: hsl(224 8% 72%);
-	font-weight: 650;
-	text-align: right;
-}
+	.sidebar-property-key,
+	.sidebar-property-value {
+		width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+		border: 0;
+		background: transparent;
+		padding: 0.45rem 0.5rem;
+		outline: none;
+		color: inherit;
+		font: inherit;
+		font-size: clamp(.6em, 12px, 1em);
+		text-overflow: ellipsis;
+	}
 
-.sidebar-property-value {
-	color: hsl(0 0% 92%);
-	line-height: 1.35;
-	text-align: left;
-}
+	.sidebar-property-key {
+		color: hsl(224 8% 72%);
+		font-weight: 550;
+		text-align: left;
+	}
 
-.sidebar-property-key:focus,
-.sidebar-property-value:focus {
-	background: hsl(0 0% 100% / 6%);
-}
+	.sidebar-property-value {
+		color: hsl(0 0% 92%);
+		line-height: 1.35;
+		text-align: left;
+	}
 
-.sidebar-property-divider {
-	width: 1px;
-	margin-block: 0.25rem;
-	color: hsla(0, 0%, 100%, 0.375);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
+	.sidebar-property-key:focus,
+	.sidebar-property-value:focus {
+		background: hsl(0 0% 100% / 6%);
+	}
 
-.sidebar-remove-property {
-	align-self: stretch;
-	border: 0;
-	border-left: 1px solid hsl(224 8% 25%);
-	background: transparent;
-	color: inherit;
-	opacity: 0;
-	padding: 0.25rem 0.4rem;
-	font: inherit;
-	font-size: 1rem;
-	line-height: 1;
-	cursor: pointer;
-}
+	.sidebar-property-divider {
+		width: 1px;
+		margin-block: 0.25rem;
+		color: hsla(0, 0%, 100%, 0.375);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
 
-.sidebar-property-row:hover .sidebar-remove-property,
-.sidebar-remove-property:focus-visible {
-	opacity: 0.65;
-}
+	.sidebar-remove-property {
+		align-self: stretch;
+		border: 0;
+		border-left: 1px solid hsl(224 8% 25%);
+		background: transparent;
+		color: inherit;
+		opacity: 0;
+		padding: 0.25rem 0.4rem;
+		font: inherit;
+		font-size: 1rem;
+		line-height: 1;
+		cursor: pointer;
+	}
 
-.sidebar-remove-property:hover {
-	background: hsl(0 45% 30%);
-	opacity: 1;
-}
+	.sidebar-property-row:hover .sidebar-remove-property,
+	.sidebar-remove-property:focus-visible {
+		opacity: 0.65;
+	}
 
-.sidebar-property-row-new {
-	opacity: 0;
-	border-bottom: none;
-}
+	.sidebar-remove-property:hover {
+		background: hsl(0 45% 30%);
+		opacity: 1;
+	}
 
-.sidebar-property-row-new:hover,
-.sidebar-property-row-new:focus-within {
-	opacity: 1;
-}
+	.sidebar-property-row-new {
+		opacity: 0;
+		border-bottom: none;
+	}
 
-.sidebar-property-row-new input::placeholder {
-	color: inherit;
-	opacity: 0;
-}
+	.sidebar-property-row-new:hover,
+	.sidebar-property-row-new:focus-within {
+		opacity: 1;
+	}
 
-.sidebar-property-row-new:hover input::placeholder,
-.sidebar-property-row-new:focus-within input::placeholder {
-	opacity: 0.45;
-}
+	.sidebar-property-row-new input::placeholder {
+		color: inherit;
+		opacity: 0;
+	}
 
-.sidebar-property-row-spacer {
-	width: 1.65rem;
-}
+	.sidebar-property-row-new:hover input::placeholder,
+	.sidebar-property-row-new:focus-within input::placeholder {
+		opacity: 0.45;
+	}
+
+	.sidebar-property-row-spacer {
+		width: 1.65rem;
+	}
 	.sidebar-relationship-concept {
-	display: inline;
-	font-weight: 650;
-	text-decoration: underline dotted;
-	text-underline-offset: 0.15em;
-	cursor: default;
-}
+		display: inline;
+		font-weight: 650;
+		text-decoration: underline dotted;
+		text-underline-offset: 0.15em;
+		cursor: default;
+	}
 
-.sidebar-relationship-concept:hover {
-	background: hsl(210 45% 28%);
-	border-radius: 0.2rem;
-}
+	.sidebar-relationship-concept:hover {
+		background: hsl(210 45% 28%);
+		border-radius: 0.2rem;
+	}
 </style>
-

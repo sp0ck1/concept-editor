@@ -443,8 +443,14 @@ function getRowAwareChildTileWidth(
 		return rowCount * mode.tileHeight + (rowCount - 1) * mode.gap;
 	}
 
-		function handleChildTilePointerDown(event: PointerEvent, childCard: ConceptCardView) {
+	function handleChildTilePointerDown(event: PointerEvent, childCard: ConceptCardView) {
 		if (event.button !== 0) {
+			return;
+		}
+
+		const target = event.target;
+
+		if (target instanceof Element && target.closest('button, input, textarea, select')) {
 			return;
 		}
 
@@ -629,6 +635,8 @@ function getRowAwareChildTileWidth(
 	{getConceptChildren}
 	bind:dropAreaElement
 	{onCardOpen}
+	onChildPointerDown={handleChildTilePointerDown}
+	onChildPointerUp={cancelChildTileHold}
 />
 		</div>
 	{/if}

@@ -5,13 +5,17 @@
 	let {
 		rootCard = null,
 		getConceptChildren,
-		getRootConceptInstances
+		getRootConceptInstances,
+		onChildPointerDown,
+		onChildPointerUp
 	} = $props<{
 		rootCard?: ConceptCardView | null;
 		getConceptChildren: (
 			conceptInstanceId: string
 		) => ConceptCardView[];
 		getRootConceptInstances?: () => ConceptCardView[];
+		onChildPointerDown?: (event: PointerEvent, childCard: ConceptCardView) => void;
+		onChildPointerUp?: () => void;
 	}>();
 
 	let rootExpanded = $state(true);
@@ -74,6 +78,8 @@
 						card={childCard}
 						{getConceptChildren}
 						level={2}
+						{onChildPointerDown}
+						{onChildPointerUp}
 					/>
 				{:else}
 					<div class="tree-empty">
@@ -89,7 +95,7 @@
 	.tree-view {
 		width: 100%;
 		min-width: 0;
-		color: hsl(0 0% 88%);
+		
 		font-size: 0.8125rem;
 		line-height: 1.3;
 	}

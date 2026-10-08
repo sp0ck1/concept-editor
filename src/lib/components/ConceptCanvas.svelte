@@ -6,7 +6,7 @@
 	import CanvasTopbar from '$lib/components/canvas/CanvasTopbar.svelte';
 	import ConceptSidebar from '$lib/components/sidebar/ConceptSidebar.svelte';
 	import type { TitleConflictMode } from '$lib/types/TitleConflictMode';
-	import type { ConceptRelationship } from '$lib/types/ConceptRelationship'
+	import type { ConceptRelationship } from '$lib/types/ConceptRelationship';
 	import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
 	import {
 		conceptSizePresets,
@@ -24,7 +24,7 @@
 		type SidebarTab,
 		type CreateConceptOptions
 	} from '$lib/canvas/types';
-	import { clamp, normalizeRect, getRectOverlapRatio } from '$lib/canvas/geometry';
+	import { clamp, normalizeRectangle, getRectangleOverlapRatio } from '$lib/canvas/geometry';
 	import {
 		defaultConceptWidth,
 		defaultConceptHeight
@@ -32,36 +32,20 @@
 	import { lineParser, type ParsedConceptInput } from '$lib/parsers';
 	import PasteImportConfirmation from '$lib/components/canvas/PasteImportConfirmation.svelte';
 	import CanvasSelectionBox from '$lib/components/canvas/CanvasSelectionBox.svelte';
-	import { createConceptRecord,
-		updateConceptTitleFromInstanceRecord
-	 } from '$lib/client/concepts';
+	import { createConceptRecord, updateConceptTitleFromInstanceRecord } from '$lib/client/concepts';
 	import { updateConceptInstanceRecord } from '$lib/client/conceptInstances';
 	import { getRelationshipsForConcept } from '$lib/queries/conceptRelationshipQueries';
-
-
-
-
-
-
-
-type TitleConflictState = {
-	card: ConceptCardView;
-	title: string;
-	matchingConcepts: Concept[];
-};
-
-
+	import {SvelteSet} from "svelte/reactivity";
 
 	// let Declarations
 
-	let { initialCards, initialConcepts, initialRelationships, 
-		initialRelationshipDefinitions
-	 } = $props<{
-		initialCards: ConceptCardView[];
-		initialConcepts: Concept[];
-		initialRelationships: ConceptRelationship[];
-		initialRelationshipDefinitions: RelationshipDefinition[];
-	}>();
+	let { initialCards, initialConcepts, initialRelationships, initialRelationshipDefinitions } =
+		$props<{
+			initialCards: ConceptCardView[];
+			initialConcepts: Concept[];
+			initialRelationships: ConceptRelationship[];
+			initialRelationshipDefinitions: RelationshipDefinition[];
+		}>();
 
 	$effect(() => {
 		concepts = initialConcepts.map(normalizeConcept);
@@ -69,21 +53,24 @@ type TitleConflictState = {
 		relationships = initialRelationships;
 	});
 
+	type TitleConflictState = {
+		card: ConceptCardView;
+		title: string;
+		matchingConcepts: Concept[];
+	};
 
+	let titleConflict = $state<TitleConflictState | null>(null);
 
+	let sidebarElement = $state<HTMLElement | null>(null);
+	let sidebarWidth = $state<number | null>(null);
+	let isResizingSidebar = $state(false);
 
-let titleConflict = $state<TitleConflictState | null>(null);
+	let sidebarResizeStartX = 0;
+	let sidebarResizeStartWidth = 0;
 
-let sidebarElement = $state<HTMLElement | null>(null);
-let sidebarWidth = $state<number | null>(null);
-let isResizingSidebar = $state(false);
+	const minSidebarWidth = 180;
+	const minCanvasWidth = 240;
 
-let sidebarResizeStartX = 0;
-let sidebarResizeStartWidth = 0;
-
-const minSidebarWidth = 180;
-const minCanvasWidth = 240;
-	
 	let contextMenu = $state<ContextMenu>({
 		visible: false,
 		x: 0,
@@ -178,17 +165,6 @@ const minCanvasWidth = 240;
 		mouseY: 0
 	});
 
-
-
-
-
-
-
-
-
-
-
-
 	const selectionDragThresholdPx = 4;
 	const selectionOverlapThreshold = 0.25;
 
@@ -198,8 +174,7 @@ const minCanvasWidth = 240;
 
 	const arrangeAnimationMs = 4000;
 	const cardDragThresholdPx = 4;
-	
-	
+
 	// Move?
 	type WorldBounds = {
 		left: number;
@@ -207,8 +182,6 @@ const minCanvasWidth = 240;
 		right: number;
 		bottom: number;
 	};
-
-
 
 	// Card Arrangement
 
@@ -232,8 +205,6 @@ const minCanvasWidth = 240;
 		panY: number;
 		zoom: number;
 	};
-
-
 
 	// Initialization of cards
 
@@ -266,7 +237,6 @@ const minCanvasWidth = 240;
 		};
 	}
 
-
 	// Refactor eventually. No reason to have both. Should be dragState = {active: false ...}
 	function resetDragState() {
 		dragState = emptyDragState();
@@ -276,62 +246,53 @@ const minCanvasWidth = 240;
 		resizeState = emptyResizeState();
 	}
 
-
 	function handleSidebarResizePointerDown(event: PointerEvent) {
-	if (event.button !== 0 || !sidebarElement) {
-		return;
+		if (event.button !== 0 || !sidebarElement) {
+			return;
+		}
+
+		event.preventDefault();
+		event.stopPropagation();
+
+		const handle = event.currentTarget as HTMLElement;
+
+		handle.setPointerCapture(event.pointerId);
+
+		isResizingSidebar = true;
+		sidebarResizeStartX = event.clientX;
+		sidebarResizeStartWidth = sidebarElement.getBoundingClientRect().width;
 	}
 
-	event.preventDefault();
-	event.stopPropagation();
+	function handleSidebarResizePointerMove(event: PointerEvent) {
+		if (!isResizingSidebar || !sidebarElement) {
+			return;
+		}
 
-	const handle = event.currentTarget as HTMLElement;
+		const workspaceWidth =
+			sidebarElement.parentElement?.getBoundingClientRect().width ?? window.innerWidth;
 
-	handle.setPointerCapture(event.pointerId);
+		const maxSidebarWidth = Math.max(minSidebarWidth, workspaceWidth - minCanvasWidth);
 
-	isResizingSidebar = true;
-	sidebarResizeStartX = event.clientX;
-	sidebarResizeStartWidth =
-		sidebarElement.getBoundingClientRect().width;
-}
-
-function handleSidebarResizePointerMove(event: PointerEvent) {
-	if (!isResizingSidebar || !sidebarElement) {
-		return;
+		sidebarWidth = clamp(
+			sidebarResizeStartWidth + (event.clientX - sidebarResizeStartX),
+			minSidebarWidth,
+			maxSidebarWidth
+		);
 	}
 
-	const workspaceWidth =
-		sidebarElement.parentElement?.getBoundingClientRect().width ??
-		window.innerWidth;
+	function handleSidebarResizePointerUp(event: PointerEvent) {
+		if (!isResizingSidebar) {
+			return;
+		}
 
-	const maxSidebarWidth = Math.max(
-		minSidebarWidth,
-		workspaceWidth - minCanvasWidth
-	);
+		const handle = event.currentTarget as HTMLElement;
 
-	sidebarWidth = clamp(
-		sidebarResizeStartWidth +
-			(event.clientX - sidebarResizeStartX),
-		minSidebarWidth,
-		maxSidebarWidth
-	);
-}
+		if (handle.hasPointerCapture(event.pointerId)) {
+			handle.releasePointerCapture(event.pointerId);
+		}
 
-function handleSidebarResizePointerUp(event: PointerEvent) {
-	if (!isResizingSidebar) {
-		return;
+		isResizingSidebar = false;
 	}
-
-	const handle = event.currentTarget as HTMLElement;
-
-	if (handle.hasPointerCapture(event.pointerId)) {
-		handle.releasePointerCapture(event.pointerId);
-	}
-
-	isResizingSidebar = false;
-}
-
-
 
 	function getCurrentCamera(): CanvasCamera {
 		return {
@@ -352,7 +313,6 @@ function handleSidebarResizePointerUp(event: PointerEvent) {
 	}
 
 	function getSavedCameraForInstance(instance: ConceptInstance): CanvasCamera | null {
-		
 		// return CanvasCamera
 		return {
 			panX: instance.lastCameraPanX ?? 0,
@@ -481,18 +441,13 @@ function handleSidebarResizePointerUp(event: PointerEvent) {
 		};
 	}
 
+	function getConceptChildren(conceptInstanceId: string): ConceptCardView[] {
+		return cards.filter((card) => card.instance.parentInstanceId === conceptInstanceId);
+	}
 
-	function getConceptChildren(
-	conceptInstanceId: string
-): ConceptCardView[] {
-	return cards.filter((card) => card.instance.parentInstanceId === conceptInstanceId);
-}
-
-function getRootConceptInstances(): ConceptCardView[] {
-	return cards.filter(
-		(card) => card.instance.parentInstanceId === null
-	);
-}
+	function getRootConceptInstances(): ConceptCardView[] {
+		return cards.filter((card) => card.instance.parentInstanceId === null);
+	}
 
 	function chooseBestPackedLayout(cardsToPack: ConceptCardView[], gap: number): PackedLayout {
 		const viewportSize = getViewportWorldSize();
@@ -526,7 +481,6 @@ function getRootConceptInstances(): ConceptCardView[] {
 
 		return bestLayout;
 	}
-
 
 	// Functions
 
@@ -1012,7 +966,7 @@ function getRootConceptInstances(): ConceptCardView[] {
 		}
 
 		return cardsInCurrentCanvas.filter((card) => {
-			const overlapRatio = getRectOverlapRatio(getCardWorldRect(card), selectionWorldRect);
+			const overlapRatio = getRectangleOverlapRatio(getCardWorldRect(card), selectionWorldRect);
 			return overlapRatio >= selectionOverlapThreshold;
 		});
 	}
@@ -1056,7 +1010,7 @@ function getRootConceptInstances(): ConceptCardView[] {
 			return null;
 		}
 
-		return normalizeRect({
+		return normalizeRectangle({
 			left: selectionBoxState.startCanvasX,
 			top: selectionBoxState.startCanvasY,
 			right: selectionBoxState.currentCanvasX,
@@ -1081,7 +1035,7 @@ function getRootConceptInstances(): ConceptCardView[] {
 			y: canvasRect.bottom
 		});
 
-		return normalizeRect({
+		return normalizeRectangle({
 			left: startWorld.x,
 			top: startWorld.y,
 			right: endWorld.x,
@@ -1108,7 +1062,7 @@ function getRootConceptInstances(): ConceptCardView[] {
 	}
 
 	function toggleInstanceSelection(instanceId: string) {
-		const nextSelectedInstanceIds = new Set(selectedInstanceIds);
+		const nextSelectedInstanceIds = new SvelteSet(selectedInstanceIds);
 
 		if (nextSelectedInstanceIds.has(instanceId)) {
 			nextSelectedInstanceIds.delete(instanceId);
@@ -1202,7 +1156,7 @@ function getRootConceptInstances(): ConceptCardView[] {
 
 	function getInstanceBreadcrumb(instanceId: string) {
 		const breadcrumb: ConceptCardView[] = [];
-		const visited = new Set<string>();
+		const visited = new SvelteSet<string>();
 
 		let current = getCardByInstanceId(instanceId);
 
@@ -1235,15 +1189,12 @@ function getRootConceptInstances(): ConceptCardView[] {
 	});
 
 	let currentConceptRelationships = $derived.by(() => {
-	if (!currentCanvasOwnerCard) {
-		return [];
-	}
+		if (!currentCanvasOwnerCard) {
+			return [];
+		}
 
-	return getRelationshipsForConcept(
-		relationships,
-		currentCanvasOwnerCard.concept.id
-	);
-});
+		return getRelationshipsForConcept(relationships, currentCanvasOwnerCard.concept.id);
+	});
 
 	let importChildrenOptions = $derived.by(() => {
 		if (!importChildrenMenu.visible || !importChildrenMenu.targetInstanceId) {
@@ -1322,28 +1273,27 @@ function getRootConceptInstances(): ConceptCardView[] {
 		return breadcrumb.map((card) => card.concept.title || card.concept.id).join(' > ');
 	}
 
-async function createConcept(options: CreateConceptOptions = {}) {
-	const sizePreset = options.sizePreset ?? 'medium';
-	const presetSize = conceptSizePresets[sizePreset];
+	async function createConcept(options: CreateConceptOptions = {}) {
+		const sizePreset = options.sizePreset ?? 'medium';
+		const presetSize = conceptSizePresets[sizePreset];
 
-	const result = await createConceptRecord({
-		...(options.position ?? {}),
-		...(options.title !== undefined ? { title: options.title } : {}),
-		width: options.width ?? presetSize.width,
-		height: options.height ?? presetSize.height,
-		parentInstanceId:
-			options.parentInstanceId ?? currentCanvasOwnerInstanceId
-	});
+		const result = await createConceptRecord({
+			...(options.position ?? {}),
+			...(options.title !== undefined ? { title: options.title } : {}),
+			width: options.width ?? presetSize.width,
+			height: options.height ?? presetSize.height,
+			parentInstanceId: options.parentInstanceId ?? currentCanvasOwnerInstanceId
+		});
 
-	if (options.focusAfterCreate ?? true) {
-		pendingFocusInstanceId = result.instance.id;
-		activeInstanceId = result.instance.id;
+		if (options.focusAfterCreate ?? true) {
+			pendingFocusInstanceId = result.instance.id;
+			activeInstanceId = result.instance.id;
+		}
+
+		await invalidateAll();
+
+		return result;
 	}
-
-	await invalidateAll();
-
-	return result;
-}
 
 	async function deleteInstance(id: string) {
 		const response = await fetch('/api/concept-instances', {
@@ -1405,34 +1355,32 @@ async function createConcept(options: CreateConceptOptions = {}) {
 		await invalidateAll();
 	}
 
-async function updateConceptTitleFromInstance(
-	card: ConceptCardView,
-	title: string,
-	conflictMode: TitleConflictMode = 'report-conflict'
-) {
-	const result = await updateConceptTitleFromInstanceRecord(
-		card.concept.id,
-		card.instance.id,
-		title,
-		conflictMode
-	);
-
-	if (result.status === 'title-conflict') {
-		titleConflict = {
-			card,
+	async function updateConceptTitleFromInstance(
+		card: ConceptCardView,
+		title: string,
+		conflictMode: TitleConflictMode = 'report-conflict'
+	) {
+		const result = await updateConceptTitleFromInstanceRecord(
+			card.concept.id,
+			card.instance.id,
 			title,
-			matchingConcepts: result.matchingConcepts
-		};
+			conflictMode
+		);
 
-		return;
+		if (result.status === 'title-conflict') {
+			titleConflict = {
+				card,
+				title,
+				matchingConcepts: result.matchingConcepts
+			};
+
+			return;
+		}
+
+		titleConflict = null;
+
+		await invalidateAll();
 	}
-
-	titleConflict = null;
-
-	await invalidateAll();
-}
-
-
 
 	function getCanvasPointFromPointerEvent(event: PointerEvent | MouseEvent) {
 		if (!canvasElement) {
@@ -1844,6 +1792,23 @@ async function updateConceptTitleFromInstance(
 		}
 	}
 
+	function isDescendantInstance(
+		possibleDescendantInstanceId: string,
+		ancestorInstanceId: string
+	): boolean {
+		let current = getCardByInstanceId(possibleDescendantInstanceId);
+
+		while (current?.instance.parentInstanceId) {
+			if (current.instance.parentInstanceId === ancestorInstanceId) {
+				return true;
+			}
+
+			current = getCardByInstanceId(current.instance.parentInstanceId);
+		}
+
+		return false;
+	}
+
 	async function finishChildTileDrag(event: PointerEvent) {
 		const childCard = childTileDragState.childCard;
 		const { targetTagInstanceId, targetParentInstanceId } = getDropTargetAtPoint(
@@ -1870,7 +1835,10 @@ async function updateConceptTitleFromInstance(
 		}
 
 		if (targetParentInstanceId) {
-			if (targetParentInstanceId === childCard.instance.id) {
+			if (
+				targetParentInstanceId === childCard.instance.id ||
+				isDescendantInstance(targetParentInstanceId, childCard.instance.id)
+			) {
 				return;
 			}
 
@@ -1899,6 +1867,18 @@ async function updateConceptTitleFromInstance(
 		}
 
 		const worldPoint = getWorldPointFromEvent(event);
+
+		if (
+			currentCanvasOwnerInstanceId === childCard.instance.id ||
+			(currentCanvasOwnerInstanceId !== null &&
+				isDescendantInstance(currentCanvasOwnerInstanceId, childCard.instance.id))
+		) {
+			return;
+		}
+
+		childCard.instance.parentInstanceId = currentCanvasOwnerInstanceId;
+		childCard.instance.x = worldPoint.x;
+		childCard.instance.y = worldPoint.y;
 
 		await updateInstance(childCard.instance.id, {
 			parentInstanceId: currentCanvasOwnerInstanceId,
@@ -1984,7 +1964,7 @@ async function updateConceptTitleFromInstance(
 				updates: Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>;
 			}[] = [];
 
-			const conceptIdsAlreadyInTarget = new Set(
+			const conceptIdsAlreadyInTarget = new SvelteSet(
 				cards
 					.filter(
 						(item) =>
@@ -2314,7 +2294,6 @@ async function updateConceptTitleFromInstance(
 
 		return result;
 	}
-
 </script>
 
 <svelte:window
@@ -2340,55 +2319,52 @@ async function updateConceptTitleFromInstance(
 	/>
 
 	<div class="concept-workspace-body">
-{#if sidebarVisible}
-	<div
-		bind:this={sidebarElement}
-		class="sidebar-shell"
-		style:width={sidebarWidth === null
-			? undefined
-			: `${sidebarWidth}px`}
-	>
-		<ConceptSidebar
-			{sidebarTab}
-			{currentCanvasOwnerCard}
-			{sidebarNewTag}
-			{getTagConcepts}
-			{getConceptChildren}
-			{getRootConceptInstances}
-			onGoUpOneLevel={openInstanceParentCanvas}
-			onSidebarTabChange={(tab) => {
-				sidebarTab = tab;
-			}}
-			onTitleKeydown={handleConceptTitleKeydown}
-			onTitleBlur={handleConceptTitleBlur}
-			onSidebarNewTagChange={(value) => {
-				sidebarNewTag = value;
-			}}
-			onSidebarTagAdd={addSidebarTag}
-			onTagOpen={openTagCanvas}
-			onTagRemove={handleTagRemove}
-			onPropertiesChange={handlePropertiesChange}
-			relationships={currentConceptRelationships}
-			relationshipDefinitions={initialRelationshipDefinitions}
-			{getConceptById}
-			
-		/>
+		{#if sidebarVisible}
+			<div
+				bind:this={sidebarElement}
+				class="sidebar-shell"
+				style:width={sidebarWidth === null ? undefined : `${sidebarWidth}px`}
+			>
+				<ConceptSidebar
+					{sidebarTab}
+					{currentCanvasOwnerCard}
+					{sidebarNewTag}
+					{getTagConcepts}
+					{getConceptChildren}
+					{getRootConceptInstances}
+					onGoUpOneLevel={openInstanceParentCanvas}
+					onSidebarTabChange={(tab) => {
+						sidebarTab = tab;
+					}}
+					onTitleKeydown={handleConceptTitleKeydown}
+					onTitleBlur={handleConceptTitleBlur}
+					onSidebarNewTagChange={(value) => {
+						sidebarNewTag = value;
+					}}
+					onSidebarTagAdd={addSidebarTag}
+					onTagOpen={openTagCanvas}
+					onTagRemove={handleTagRemove}
+					onPropertiesChange={handlePropertiesChange}
+					relationships={currentConceptRelationships}
+					relationshipDefinitions={initialRelationshipDefinitions}
+					{getConceptById}
+				/>
 
-		<button
-			class="sidebar-resize-handle"
-			class:active={isResizingSidebar}
-			type="button"
-			aria-label="Resize sidebar"
-			onpointerdown={handleSidebarResizePointerDown}
-			onpointermove={handleSidebarResizePointerMove}
-			onpointerup={handleSidebarResizePointerUp}
-			onpointercancel={handleSidebarResizePointerUp}
-		></button>
-	</div>
-{/if}
+				<button
+					class="sidebar-resize-handle"
+					class:active={isResizingSidebar}
+					type="button"
+					aria-label="Resize sidebar"
+					onpointerdown={handleSidebarResizePointerDown}
+					onpointermove={handleSidebarResizePointerMove}
+					onpointerup={handleSidebarResizePointerUp}
+					onpointercancel={handleSidebarResizePointerUp}
+				></button>
+			</div>
+		{/if}
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<section
-			bind:this={canvasElement} // very javascript
+			bind:this={canvasElement}
 			class="canvas"
 			class:sidebar-hidden={!sidebarVisible}
 			class:is-panning={isPanning}
@@ -2464,7 +2440,7 @@ async function updateConceptTitleFromInstance(
 							onManualTagAdd={handleManualTagAdd}
 							onTagOpen={openTagCanvas}
 							onTagRemove={handleTagRemove}
-							getConceptChildren={getConceptChildren}
+							{getConceptChildren}
 						/>
 					{/each}
 				</div>
@@ -2500,8 +2476,8 @@ async function updateConceptTitleFromInstance(
 			<div class="zoom-indicator">
 				{Math.round(zoom * 100)}%
 			</div>
-		</section>
-	</div>
+
+		</section></div>
 </section>
 
 <style>
@@ -2559,7 +2535,6 @@ async function updateConceptTitleFromInstance(
 
 		overflow: hidden;
 		background: hsl(224 8% 12%);
-		color: hsl(0 0% 96%);
 	}
 
 	.concept-workspace-body {
@@ -2573,38 +2548,38 @@ async function updateConceptTitleFromInstance(
 		grid-template-columns: minmax(0, 1fr);
 	}
 
-.sidebar-shell {
-	position: relative;
-	display: flex;
-	width: max(260px, 25vw);
-	min-width: 0;
-	min-height: 0;
-}
+	.sidebar-shell {
+		position: relative;
+		display: flex;
+		width: max(260px, 25vw);
+		min-width: 0;
+		min-height: 0;
+	}
 
-.sidebar-shell :global(.concept-sidebar) {
-	width: 100%;
-	min-width: 0;
-	min-height: 0;
-}
+	.sidebar-shell :global(.concept-sidebar) {
+		width: 100%;
+		min-width: 0;
+		min-height: 0;
+	}
 
-.sidebar-resize-handle {
-	position: absolute;
-	z-index: 30;
-	top: 0;
-	right: -3px;
-	bottom: 0;
-	width: 6px;
-	padding: 0;
-	border: 0;
-	background: transparent;
-	cursor: col-resize;
-	touch-action: none;
-}
+	.sidebar-resize-handle {
+		position: absolute;
+		z-index: 30;
+		top: 0;
+		right: -3px;
+		bottom: 0;
+		width: 6px;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		cursor: col-resize;
+		touch-action: none;
+	}
 
-.sidebar-resize-handle:hover,
-.sidebar-resize-handle.active {
-	background: hsl(210 90% 55% / 45%);
-}
+	.sidebar-resize-handle:hover,
+	.sidebar-resize-handle.active {
+		background: hsl(210 90% 55% / 45%);
+	}
 
 	.canvas {
 		position: relative;

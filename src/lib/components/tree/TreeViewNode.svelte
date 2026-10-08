@@ -6,13 +6,17 @@
 	let {
 		card,
 		getConceptChildren,
-		level
+		level,
+		onChildPointerDown,
+		onChildPointerUp
 	} = $props<{
 		card: ConceptCardView;
 		getConceptChildren: (
 			conceptInstanceId: string
 		) => ConceptCardView[];
 		level: number;
+		onChildPointerDown?: (event: PointerEvent, childCard: ConceptCardView) => void;
+		onChildPointerUp?: () => void;
 	}>();
 
 	let expanded = $state(false);
@@ -36,7 +40,12 @@
 	data-instance-id={card.instance.id}
 	data-concept-id={card.concept.id}
 >
-	<div class="tree-node-row">
+	<div
+		class="tree-node-row"
+		onpointerdown={(event) => onChildPointerDown?.(event, card)}
+		onpointerup={onChildPointerUp}
+		onpointercancel={onChildPointerUp}
+	>
 		{#if hasChildren}
 			<button
 				class="tree-toggle"
@@ -72,6 +81,8 @@
 					card={child}
 					{getConceptChildren}
 					level={level + 1}
+					{onChildPointerDown}
+					{onChildPointerUp}
 				/>
 			{/each}
 		</div>
@@ -90,6 +101,12 @@
 		gap: 0.25rem;
 		min-width: 0;
 		min-height: 1.65rem;
+		cursor: grab;
+		user-select: none;
+	}
+
+	.tree-node-row:active {
+		cursor: grabbing;
 	}
 
 	.tree-node-row:hover {
@@ -136,7 +153,7 @@
 		min-width: 0;
 		overflow: hidden;
 		padding: 0.2rem 0.25rem;
-		color: hsl(0 0% 88%);
+		color: var(--tree-text-color,hsl(0 0% 88%));
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}

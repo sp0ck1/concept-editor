@@ -4,9 +4,9 @@ import type { RequestHandler } from './$types';
 import {
 	createConceptWithInstance,
 	updateConceptTitleFromInstance,
-	type CreateConceptWithInstanceInput,
-	type TitleConflictMode
+	type CreateConceptWithInstanceInput
 } from '$lib/services/conceptService';
+import type { TitleConflictMode } from '$lib/types/TitleConflictMode';
 
 import {
 	updateConcept,

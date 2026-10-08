@@ -6,12 +6,16 @@
 		card,
 		getConceptChildren,
 		dropAreaElement = $bindable<HTMLElement | null>(null),
-		onCardOpen
+		onCardOpen,
+		onChildPointerDown,
+		onChildPointerUp
 	} = $props<{
 		card: ConceptCardView;
 		getConceptChildren: (conceptInstanceId: string) => ConceptCardView[];
 		dropAreaElement?: HTMLElement | null;
 		onCardOpen?: (card: ConceptCardView) => void;
+		onChildPointerDown?: (event: PointerEvent, childCard: ConceptCardView) => void;
+		onChildPointerUp?: () => void;
 	}>();
 
 	let concept = $derived(card.concept);
@@ -58,6 +62,8 @@
 		<TreeView
 			rootCard={card}
 			{getConceptChildren}
+			{onChildPointerDown}
+			{onChildPointerUp}
 		/>
 	{/if}
 </div>

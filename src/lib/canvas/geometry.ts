@@ -1,4 +1,4 @@
-export type Rect = {
+export type Rectangle = {
 	left: number;
 	top: number;
 	right: number;
@@ -9,7 +9,7 @@ export function clamp(value: number, min: number, max: number) {
 	return Math.min(Math.max(value, min), max);
 }
 
-export function normalizeRect(rect: Rect): Rect {
+export function normalizeRectangle(rect: Rectangle): Rectangle {
 	return {
 		left: Math.min(rect.left, rect.right),
 		top: Math.min(rect.top, rect.bottom),
@@ -26,7 +26,7 @@ export function getRectHeight(rect: { top: number; bottom: number }) {
 	return rect.bottom - rect.top;
 }
 
-export function getRectOverlapRatio(targetRect: Rect, selectionRect: Rect) {
+export function getRectangleOverlapRatio(targetRect: Rectangle, selectionRect: Rectangle) {
 	const overlapLeft = Math.max(targetRect.left, selectionRect.left);
 	const overlapTop = Math.max(targetRect.top, selectionRect.top);
 	const overlapRight = Math.min(targetRect.right, selectionRect.right);
