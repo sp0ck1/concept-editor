@@ -1,16 +1,10 @@
 import type { ConceptInstance } from '$lib/model/ConceptInstance';
+import { getErrorMessage } from '$lib/client/http';
 
 export type ConceptInstanceUpdates = Partial<
 	Omit<ConceptInstance, 'id' | 'conceptId'>
 >;
 
-async function getErrorMessage(response: Response): Promise<string> {
-	const body = (await response.json().catch(() => null)) as
-		| { error?: string; message?: string }
-		| null;
-
-	return body?.error ?? body?.message ?? `Request failed with status ${response.status}.`;
-}
 
 export async function updateConceptInstanceRecord(
 	id: string,

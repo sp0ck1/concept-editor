@@ -36,8 +36,18 @@
 	import { lineParser, type ParsedConceptInput } from '$lib/parsers';
 	import PasteImportConfirmation from '$lib/components/editor/canvas/PasteImportConfirmation.svelte';
 	import CanvasSelectionBox from '$lib/components/editor/canvas/CanvasSelectionBox.svelte';
-	import { createConceptRecord, updateConceptTitleFromInstanceRecord } from '$lib/client/concepts';
-	import { updateConceptInstanceRecord } from '$lib/client/conceptInstances';
+	import {
+		createConceptRecord,
+		ensureConceptByTitle,
+		updateConceptRecord,
+		updateConceptTitleFromInstanceRecord
+	} from '$lib/client/concepts';
+	import {
+		deleteConceptInstanceRecord,
+		importChildrenFromConceptInstance,
+		updateConceptInstanceRecord,
+		updateConceptInstancesBatch
+	} from '$lib/client/conceptInstances';
 	import { getRelationshipsForConcept } from '$lib/model/relationshipQueries';
 	import {SvelteSet} from "svelte/reactivity";
 
@@ -695,23 +705,14 @@
 	}
 
 	async function handleManualTagAdd(card: ConceptCardView, title: string) {
-		const response = await fetch('/api/concepts/ensure', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ title })
-		});
+		let result: Awaited<ReturnType<typeof ensureConceptByTitle>>;
 
-		if (!response.ok) {
+		try {
+			result = await ensureConceptByTitle(title);
+		} catch {
 			console.error('Failed to ensure tag concept');
 			return;
 		}
-
-		const result = (await response.json()) as {
-			concept: Concept;
-			created: boolean;
-		};
 
 		if (!concepts.some((concept) => concept.id === result.concept.id)) {
 			concepts = [...concepts, normalizeConcept(result.concept)];
@@ -1298,15 +1299,9 @@
 	}
 
 	async function deleteInstance(id: string) {
-		const response = await fetch('/api/concept-instances', {
-			method: 'DELETE',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ id })
-		});
-
-		if (!response.ok) {
+		try {
+			await deleteConceptInstanceRecord(id);
+		} catch {
 			console.error('Failed to delete concept instance');
 			return;
 		}
@@ -1323,33 +1318,27 @@
 		closeContextMenu();
 	}
 
-	async function updateConcept(id: string, updates: Partial<Omit<Concept, 'id'>>) {
-		await requestJson('/api/concepts', {
-			method: 'PATCH',
-			body: {
-				id,
-				...updates
-			},
-			errorMessage: 'Failed to update concept'
-		});
+	async function updateConcept(
+		id: string,
+		updates: Partial<Omit<Concept, 'id' | 'title'>>
+	) {
+		try {
+			await updateConceptRecord(id, updates);
+		} catch {
+			console.error('Failed to update concept');
+			return;
+		}
+
+		await invalidateAll();
 	}
 
 	async function updateInstance(
 		id: string,
 		updates: Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>
 	) {
-		const response = await fetch('/api/concept-instances', {
-			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				id,
-				...updates
-			})
-		});
-
-		if (!response.ok) {
+		try {
+			await updateConceptInstanceRecord(id, updates);
+		} catch {
 			console.error('Failed to update concept instance');
 			return;
 		}
@@ -1491,18 +1480,12 @@
 			return;
 		}
 
-		const response = await fetch('/api/concept-instances/import-children', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
+		try {
+			await importChildrenFromConceptInstance(
 				sourceInstanceId,
-				targetInstanceId: importChildrenMenu.targetInstanceId
-			})
-		});
-
-		if (!response.ok) {
+				importChildrenMenu.targetInstanceId
+			);
+		} catch {
 			console.error('Failed to import children');
 			return;
 		}
@@ -2064,11 +2047,14 @@
 			return;
 		}
 
-		await requestJson('/api/concept-instances/batch', {
-			method: 'PATCH',
-			body: { updates },
-			errorMessage: 'Failed to batch update concept instances'
-		});
+		try {
+			await updateConceptInstancesBatch(updates);
+		} catch {
+			console.error('Failed to batch update concept instances');
+			return;
+		}
+
+		await invalidateAll();
 	}
 
 	async function handleWindowKeydown(event: KeyboardEvent) {
@@ -2266,36 +2252,6 @@
 		await openInstanceCanvas(parentInstanceId);
 	}
 
-	async function requestJson<T>(
-		url: string,
-		options: {
-			method: string;
-			body?: unknown;
-			errorMessage: string;
-			invalidate?: boolean;
-		}
-	): Promise<T | null> {
-		const response = await fetch(url, {
-			method: options.method,
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: options.body === undefined ? undefined : JSON.stringify(options.body)
-		});
-
-		if (!response.ok) {
-			console.error(options.errorMessage);
-			return null;
-		}
-
-		const result = (await response.json().catch(() => null)) as T | null;
-
-		if (options.invalidate ?? true) {
-			await invalidateAll();
-		}
-
-		return result;
-	}
 </script>
 
 <svelte:window

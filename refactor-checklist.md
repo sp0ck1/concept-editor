@@ -235,7 +235,7 @@ Use `src/lib/client/` for endpoint URLs and HTTP request details. Keep refresh d
 
 The existing editor depends on successful mutations triggering a reload and its incoming-data effect receiving the replacement records. Preserve that connection during this phase.  
 
-* [ ] Replace the HTTP implementations inside `src/lib/components/editor/ConceptEditor.svelte` as follows:
+* [x] Replace the HTTP implementations inside `src/lib/components/editor/ConceptEditor.svelte` as follows:
 
 | Existing function          | Call this existing client function  |
 | -------------------------- | ----------------------------------- |
@@ -246,44 +246,44 @@ The existing editor depends on successful mutations triggering a reload and its 
 | `handleManualTagAdd`       | `ensureConceptByTitle`              |
 | `importChildrenFromSource` | `importChildrenFromConceptInstance` |
 
-* [ ] Keep `invalidateAll()` after successful concept updates, instance updates, batch updates, and deletion.
+* [x] Keep `invalidateAll()` after successful concept updates, instance updates, batch updates, and deletion.
 
-* [ ] Keep the empty-batch early return in `updateInstancesBatch`.
+* [x] Keep the empty-batch early return in `updateInstancesBatch`.
 
-* [ ] Keep the existing tag-concept insertion and tagging steps after `ensureConceptByTitle`.
+* [x] Keep the existing tag-concept insertion and tagging steps after `ensureConceptByTitle`.
 
-* [ ] Keep menu closing and refreshing after successful child importing.
+* [x] Keep menu closing and refreshing after successful child importing.
 
-* [ ] Keep title changes routed through `updateConceptTitleFromInstanceRecord`.
+* [x] Keep title changes routed through `updateConceptTitleFromInstanceRecord`.
 
-* [ ] Keep the special `title-conflict` result handling rather than treating HTTP 409 as an ordinary failed save.
+* [x] Keep the special `title-conflict` result handling rather than treating HTTP 409 as an ordinary failed save.
 
-* [ ] Narrow `updateConcept`’s update type to exclude `title`, matching `updateConceptRecord`.
+* [x] Narrow `updateConcept`’s update type to exclude `title`, matching `updateConceptRecord`.
 
-* [ ] Add `try/catch` where replacing an old `!response.ok` branch with a throwing client helper would otherwise introduce an unhandled rejection.
+* [x] Add `try/catch` where replacing an old `!response.ok` branch with a throwing client helper would otherwise introduce an unhandled rejection.
 
-* [ ] Preserve the operation’s existing failure return and logging.
+* [x] Preserve the operation’s existing failure return and logging.
 
-* [ ] Do not add a new generic request-management layer.
+* [x] Do not add a new generic request-management layer.
 
 **Preserve the camera exception:**
 
-* [ ] Keep `saveCurrentCanvasCamera` calling `updateConceptInstanceRecord` without invalidating the page.
-* [ ] Do not replace that call with the editor’s refresh-producing `updateInstance` wrapper.
+* [x] Keep `saveCurrentCanvasCamera` calling `updateConceptInstanceRecord` without invalidating the page.
+* [x] Do not replace that call with the editor’s refresh-producing `updateInstance` wrapper.
 
 ### Consolidate the repeated error parser
 
-* [ ] Create `src/lib/client/http.ts`.
-* [ ] Move one existing `getErrorMessage` implementation into it and export it.
-* [ ] Import it into `concepts.ts`, `conceptInstances.ts`, and `conceptRelationships.ts`.
-* [ ] Delete the three local duplicate implementations.
-* [ ] Delete `requestJson` from `ConceptEditor.svelte` once all its callers have been replaced.
+* [x] Create `src/lib/client/http.ts`.
+* [x] Move one existing `getErrorMessage` implementation into it and export it.
+* [x] Import it into `concepts.ts`, `conceptInstances.ts`, and `conceptRelationships.ts`.
+* [x] Delete the three local duplicate implementations.
+* [x] Delete `requestJson` from `ConceptEditor.svelte` once all its callers have been replaced.
 
 **Checkpoint**
 
 * [ ] Verify each mutation and its refresh behavior.
-* [ ] Verify that camera saving does not reload the page.
-* [ ] Verify that failed requests do not continue into success-only refresh steps.
+* [x] Verify that camera saving does not reload the page.
+* [x] Verify that failed requests do not continue into success-only refresh steps.
 
 ## 6. Extract calculations and organize editor-specific types
 

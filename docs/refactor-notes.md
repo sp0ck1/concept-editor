@@ -165,3 +165,20 @@ npm run build completed successfully
 ```
 
 All four live JSON hashes were unchanged before and after validation. Repository path inspection confirms writes still target the original files under `src/lib/data/`. Creation, title editing, deletion, and child-import mutation flows were not executed against live data and remain part of the final manual regression pass.
+
+## Phase 5 — consolidated browser requests
+
+`ConceptEditor.svelte` no longer contains endpoint URLs or direct API `fetch()` calls. Its operations call the typed modules in `src/lib/client/`, while each operation still decides whether and when to call `invalidateAll()`.
+
+The camera-save exception remains explicit: `saveCurrentCanvasCamera()` calls `updateConceptInstanceRecord()` directly and does not invalidate page data. Converted operations catch throwing client errors, retain their existing log/return behavior, and do not continue into success-only refresh or menu-closing steps after failure. Title-conflict responses remain a typed special result rather than a generic failed save.
+
+The three clients now share only the small `getErrorMessage()` parser in `src/lib/client/http.ts`; no generic request-management layer was introduced.
+
+Phase 5 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+npm run build completed successfully
+```
+
+Search confirms there are no direct `fetch('/api/...')` calls or `requestJson` references under `src/lib/components/editor/`. Runtime mutation/refresh verification remains deferred to the final protected-data regression pass.

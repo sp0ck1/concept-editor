@@ -2,6 +2,7 @@ import type {
 	ConceptRelationship,
 	RelationshipParticipantGroup
 } from '$lib/model/ConceptRelationship';
+import { getErrorMessage } from '$lib/client/http';
 
 export type CreateConceptRelationshipInput = Omit<ConceptRelationship, 'id'>;
 
@@ -13,13 +14,6 @@ export type UpdateConceptRelationshipInput = {
 	properties?: Record<string, string>;
 };
 
-async function getErrorMessage(response: Response): Promise<string> {
-	const body = (await response.json().catch(() => null)) as
-		| { error?: string }
-		| null;
-
-	return body?.error ?? `Request failed with status ${response.status}.`;
-}
 
 export async function fetchConceptRelationships(): Promise<
 	ConceptRelationship[]

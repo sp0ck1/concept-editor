@@ -1,6 +1,7 @@
 import type { Concept } from '$lib/model/Concept';
 import type { ConceptInstance } from '$lib/model/ConceptInstance';
 import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
+import { getErrorMessage } from '$lib/client/http';
 
 
 export type CreateConceptRequest = {
@@ -26,14 +27,6 @@ export type UpdateConceptTitleResult =
 
 
 	  
-async function getErrorMessage(response: Response): Promise<string> {
-	const body = (await response.json().catch(() => null)) as
-		| { error?: string; message?: string }
-		| null;
-
-	return body?.error ?? body?.message ?? `Request failed with status ${response.status}.`;
-}
-
 export async function createConceptRecord(
 	body: CreateConceptRequest
 ): Promise<{ concept: Concept; instance: ConceptInstance }> {
