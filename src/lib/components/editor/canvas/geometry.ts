@@ -1,9 +1,36 @@
+import type { ConceptCardView } from '$lib/model/ConceptCardView';
+
 export type Rectangle = {
 	left: number;
 	top: number;
 	right: number;
 	bottom: number;
 };
+
+export function getCardCenter(card: ConceptCardView) {
+	return {
+		x: card.instance.x + card.instance.width / 2,
+		y: card.instance.y + card.instance.height / 2
+	};
+}
+
+export function getCardsWorldBounds(cardsToFrame: ConceptCardView[]): Rectangle {
+	const left = Math.min(...cardsToFrame.map((card) => card.instance.x));
+	const top = Math.min(...cardsToFrame.map((card) => card.instance.y));
+	const right = Math.max(...cardsToFrame.map((card) => card.instance.x + card.instance.width));
+	const bottom = Math.max(...cardsToFrame.map((card) => card.instance.y + card.instance.height));
+
+	return { left, top, right, bottom };
+}
+
+export function getCardWorldRect(card: ConceptCardView): Rectangle {
+	return {
+		left: card.instance.x,
+		top: card.instance.y,
+		right: card.instance.x + card.instance.width,
+		bottom: card.instance.y + card.instance.height
+	};
+}
 
 export function clamp(value: number, min: number, max: number) {
 	return Math.min(Math.max(value, min), max);

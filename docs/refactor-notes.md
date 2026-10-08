@@ -182,3 +182,18 @@ npm run build completed successfully
 ```
 
 Search confirms there are no direct `fetch('/api/...')` calls or `requestJson` references under `src/lib/components/editor/`. Runtime mutation/refresh verification remains deferred to the final protected-data regression pass.
+
+## Phase 6 — pure calculations and editor types
+
+Card rectangle/center/bounds calculations now live in `canvas/geometry.ts`. Packing, size presets, imported-card sizing, and nearby-position calculations now live in `canvas/layout.ts`. The layout module receives viewport dimensions explicitly and has no DOM, rune, component, or editor-state dependencies.
+
+Workspace/menu types now live in `EditorTypes.ts`, while camera and pointer-interaction types remain in `CanvasTypes.ts`. All scoring formulas, gaps, presets, random offsets, and positioning calculations were preserved during extraction.
+
+Phase 6 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+npm run build completed successfully
+```
+
+Manual verification of frame-all, focus, grid arrangement, imported-card sizing, and new-card positioning remains part of the final browser regression pass.

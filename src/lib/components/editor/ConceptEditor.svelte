@@ -11,23 +11,37 @@
 	import type { Concept } from '$lib/model/Concept';
 	import type { ConceptInstance } from '$lib/model/ConceptInstance';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
+	import type {
+		CanvasCamera,
+		ChildTileDragState,
+		DragState,
+		PendingDragState,
+		ResizeState,
+		SelectionBoxState
+	} from '$lib/components/editor/canvas/CanvasTypes';
+	import type {
+		ContextMenu,
+		CreateConceptOptions,
+		MainView,
+		SidebarTab,
+		TitleConflictState
+	} from '$lib/components/editor/EditorTypes';
 	import {
 		conceptSizePresets,
-		type ConceptSizePreset,
-		type ChildTileDragState,
-		type ContextMenu,
-		type DragState,
-		type MainView,
-		type PendingDragState,
-		type ResizeState,
-		type SelectionBoxState,
-		type SidebarTab,
-		type CreateConceptOptions
-	} from '$lib/components/editor/canvas/CanvasTypes';
+		chooseBestPackedLayout,
+		getImportedConceptSize,
+		getNextConceptPositionAfterCard,
+		getTitleSizedConceptWidth,
+		type ConceptSizePreset
+	} from '$lib/components/editor/canvas/layout';
 	import {
 		clamp,
+		getCardCenter,
+		getCardsWorldBounds,
+		getCardWorldRect,
 		normalizeRectangle,
-		getRectangleOverlapRatio
+		getRectangleOverlapRatio,
+		type Rectangle
 	} from '$lib/components/editor/canvas/geometry';
 	import {
 		defaultConceptWidth,
@@ -67,11 +81,6 @@
 		relationships = initialRelationships;
 	});
 
-	type TitleConflictState = {
-		card: ConceptCardView;
-		title: string;
-		matchingConcepts: Concept[];
-	};
 
 	let titleConflict = $state<TitleConflictState | null>(null);
 
@@ -187,36 +196,6 @@
 	const arrangeAnimationMs = 4000;
 	const cardDragThresholdPx = 4;
 
-	// Move?
-	type WorldBounds = {
-		left: number;
-		top: number;
-		right: number;
-		bottom: number;
-	};
-
-	// Card Arrangement
-
-	type PackedCardPlacement = {
-		card: ConceptCardView;
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-	};
-
-	type PackedLayout = {
-		placements: PackedCardPlacement[];
-		width: number;
-		height: number;
-		columns: number;
-	};
-
-	type CanvasCamera = {
-		panX: number;
-		panY: number;
-		zoom: number;
-	};
 
 	// Initialization of cards
 
@@ -335,7 +314,7 @@
 
 	// Returns where the camera will be after the arrangement takes place
 	function getCameraForBounds(
-		bounds: WorldBounds,
+		bounds: Rectangle,
 		options: {
 			padding: number;
 			allowZoomIn: boolean;
@@ -392,66 +371,6 @@
 		});
 	}
 
-	function packCardsIntoColumns(
-		cardsToPack: ConceptCardView[],
-		columns: number,
-		columnUnitWidth: number,
-		gap: number
-	): PackedLayout {
-		const columnHeights = Array.from({ length: columns }, () => 0);
-
-		const placements = cardsToPack.map((card) => {
-			const cardWidth = card.instance.width;
-			const cardHeight = card.instance.height;
-
-			const columnSpan = Math.min(
-				columns,
-				Math.max(1, Math.ceil((cardWidth + gap) / (columnUnitWidth + gap)))
-			);
-
-			let bestColumn = 0;
-			let bestY = Number.POSITIVE_INFINITY;
-
-			for (let column = 0; column <= columns - columnSpan; column += 1) {
-				const candidateY = Math.max(...columnHeights.slice(column, column + columnSpan));
-
-				if (candidateY < bestY) {
-					bestY = candidateY;
-					bestColumn = column;
-				}
-			}
-
-			const spanWidth = columnSpan * columnUnitWidth + (columnSpan - 1) * gap;
-
-			const x = bestColumn * (columnUnitWidth + gap) + Math.max(0, (spanWidth - cardWidth) / 2);
-
-			const y = bestY;
-
-			const nextColumnHeight = y + cardHeight + gap;
-
-			for (let column = bestColumn; column < bestColumn + columnSpan; column += 1) {
-				columnHeights[column] = nextColumnHeight;
-			}
-
-			return {
-				card,
-				x,
-				y,
-				width: cardWidth,
-				height: cardHeight
-			};
-		});
-
-		const right = Math.max(...placements.map((placement) => placement.x + placement.width));
-		const bottom = Math.max(...placements.map((placement) => placement.y + placement.height));
-
-		return {
-			placements,
-			width: right,
-			height: bottom,
-			columns
-		};
-	}
 
 	function getConceptChildren(conceptInstanceId: string): ConceptCardView[] {
 		return cards.filter((card) => card.instance.parentInstanceId === conceptInstanceId);
@@ -461,63 +380,6 @@
 		return cards.filter((card) => card.instance.parentInstanceId === null);
 	}
 
-	function chooseBestPackedLayout(cardsToPack: ConceptCardView[], gap: number): PackedLayout {
-		const viewportSize = getViewportWorldSize();
-		const viewportRatio = viewportSize.width / Math.max(1, viewportSize.height);
-
-		const columnUnitWidth = conceptSizePresets.small.width;
-		const maxColumns = Math.max(1, Math.min(cardsToPack.length, 12));
-
-		let bestLayout: PackedLayout | null = null;
-		let bestScore = Number.POSITIVE_INFINITY;
-
-		for (let columns = 1; columns <= maxColumns; columns += 1) {
-			const layout = packCardsIntoColumns(cardsToPack, columns, columnUnitWidth, gap);
-
-			const layoutRatio = layout.width / Math.max(1, layout.height);
-			const ratioScore = Math.abs(Math.log(layoutRatio / viewportRatio));
-
-			const areaScore = (layout.width * layout.height) / 1000000;
-
-			const score = ratioScore * 10 + areaScore;
-
-			if (score < bestScore) {
-				bestScore = score;
-				bestLayout = layout;
-			}
-		}
-
-		if (!bestLayout) {
-			return packCardsIntoColumns(cardsToPack, 1, columnUnitWidth, gap);
-		}
-
-		return bestLayout;
-	}
-
-	// Functions
-
-	function getTitleSizedConceptWidth(title: string) {
-		const text = title.trim() || 'Untitled Concept';
-
-		const approximateCharacterWidth = 9;
-		const horizontalPadding = 32;
-		const resizeHandleAllowance = 28;
-
-		return Math.min(
-			900,
-			Math.max(
-				conceptSizePresets.small.width,
-				text.length * approximateCharacterWidth + horizontalPadding + resizeHandleAllowance
-			)
-		);
-	}
-
-	function getImportedConceptSize(title: string) {
-		return {
-			width: getTitleSizedConceptWidth(title),
-			height: conceptSizePresets.small.height
-		};
-	}
 
 	function handleChildTileDragStart(event: PointerEvent, childCard: ConceptCardView) {
 		closeContextMenu();
@@ -854,7 +716,7 @@
 		const viewportCenter = getViewportCenterWorldPoint();
 		const gap = 48;
 
-		const layout = chooseBestPackedLayout(sortedCards, gap);
+		const layout = chooseBestPackedLayout(sortedCards, gap, getViewportWorldSize());
 
 		const layoutLeft = viewportCenter.x - layout.width / 2;
 		const layoutTop = viewportCenter.y - layout.height / 2;
@@ -898,12 +760,6 @@
 		};
 	}
 
-	function getCardCenter(card: ConceptCardView) {
-		return {
-			x: card.instance.x + card.instance.width / 2,
-			y: card.instance.y + card.instance.height / 2
-		};
-	}
 
 	function panToWorldPoint(worldPoint: { x: number; y: number }) {
 		if (!canvasElement) {
@@ -952,14 +808,6 @@
 		}
 	}
 
-	function getCardsWorldBounds(cardsToFrame: ConceptCardView[]) {
-		const left = Math.min(...cardsToFrame.map((card) => card.instance.x));
-		const top = Math.min(...cardsToFrame.map((card) => card.instance.y));
-		const right = Math.max(...cardsToFrame.map((card) => card.instance.x + card.instance.width));
-		const bottom = Math.max(...cardsToFrame.map((card) => card.instance.y + card.instance.height));
-
-		return { left, top, right, bottom };
-	}
 
 	function getCardsInsideSelectionBox() {
 		const selectionWorldRect = getSelectionBoxWorldRect();
@@ -1046,14 +894,6 @@
 		});
 	}
 
-	function getCardWorldRect(card: ConceptCardView) {
-		return {
-			left: card.instance.x,
-			top: card.instance.y,
-			right: card.instance.x + card.instance.width,
-			bottom: card.instance.y + card.instance.height
-		};
-	}
 
 	function isSelectionModifierEvent(event: PointerEvent | MouseEvent) {
 		return event.ctrlKey || event.metaKey || event.shiftKey;
@@ -1139,19 +979,6 @@
 		return isDoubleEnter;
 	}
 
-	// IMPORTANT FUNCTION
-	// This terribly named function chooses where the new cards will spawn
-
-	function getNextConceptPositionAfterCard(card: ConceptCardView) {
-		const gap = 116;
-		const verticalOffset = 40;
-		const randomHoriOffset = Math.random() * (Math.random() >= 0.5 ? 1 : -1);
-		const randomVertOffset = Math.random() * (Math.random() >= 0.5 ? 1 : -1);
-		return {
-			x: card.instance.x + gap * randomHoriOffset,
-			y: card.instance.y + verticalOffset * randomVertOffset
-		};
-	}
 
 	function getCardByInstanceId(instanceId: string) {
 		return cardsByInstanceId.get(instanceId);

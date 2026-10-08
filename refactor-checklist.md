@@ -289,7 +289,7 @@ The existing editor depends on successful mutations triggering a reload and its 
 
 ### Extract geometry
 
-* [ ] Move these functions from `src/lib/components/editor/ConceptEditor.svelte` to `src/lib/components/editor/canvas/geometry.ts` and export them:
+* [x] Move these functions from `src/lib/components/editor/ConceptEditor.svelte` to `src/lib/components/editor/canvas/geometry.ts` and export them:
 
 ```text
 getCardCenter
@@ -297,13 +297,13 @@ getCardsWorldBounds
 getCardWorldRect
 ```
 
-* [ ] Replace the local `WorldBounds` type with the existing `Rectangle` type from `geometry.ts`.
-* [ ] Delete the local `WorldBounds` declaration.
+* [x] Replace the local `WorldBounds` type with the existing `Rectangle` type from `geometry.ts`.
+* [x] Delete the local `WorldBounds` declaration.
 
 ### Extract layout calculations
 
-* [ ] Create `src/lib/components/editor/canvas/layout.ts`.
-* [ ] Move these functions from `ConceptEditor.svelte` into it:
+* [x] Create `src/lib/components/editor/canvas/layout.ts`.
+* [x] Move these functions from `ConceptEditor.svelte` into it:
 
 ```text
 packCardsIntoColumns
@@ -313,17 +313,17 @@ getImportedConceptSize
 getNextConceptPositionAfterCard
 ```
 
-* [ ] Move `PackedCardPlacement` and `PackedLayout` into `layout.ts`.
-* [ ] Move `conceptSizePresets` and `ConceptSizePreset` from `CanvasTypes.ts` into `layout.ts`.
-* [ ] Add a `viewportSize: { width: number; height: number }` argument to `chooseBestPackedLayout`.
-* [ ] Replace its internal `getViewportWorldSize()` call with that argument.
-* [ ] Pass `getViewportWorldSize()` from the existing caller.
-* [ ] Keep the layout scoring, gaps, size presets, and positioning calculations unchanged.
+* [x] Move `PackedCardPlacement` and `PackedLayout` into `layout.ts`.
+* [x] Move `conceptSizePresets` and `ConceptSizePreset` from `CanvasTypes.ts` into `layout.ts`.
+* [x] Add a `viewportSize: { width: number; height: number }` argument to `chooseBestPackedLayout`.
+* [x] Replace its internal `getViewportWorldSize()` call with that argument.
+* [x] Pass `getViewportWorldSize()` from the existing caller.
+* [x] Keep the layout scoring, gaps, size presets, and positioning calculations unchanged.
 
 ### Separate editor types from canvas interaction types
 
-* [ ] Create `src/lib/components/editor/EditorTypes.ts`.
-* [ ] Move these declarations from `canvas/CanvasTypes.ts` into it:
+* [x] Create `src/lib/components/editor/EditorTypes.ts`.
+* [x] Move these declarations from `canvas/CanvasTypes.ts` into it:
 
 ```text
 CreateConceptOptions
@@ -333,15 +333,15 @@ ContextMenuTarget
 ContextMenu
 ```
 
-* [ ] Import `ConceptSizePreset` from `canvas/layout.ts` where `CreateConceptOptions` requires it.
-* [ ] Move `TitleConflictState` from `ConceptEditor.svelte` into `EditorTypes.ts`.
-* [ ] Move `CanvasCamera` from `ConceptEditor.svelte` into `canvas/CanvasTypes.ts`.
-* [ ] Keep drag, pending-drag, resize, child-drag, and selection-box types in `CanvasTypes.ts`.
+* [x] Import `ConceptSizePreset` from `canvas/layout.ts` where `CreateConceptOptions` requires it.
+* [x] Move `TitleConflictState` from `ConceptEditor.svelte` into `EditorTypes.ts`.
+* [x] Move `CanvasCamera` from `ConceptEditor.svelte` into `canvas/CanvasTypes.ts`.
+* [x] Keep drag, pending-drag, resize, child-drag, and selection-box types in `CanvasTypes.ts`.
 
 **Checkpoint**
 
 * [ ] Verify frame-all, focus, grid arrangement, imported-card sizing, and new-card positioning.
-* [ ] Confirm that the extracted layout module does not read component-local state or DOM elements.
+* [x] Confirm that the extracted layout module does not read component-local state or DOM elements.
 
 ## 7. Store concepts and instances once
 

@@ -1,8 +1,4 @@
-	import {
-		defaultConceptWidth,
-		defaultConceptHeight
-	} from '$lib/model/normalizeConceptInstance';
-	import type { ConceptCardView } from '$lib/model/ConceptCardView';
+import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
 export type DragState =
 	| {
@@ -100,50 +96,9 @@ export type DraggedCardStart = {
 			startY: number;
 };
 
-type ContextMenuTarget =
-	| {
-			targetType: null;
-			instanceId: null;
-	  }
-	| {
-			targetType: 'canvas';
-			worldX: number;
-			worldY: number;
-			instanceId: null;
-	  }
-	| {
-			targetType: 'card';
-			instanceId: string;
-	  };
-
-export type ContextMenu = {
-	visible: boolean;
-	x: number;
-	y: number;
-} & ContextMenuTarget;
-
-export type CreateConceptOptions = {
-			position?: {x: number; y: number };
-			title?: string;
-			width?: number;
-			height?: number;
-			parentInstanceId?: string | null;
-			sizePreset?: ConceptSizePreset;
-			focusAfterCreate?:boolean;
-			lastCameraPanX?: number;
-			lastCameraPanY?: number;
-			lastCameraZoom?: number;
+export type CanvasCamera = {
+	panX: number;
+	panY: number;
+	zoom: number;
 };
-
-export type SidebarTab = 'concept' | 'tree';
-
-export type MainView = 'canvas' | 'table';
-
-export const conceptSizePresets = {
-		small: { width: 180, height: 64 },
-		medium: { width: defaultConceptWidth, height: defaultConceptHeight },
-		large: { width: 520, height: 360 }
-	} as const;
-
-export type ConceptSizePreset = keyof typeof conceptSizePresets;
 
