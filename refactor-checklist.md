@@ -22,7 +22,7 @@ All paths below are relative to the project root. This plan was source-reviewed 
 
 ### Delete empty files
 
-* [ ] Delete the following files after confirming that they are still empty and have no required references in your working copy:
+* [x] Delete the following files after confirming that they are still empty and have no required references in your working copy:
 
 ```text
 src/stores/concepts.ts
@@ -42,19 +42,19 @@ src/lib/queries/relationshipDisplayQueries.ts
 src/routes/api/relationship-definitions/+server.ts
 ```
 
-* [ ] Record the intended features from those placeholders in `docs/refactor-notes.md`.
-* [ ] Delete directories left empty by these deletions.
-* [ ] Move the comments from `src/lib/user-settings/later.js` into `docs/refactor-notes.md`, then delete that file.
+* [x] Record the intended features from those placeholders in `docs/refactor-notes.md`.
+* [x] Delete directories left empty by these deletions.
+* [x] Move the comments from `src/lib/user-settings/later.js` into `docs/refactor-notes.md`, then delete that file.
 
 ### Remove the retired child-tile layout
 
 The old tile measurement and preview implementation is retired, but interactive ConceptCard previews remain a major future feature. Delete only the unused implementation; preserve the requirement that hovering a ConceptInstance representation can eventually reveal an interactive card preview with its tree and notes.
 
-* [ ] Delete `src/lib/components/card/ConceptChildTile.svelte` after confirming that nothing imports it.
+* [x] Delete `src/lib/components/card/ConceptChildTile.svelte` after confirming that nothing imports it.
 
-* [ ] Delete `src/lib/components/ConceptPropertiesPreview.svelte` after confirming that nothing imports it.
+* [x] Delete `src/lib/components/ConceptPropertiesPreview.svelte` after confirming that nothing imports it.
 
-* [ ] Delete these functions from `src/lib/components/card/ConceptCard.svelte`:
+* [x] Delete these functions from `src/lib/components/card/ConceptCard.svelte`:
 
 ```text
 buildChildTileLayout
@@ -75,7 +75,7 @@ hideChildPreview
 getRenderedCardWidth
 ```
 
-* [ ] Delete the declarations used exclusively by that retired code:
+* [x] Delete the declarations used exclusively by that retired code:
 
 ```text
 childTileFontFamily
@@ -100,27 +100,27 @@ previewPlacement
 currentCardLayout
 ```
 
-* [ ] Delete the `ResizeObserver` effect that measures the drop area.
-* [ ] Delete the `{#if previewChildCard}` markup and its component-local preview styles.
-* [ ] Remove the `conceptChildren`, `onChildOpen`, `onOverflowOpen`, and `onPropertiesChange` props from `ConceptCard.svelte`.
-* [ ] Remove those four attributes from the `<ConceptCard>` invocation in `src/lib/components/ConceptCanvas.svelte`.
-* [ ] Remove `dropAreaElement` and `bind:dropAreaElement` from `ConceptCard.svelte`.
-* [ ] Remove the corresponding `$bindable` prop and `bind:this={dropAreaElement}` from `ConceptDropArea.svelte`, after confirming that nothing else uses that element reference.
+* [x] Delete the `ResizeObserver` effect that measures the drop area.
+* [x] Delete the `{#if previewChildCard}` markup and its component-local preview styles.
+* [x] Remove the `conceptChildren`, `onChildOpen`, `onOverflowOpen`, and `onPropertiesChange` props from `ConceptCard.svelte`.
+* [x] Remove those four attributes from the `<ConceptCard>` invocation in `src/lib/components/ConceptCanvas.svelte`.
+* [x] Remove `dropAreaElement` and `bind:dropAreaElement` from `ConceptCard.svelte`.
+* [x] Remove the corresponding `$bindable` prop and `bind:this={dropAreaElement}` from `ConceptDropArea.svelte`, after confirming that nothing else uses that element reference.
 
 **Keep the active child-drag implementation:**
 
-* [ ] Keep `handleChildTilePointerDown`, `cancelChildTileHold`, `childTileHoldDelayMs`, `childTileHoldTimer`, and `pendingChildDragCard`.
-* [ ] Keep the title-input focus effect.
-* [ ] Keep the `.concept-drop-area` class and its `data-instance-id` attribute.
+* [x] Keep `handleChildTilePointerDown`, `cancelChildTileHold`, `childTileHoldDelayMs`, `childTileHoldTimer`, and `pendingChildDragCard`.
+* [x] Keep the title-input focus effect.
+* [x] Keep the `.concept-drop-area` class and its `data-instance-id` attribute.
 
 ### Remove other leftovers
 
-* [ ] Delete `nextZIndex` from `src/lib/components/ConceptCanvas.svelte`.
-* [ ] Delete the unused `TreeView` import from `src/lib/components/tree/TreeViewNode.svelte`.
+* [x] Delete `nextZIndex` from `src/lib/components/ConceptCanvas.svelte`.
+* [x] Delete the unused `TreeView` import from `src/lib/components/tree/TreeViewNode.svelte`.
 * [x] Remove the unused `onRelationshipConceptOpen` prop from `src/lib/components/sidebar/ConceptSidebar.svelte`.
-* [ ] Delete the unused `RelationshipDefinition` type import from `src/routes/+page.server.ts`.
-* [ ] Make the sidebar’s root-only `"Untitled Context"` input read-only.
-* [ ] Remove that root-only input’s `onTitleKeydown` and `onTitleBlur` calls, which currently lack a card argument.
+* [x] Delete the unused `RelationshipDefinition` type import from `src/routes/+page.server.ts`.
+* [x] Make the sidebar’s root-only `"Untitled Context"` input read-only.
+* [x] Remove that root-only input’s `onTitleKeydown` and `onTitleBlur` calls, which currently lack a card argument.
 
 **Checkpoint**
 

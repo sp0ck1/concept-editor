@@ -340,8 +340,7 @@
 						value="Untitled Context"
 						placeholder="Untitled Context"
 						aria-label="Context Title"
-						onkeydown={(event) => onTitleKeydown(event)}
-						onblur={(event) => onTitleBlur(event)}
+						readonly
 					/>
 
 					<div class="sidebar-empty">Open a concept to inspect it.</div>

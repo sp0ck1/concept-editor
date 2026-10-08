@@ -86,3 +86,34 @@ Keep these separate from refactor regressions:
 ### Phase commit policy
 
 The checklist asks for a commit after each phase. The branch began with pre-existing uncommitted and untracked owner files. Commit only refactor-owned paths when a phase has a safe, reviewable boundary; never stage unrelated working-tree changes merely to make the tree appear clean.
+
+## Phase 1 — retired placeholders and implementation notes
+
+The following empty or unused files represented intended features, not completed implementations. Their product intent remains in `Updates-Ideas.md` or this log after deleting the placeholders:
+
+- `CanvasBreadcrumb.svelte`: navigation/breadcrumb presentation. Current navigation and breadcrumb behavior remain in the workspace implementation.
+- `ImportChildrenMenu.svelte`: a dedicated child-import menu component. The working import menu remains implemented through `CanvasContextMenu.svelte`.
+- `PropertyTable.svelte`, `TableRow.svelte`, and `TableView.svelte`: future tabular representation of Concept properties and tags. Table view remains a roadmap feature and current placeholder behavior must not be mistaken for implementation.
+- `DuplicateConceptConfirmation.svelte`: the unfinished title-conflict chooser. Conflict state and HTTP responses remain; the intended confirmation UI is still unfinished.
+- `conceptSearchQueries.ts`: future search/typeahead and Concept discovery. Search remains a meaningful product gap, not an abandoned idea.
+- `relationshipDisplayQueries.ts`: a proposed display-query extraction. Existing relationship display behavior remains elsewhere and is complete enough for the current phase.
+- `relationship-definitions/+server.ts`: an empty endpoint placeholder. Relationship definitions continue to load through the server-side page loader and repository.
+- `src/stores/concepts.ts`: an abandoned empty global-store placeholder. The refactor uses one editor object scoped through Svelte context instead of creating a global Concept store.
+
+The retired child-tile measurement, wrapping, overflow, and old preview implementation is removed. This does **not** retire interactive ConceptCard previews. The intended future feature is to hover a ConceptInstance representation, including a tree row, and inspect an interactive ConceptCard preview with its child tree and notes when available.
+
+Ideas moved from `src/lib/user-settings/later.js` before deleting it:
+
+- Allow a card-side image or watermark.
+- Allow configurable background images.
+- Allow Concept/card imagery.
+
+These are retained as customization/media ideas only; they do not authorize schema or storage changes during this refactor.
+
+Phase 1 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+```
+
+The warning count matches the Phase 0 baseline after deleting styles used only by the retired property-preview markup. Source inspection confirms the title-focus effect, 300 ms child-hold timer and cancellation, `.concept-drop-area`, `data-instance-id`, and active tree rendering remain. Interactive browser verification is deferred to the final regression pass; no mutation tests were run against live JSON data.

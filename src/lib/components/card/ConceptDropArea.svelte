@@ -5,14 +5,12 @@
 	let {
 		card,
 		getConceptChildren,
-		dropAreaElement = $bindable<HTMLElement | null>(null),
 		onCardOpen,
 		onChildPointerDown,
 		onChildPointerUp
 	} = $props<{
 		card: ConceptCardView;
 		getConceptChildren: (conceptInstanceId: string) => ConceptCardView[];
-		dropAreaElement?: HTMLElement | null;
 		onCardOpen?: (card: ConceptCardView) => void;
 		onChildPointerDown?: (event: PointerEvent, childCard: ConceptCardView) => void;
 		onChildPointerUp?: () => void;
@@ -47,7 +45,6 @@
 </script>
 
 <div
-	bind:this={dropAreaElement}
 	class="concept-drop-area"
 	data-instance-id={instance.id}
 	data-concept-id={concept.id}

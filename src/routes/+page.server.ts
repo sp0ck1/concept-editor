@@ -3,7 +3,6 @@ import path from 'node:path';
 import type { Concept } from '$lib/types/Concept';
 import type { ConceptInstance } from '$lib/types/ConceptInstance';
 import type { ConceptCardView } from '$lib/types/ConceptCardView';
-import type { RelationshipDefinition } from '$lib/types/RelationshipDefinition';
 import { normalizeConcept } from '$lib/concepts/normalizeConcept';
 import { normalizeConceptInstance } from '$lib/concepts/normalizeConceptInstance';
 import { getAllConceptRelationships } from '$lib/repositories/conceptRelationshipRepository';

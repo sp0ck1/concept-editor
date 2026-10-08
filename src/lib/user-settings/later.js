@@ -1,5 +1,0 @@
-/*
-load image from somewhere for card left side ui watermark
-load image for background
-load image for card concept 
-*/

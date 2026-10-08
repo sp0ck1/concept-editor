@@ -117,8 +117,6 @@
 	let mainView = $state<MainView>('canvas');
 	let arrangingCamera = $state(false);
 
-	let nextZIndex = $state(1);
-
 	let panX = $state(0);
 	let panY = $state(0);
 	let zoom = $state(1);
@@ -2410,7 +2408,6 @@
 					{#each cardsInCurrentCanvas as card (card.instance.id)}
 						<ConceptCard
 							{card}
-							conceptChildren={getConceptChildren(card.instance.id)}
 							isActive={activeInstanceId === card.instance.id}
 							isDragging={(dragState.active &&
 								dragState.draggedCards.some(
@@ -2426,14 +2423,11 @@
 									pendingFocusInstanceId = null;
 								}
 							}}
-							onChildOpen={openCardCanvas}
-							onOverflowOpen={openCardCanvas}
 							onChildDragStart={handleChildTileDragStart}
 							onPointerDown={handleCardPointerDown}
 							onContextMenu={handleCardContextMenu}
 							onTitleBlur={handleConceptTitleBlur}
 							onTitleKeydown={handleConceptTitleKeydown}
-							onPropertiesChange={handlePropertiesChange}
 							onResizePointerDown={handleResizePointerDown}
 							onCardOpen={openCardCanvas}
 							tagConcepts={getTagConcepts(card.concept.tagConceptIds ?? [])}
