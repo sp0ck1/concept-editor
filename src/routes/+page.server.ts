@@ -1,30 +1,12 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import type { Concept } from '$lib/model/Concept';
-import type { ConceptInstance } from '$lib/model/ConceptInstance';
 import type { ConceptCardView } from '$lib/model/ConceptCardView';
-import { normalizeConcept } from '$lib/model/normalizeConcept';
-import { normalizeConceptInstance } from '$lib/model/normalizeConceptInstance';
-import { getAllConceptRelationships } from '$lib/repositories/conceptRelationshipRepository';
-import { getAllRelationshipDefinitions } from '$lib/repositories/relationshipDefinitionRepository';
+import { getAllConcepts } from '$lib/server/repositories/conceptRepository';
+import { getAllConceptInstances } from '$lib/server/repositories/conceptInstanceRepository';
+import { getAllConceptRelationships } from '$lib/server/repositories/conceptRelationshipRepository';
+import { getAllRelationshipDefinitions } from '$lib/server/repositories/relationshipDefinitionRepository';
 
 export async function load() {
-  const conceptsPath = path.resolve('src/lib/data/concepts.json');
-  const instancesPath = path.resolve('src/lib/data/concept_instances.json');
-
-  const conceptsFile = await readFile(conceptsPath, 'utf-8');
-  const instancesFile = await readFile(instancesPath, 'utf-8');
-
-  const rawConcepts = JSON.parse(conceptsFile) as Partial<Concept>[];
-  const rawInstances = JSON.parse(instancesFile) as Partial<ConceptInstance>[];
-
-  const concepts = rawConcepts.map((concept, index) =>
-    normalizeConcept(concept, index)
-  );
-
-  const instances = rawInstances.map((instance, index) =>
-    normalizeConceptInstance(instance, index)
-  );
+  const concepts = await getAllConcepts();
+  const instances = await getAllConceptInstances();
 
   const cards: ConceptCardView[] = instances
     .map((instance) => {

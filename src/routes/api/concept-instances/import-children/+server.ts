@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import {
 	getAllConceptInstances,
 	importChildrenFromConceptInstance
-} from '$lib/repositories/conceptInstanceRepository';
+} from '$lib/server/repositories/conceptInstanceRepository';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = (await request.json()) as Record<string, unknown>;

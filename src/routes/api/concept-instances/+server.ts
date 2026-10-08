@@ -4,7 +4,7 @@ import {
 	deleteConceptInstance,
 	updateConceptInstance,
 	type UpdateConceptInstanceInput
-} from '$lib/repositories/conceptInstanceRepository';
+} from '$lib/server/repositories/conceptInstanceRepository';
 
 export const PATCH: RequestHandler = async ({ request }) => {
 	const body = (await request.json()) as Record<string, unknown>;

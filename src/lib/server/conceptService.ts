@@ -5,12 +5,12 @@ import {
 	createConceptId,
 	getAllConcepts,
 	saveAllConcepts
-} from '$lib/repositories/conceptRepository';
+} from '$lib/server/repositories/conceptRepository';
 import {
 	createConceptInstanceId,
 	getAllConceptInstances,
 	saveAllConceptInstances
-} from '$lib/repositories/conceptInstanceRepository';
+} from '$lib/server/repositories/conceptInstanceRepository';
 import {
 	defaultConceptHeight,
 	defaultConceptWidth

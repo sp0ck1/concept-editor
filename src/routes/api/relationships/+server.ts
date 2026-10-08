@@ -7,7 +7,7 @@ import {
 	updateConceptRelationship,
 	type CreateConceptRelationshipInput,
 	type UpdateConceptRelationshipInput
-} from '$lib/repositories/conceptRelationshipRepository';
+} from '$lib/server/repositories/conceptRelationshipRepository';
 
 export const GET: RequestHandler = async () => {
 	return json(await getAllConceptRelationships());

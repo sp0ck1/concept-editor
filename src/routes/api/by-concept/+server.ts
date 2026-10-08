@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getAllConceptRelationships } from '$lib/repositories/conceptRelationshipRepository';
+import { getAllConceptRelationships } from '$lib/server/repositories/conceptRelationshipRepository';
 import { getRelationshipsForConcept } from '$lib/model/relationshipQueries';
 
 export const GET: RequestHandler = async ({ url }) => {

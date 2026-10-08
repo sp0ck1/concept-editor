@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { ensureConceptByTitle } from '$lib/repositories/conceptRepository';
+import { ensureConceptByTitle } from '$lib/server/repositories/conceptRepository';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = (await request.json()) as { title?: unknown };

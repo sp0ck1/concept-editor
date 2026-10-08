@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import {
 	updateConceptInstancesBatch,
 	type ConceptInstanceBatchUpdate
-} from '$lib/repositories/conceptInstanceRepository';
+} from '$lib/server/repositories/conceptInstanceRepository';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);

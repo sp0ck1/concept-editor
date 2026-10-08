@@ -150,3 +150,18 @@ svelte-check found 0 errors and 19 warnings in 8 files
 ```
 
 Search confirms no source imports reference `$lib/components/ConceptCanvas`, the old component subdirectories, or `$lib/canvas`. Manual browser behavior verification remains deferred to the final regression pass.
+
+## Phase 4 — explicit server boundary
+
+Repositories now live under `src/lib/server/repositories/`, and coordinated Concept/instance rules live in `src/lib/server/conceptService.ts`. This uses SvelteKit's enforced server-only boundary without changing repository behavior, title-conflict rules, API URLs, or JSON destinations.
+
+`src/routes/+page.server.ts` now loads Concepts and ConceptInstances through their repositories instead of duplicating file reads and normalization. It continues to return `concepts`, `instances`, `cards`, `relationships`, and `relationshipDefinitions` until card derivation moves to the editor in Phase 7.
+
+Phase 4 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+npm run build completed successfully
+```
+
+All four live JSON hashes were unchanged before and after validation. Repository path inspection confirms writes still target the original files under `src/lib/data/`. Creation, title editing, deletion, and child-import mutation flows were not executed against live data and remain part of the final manual regression pass.

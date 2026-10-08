@@ -5,13 +5,13 @@ import {
 	createConceptWithInstance,
 	updateConceptTitleFromInstance,
 	type CreateConceptWithInstanceInput
-} from '$lib/services/conceptService';
+} from '$lib/server/conceptService';
 import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
 
 import {
 	updateConcept,
 	type UpdateConceptInput
-} from '$lib/repositories/conceptRepository';
+} from '$lib/server/repositories/conceptRepository';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const input = ((await request.json().catch(() => ({}))) ??

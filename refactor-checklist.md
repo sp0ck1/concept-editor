@@ -205,29 +205,29 @@ src/lib/model/TitleConflictMode.ts
 
 ## 4. Make the server boundary explicit
 
-* [ ] Create `src/lib/server/`.
-* [ ] Move `src/lib/repositories/` to `src/lib/server/repositories/`.
-* [ ] Move `src/lib/services/conceptService.ts` to `src/lib/server/conceptService.ts`.
-* [ ] Update repository and service imports in the API routes and page loader.
-* [ ] Delete the old `src/lib/services/` directory once empty.
+* [x] Create `src/lib/server/`.
+* [x] Move `src/lib/repositories/` to `src/lib/server/repositories/`.
+* [x] Move `src/lib/services/conceptService.ts` to `src/lib/server/conceptService.ts`.
+* [x] Update repository and service imports in the API routes and page loader.
+* [x] Delete the old `src/lib/services/` directory once empty.
 
 SvelteKit enforces `$lib/server` as a server-only boundary. Keep browser components and client request modules from importing its runtime code. ([Svelte][1])
 
-* [ ] Keep the repository data paths pointing to the existing `src/lib/data/*.json` files.
-* [ ] Keep the existing title-conflict rules in `conceptService.ts`.
+* [x] Keep the repository data paths pointing to the existing `src/lib/data/*.json` files.
+* [x] Keep the existing title-conflict rules in `conceptService.ts`.
 
 ### Remove duplicate loading logic
 
-* [ ] Import `getAllConcepts` and `getAllConceptInstances` into `src/routes/+page.server.ts`.
-* [ ] Replace its direct concept and instance file reads with those repository functions.
-* [ ] Delete the loader’s now-unused `readFile`, `path`, and normalization imports.
-* [ ] Keep its current returned fields, including `cards`, until Phase 7.
+* [x] Import `getAllConcepts` and `getAllConceptInstances` into `src/routes/+page.server.ts`.
+* [x] Replace its direct concept and instance file reads with those repository functions.
+* [x] Delete the loader’s now-unused `readFile`, `path`, and normalization imports.
+* [x] Keep its current returned fields, including `cards`, until Phase 7.
 
 **Checkpoint**
 
-* [ ] Verify page loading.
+* [x] Verify page loading.
 * [ ] Verify concept creation, title editing, instance deletion, and child importing.
-* [ ] Confirm that writes still reach the original JSON files.
+* [x] Confirm that writes still reach the original JSON files.
 
 ## 5. Finish consolidating HTTP requests
 
