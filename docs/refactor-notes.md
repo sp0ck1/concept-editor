@@ -299,3 +299,49 @@ npm run build completed successfully
 ```
 
 A source-wide search found no remaining references to any renamed symbol. No unlisted naming cleanup was performed.
+
+## Phase 13 — final audit
+
+### Ownership map
+
+| Area | Authoritative location |
+| --- | --- |
+| Loaded records, derived cards, hierarchy queries, selection, navigation, editor commands, and menus | `src/lib/components/editor/Editor.svelte.ts` |
+| Camera, pointer/drag/resize/marquee interaction, canvas keyboard behavior, paste placement, framing, and arrangement | `src/lib/components/editor/canvas/CanvasController.svelte.ts` |
+| Workspace composition, incoming-data bridge, viewport binding, and sidebar resizing | `src/lib/components/editor/ConceptEditor.svelte` |
+| Spatial canvas markup and its scoped styles | `src/lib/components/editor/canvas/ConceptCanvas.svelte` |
+| Card-local title focus and child-hold timer | `src/lib/components/editor/card/ConceptCard.svelte` |
+| Tree expansion and sidebar property/tag drafts | Tree/sidebar components under `src/lib/components/editor/` |
+| Canonical persisted model types and normalizers | `src/lib/model/` |
+| Browser endpoint calls and response parsing | `src/lib/client/` |
+| Persistence repositories and coordinated server rules | `src/lib/server/` |
+| HTTP handlers and page loading | `src/routes/` |
+
+### Audit results
+
+- No imports remain from the old type, concept, canvas, query, repository, service, or workspace-component paths.
+- No editor component directly calls an `/api` endpoint.
+- `Concept`, `ConceptInstance`, and `ConceptCardView` each have one canonical declaration.
+- Cards and the current card are derived rather than maintained as writable synchronized copies.
+- Class methods passed as callbacks are wrapped, and neither controller is a module-global singleton.
+- Constructors perform no DOM access, listener registration, or timer startup. Browser globals occur only inside runtime interaction methods.
+- Endpoint URLs remain in `src/lib/client/`; JSON paths remain in `src/lib/server/repositories/` and still target the four original files.
+- Camera persistence still calls the instance client without `invalidateAll()`; record mutations retain the existing reload path.
+- The four live JSON files exactly match the external backup at `/home/cory/development/concept-editor-data-backup-2026-10-08`.
+- Obsolete empty directories left by file moves were removed.
+
+### Remaining bugs and unfinished product work
+
+These are not refactoring leftovers:
+
+- Interactive ConceptCard previews remain a major future feature. The intended behavior is to hover a ConceptInstance representation, including a tree row, and inspect an interactive card preview with its tree and notes when available.
+- Table view, search/discovery, complete title-conflict choice UI, complete tree-row opening, and tag-canvas navigation remain unfinished roadmap work.
+- Parent deletion semantics, same-title disambiguation details, and the missing-camera-zoom default discrepancy remain unresolved as previously recorded.
+- Relationship behavior is complete enough for this phase; deferred relationship features remain roadmap work.
+- The existing 19 accessibility/CSS warnings remain. Their distribution is now 9 files because canvas markup moved into its own component.
+
+### Final verification status
+
+The final static type check and production build succeeded. No mutation tests were run against live JSON data. The checklist's browser interaction checkpoints remain open for manual verification: creation, title conflicts, shared metadata, drag/drop, navigation/camera restoration, arrangement, paste/child import, sidebar/tree behavior, persistence after reload, and browser-console/request errors.
+
+This structural refactoring pass stops here. Further subdivisions, behavior changes, data-model changes, and roadmap features should wait until the refactored editor has been used and the pending browser checks have been completed.

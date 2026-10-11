@@ -16,7 +16,7 @@ All paths below are relative to the project root. This plan was source-reviewed 
 * [x] Record existing behavior for creating, renaming, dragging, resizing, reparenting, selecting, navigating, editing properties, adding tags, and importing children.
 * [x] Record unfinished features separately: the table placeholder, tag navigation stub, missing tree-row opening behavior, and missing title-conflict dialog.
 * [x] Keep API URLs, stored IDs, JSON filenames, and JSON record shapes unchanged throughout this refactor.
-* [ ] Commit after each completed phase.
+* [x] Commit after each completed phase.
 
 ## 1. Remove inactive code
 
@@ -909,17 +909,17 @@ Move component-scoped CSS with the markup it styles; parent-component styles do 
 
 ### Check ownership
 
-* [ ] Keep loaded records, hierarchy queries, selection, navigation, and editor commands in `Editor.svelte.ts`.
-* [ ] Keep camera, pointer interaction, marquee interaction, clipboard placement, and canvas keyboard behavior in `CanvasController.svelte.ts`.
-* [ ] Keep workspace composition and sidebar resizing in `ConceptEditor.svelte`.
-* [ ] Keep spatial markup in `canvas/ConceptCanvas.svelte`.
-* [ ] Keep component-specific drafts, expansion, focus elements, and hold timers in their components.
-* [ ] Keep endpoint URLs in `src/lib/client/`.
-* [ ] Keep file persistence and server coordination in `src/lib/server/`.
+* [x] Keep loaded records, hierarchy queries, selection, navigation, and editor commands in `Editor.svelte.ts`.
+* [x] Keep camera, pointer interaction, marquee interaction, clipboard placement, and canvas keyboard behavior in `CanvasController.svelte.ts`.
+* [x] Keep workspace composition and sidebar resizing in `ConceptEditor.svelte`.
+* [x] Keep spatial markup in `canvas/ConceptCanvas.svelte`.
+* [x] Keep component-specific drafts, expansion, focus elements, and hold timers in their components.
+* [x] Keep endpoint URLs in `src/lib/client/`.
+* [x] Keep file persistence and server coordination in `src/lib/server/`.
 
 ### Check for leftovers
 
-* [ ] Search for imports using the old paths:
+* [x] Search for imports using the old paths:
 
 ```text
 $lib/types
@@ -931,17 +931,17 @@ $lib/services
 $lib/components/ConceptCanvas
 ```
 
-* [ ] Remove obsolete imports, unused declarations, abandoned comments, and empty directories.
-* [ ] Search editor components for remaining direct `fetch('/api/...')` calls.
-* [ ] Search for duplicate model definitions.
-* [ ] Search for writable copies of derived cards or current-card state.
-* [ ] Search callback assignments for unbound class methods.
-* [ ] Confirm that neither controller is exported as a global singleton.
-* [ ] Confirm that neither constructor accesses `window` or `document`.
+* [x] Remove obsolete imports, unused declarations, abandoned comments, and empty directories.
+* [x] Search editor components for remaining direct `fetch('/api/...')` calls.
+* [x] Search for duplicate model definitions.
+* [x] Search for writable copies of derived cards or current-card state.
+* [x] Search callback assignments for unbound class methods.
+* [x] Confirm that neither controller is exported as a global singleton.
+* [x] Confirm that neither constructor accesses `window` or `document`.
 
 ### Run the regression checks
 
-* [ ] Run the type checker and production build.
+* [x] Run the type checker and production build.
 
 * [ ] Create a concept by double-clicking the canvas.
 
@@ -973,11 +973,11 @@ $lib/components/ConceptCanvas
 
 * [ ] Check for new browser-console errors and unhandled request failures.
 
-* [ ] Add a short ownership map to `docs/refactor-notes.md`.
+* [x] Add a short ownership map to `docs/refactor-notes.md`.
 
-* [ ] Record remaining bugs and unfinished features separately from refactoring leftovers.
+* [x] Record remaining bugs and unfinished features separately from refactoring leftovers.
 
-* [ ] Stop this refactoring pass and use the editor before introducing more subdivisions or changing the data model.
+* [x] Stop this refactoring pass and use the editor before introducing more subdivisions or changing the data model.
 
 [1]: https://svelte.dev/docs/kit/server-only-modules "Server-only modules • SvelteKit Docs"
 [2]: https://svelte.dev/docs/svelte/%24derived "$derived • Svelte Docs"
