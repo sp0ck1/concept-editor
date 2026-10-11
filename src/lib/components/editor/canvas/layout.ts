@@ -147,7 +147,7 @@ export function getImportedConceptSize(title: string) {
 	};
 }
 
-export function getNextConceptPositionAfterCard(card: ConceptCardView) {
+export function getNearbyCardPosition(card: ConceptCardView) {
 	const gap = 116;
 	const verticalOffset = 40;
 	const randomHoriOffset = Math.random() * (Math.random() >= 0.5 ? 1 : -1);

@@ -55,7 +55,7 @@
 			}
 
 			event.preventDefault();
-			editor.canvas.handleChildTileDragStart(event, pendingChildDragCard);
+			editor.canvas.startChildDrag(event, pendingChildDragCard);
 			pendingChildDragCard = null;
 		}, childTileHoldDelayMs);
 	}
@@ -123,9 +123,9 @@
 	
 				<ConceptTagsPreview
 					tags={tagConcepts}
-					onManualTagAdd={(title) => editor.handleManualTagAdd(card, title)}
+					onManualTagAdd={(title) => editor.addTag(card, title)}
 					onTagOpen={(tagConcept) => editor.openTagCanvas(tagConcept)}
-					onTagRemove={(tagConcept) => editor.handleTagRemove(card, tagConcept)}
+					onTagRemove={(tagConcept) => editor.removeTag(card, tagConcept)}
 				/>
 
 				<div class="card-sidebar-overlay" style="width:30px; height:max-content; background-color: red;">

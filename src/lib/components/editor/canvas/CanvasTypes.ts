@@ -58,7 +58,7 @@ export type ResizeState =
 			startHeight: number;
 	  };
 
-export type ChildTileDragState =
+export type ChildDragState =
 	| {
 			active: false;
 			childCard: null;

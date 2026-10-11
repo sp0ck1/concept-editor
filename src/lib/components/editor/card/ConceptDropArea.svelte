@@ -14,7 +14,7 @@
 	let concept = $derived(card.concept);
 	let instance = $derived(card.instance);
 
-	let conceptChildren = $derived.by(() => editor.getConceptChildren(instance.id));
+	let conceptChildren = $derived.by(() => editor.getChildCards(instance.id));
 
 	function openCardFromDropArea(event: MouseEvent) {
 		const target = event.target;

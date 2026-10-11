@@ -14,7 +14,7 @@
 
 	let expanded = $state(false);
 
-	let children = $derived(editor.getConceptChildren(card.instance.id));
+	let children = $derived(editor.getChildCards(card.instance.id));
 
 	let hasChildren = $derived(children.length > 0);
 

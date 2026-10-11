@@ -4,7 +4,7 @@ import {
 	conceptSizePresets,
 	chooseBestPackedLayout,
 	getImportedConceptSize,
-	getNextConceptPositionAfterCard,
+	getNearbyCardPosition,
 	getTitleSizedConceptWidth
 } from '$lib/components/editor/canvas/layout';
 import {
@@ -18,7 +18,7 @@ import {
 } from '$lib/components/editor/canvas/geometry';
 import type {
 	CanvasCamera,
-	ChildTileDragState,
+	ChildDragState,
 	DragState,
 	PendingDragState,
 	ResizeState,
@@ -59,7 +59,7 @@ export class CanvasController {
 	pendingDragState = $state<PendingDragState>(this.emptyPendingDragState());
 	resizeState = $state<ResizeState>(this.emptyResizeState());
 	selectionBoxState = $state<SelectionBoxState>(this.emptySelectionBoxState());
-	childTileDragState = $state<ChildTileDragState>(this.emptyChildTileDragState());
+	childDragState = $state<ChildDragState>(this.emptyChildDragState());
 
 	pasteConfirmation = $state<{
 		visible: boolean;
@@ -155,7 +155,7 @@ export class CanvasController {
 
 		const camera = this.getCurrentCamera();
 
-		const currentCard = this.editor.getCardByInstanceId(this.editor.currentCanvasOwnerInstanceId);
+		const currentCard = this.editor.getCard(this.editor.currentCanvasOwnerInstanceId);
 
 		if (currentCard) {
 			currentCard.instance.lastCameraPanX = camera.panX;
@@ -172,10 +172,10 @@ export class CanvasController {
 
 
 
-	handleChildTileDragStart(event: PointerEvent, childCard: ConceptCardView) {
+	startChildDrag(event: PointerEvent, childCard: ConceptCardView) {
 		this.editor.closeContextMenu();
 
-		this.childTileDragState = {
+		this.childDragState = {
 			active: true,
 			childCard,
 			mouseX: event.clientX,
@@ -899,9 +899,9 @@ export class CanvasController {
 		};
 	}
 
-	handleChildTilePointerMove(event: PointerEvent) {
-		this.childTileDragState.mouseX = event.clientX;
-		this.childTileDragState.mouseY = event.clientY;
+	handleChildDragPointerMove(event: PointerEvent) {
+		this.childDragState.mouseX = event.clientX;
+		this.childDragState.mouseY = event.clientY;
 	}
 
 	handleSelectionBoxPointerMove(event: PointerEvent) {
@@ -998,8 +998,8 @@ export class CanvasController {
 	// - Resizing a card
 	// - Panning the camera
 	handleWindowPointerMove(event: PointerEvent) {
-		if (this.childTileDragState.active) {
-			this.handleChildTilePointerMove(event);
+		if (this.childDragState.active) {
+			this.handleChildDragPointerMove(event);
 			return;
 		}
 
@@ -1030,21 +1030,21 @@ export class CanvasController {
 	}
 
 
-	async finishChildTileDrag(event: PointerEvent) {
-		const childCard = this.childTileDragState.childCard;
+	async finishChildDrag(event: PointerEvent) {
+		const childCard = this.childDragState.childCard;
 		const { targetTagInstanceId, targetParentInstanceId } = this.getDropTargetAtPoint(
 			event.clientX,
 			event.clientY
 		);
 
-		this.childTileDragState = this.emptyChildTileDragState();
+		this.childDragState = this.emptyChildDragState();
 
 		if (!childCard) {
 			return;
 		}
 
 		if (targetTagInstanceId) {
-			const targetCard = this.editor.getCardByInstanceId(targetTagInstanceId);
+			const targetCard = this.editor.getCard(targetTagInstanceId);
 
 			if (!targetCard) {
 				return;
@@ -1131,7 +1131,7 @@ export class CanvasController {
 			return;
 		}
 
-		const card = this.editor.getCardByInstanceId(this.resizeState.instanceId);
+		const card = this.editor.getCard(this.resizeState.instanceId);
 
 		this.resizeState = this.emptyResizeState();
 
@@ -1167,7 +1167,7 @@ export class CanvasController {
 		}
 
 		if (targetTagInstanceId) {
-			const targetCard = this.editor.getCardByInstanceId(targetTagInstanceId);
+			const targetCard = this.editor.getCard(targetTagInstanceId);
 			if (!targetCard) {
 				return;
 			}
@@ -1245,8 +1245,8 @@ export class CanvasController {
 		};
 	}
 	async handleWindowPointerUp(event: PointerEvent) {
-		if (this.childTileDragState.active) {
-			await this.finishChildTileDrag(event);
+		if (this.childDragState.active) {
+			await this.finishChildDrag(event);
 			return;
 		}
 
@@ -1329,11 +1329,11 @@ export class CanvasController {
 			await this.editor.commitTitleEdit(card, input.value);
 
 			if (isDoubleEnter) {
-				const nextconceptPositionAfterCard = getNextConceptPositionAfterCard(card);
+				const nextPosition = getNearbyCardPosition(card);
 
 				const position = {
-					x: nextconceptPositionAfterCard.x,
-					y: nextconceptPositionAfterCard.y
+					x: nextPosition.x,
+					y: nextPosition.y
 				};
 
 				await this.editor.createConcept({
@@ -1357,7 +1357,7 @@ export class CanvasController {
 	}
 
 
-	emptyChildTileDragState(): ChildTileDragState {
+	emptyChildDragState(): ChildDragState {
 		return {
 			active: false,
 			childCard: null,
@@ -1372,6 +1372,6 @@ export class CanvasController {
 		this.pendingDragState = this.emptyPendingDragState();
 		this.resizeState = this.emptyResizeState();
 		this.selectionBoxState = this.emptySelectionBoxState();
-		this.childTileDragState = this.emptyChildTileDragState();
+		this.childDragState = this.emptyChildDragState();
 	}
 }

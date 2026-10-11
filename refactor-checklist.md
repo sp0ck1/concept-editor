@@ -875,7 +875,7 @@ Move component-scoped CSS with the markup it styles; parent-component styles do 
 
 ## 12. Apply the naming cleanup
 
-* [ ] Apply these renames in `src/lib/components/editor/Editor.svelte.ts` and update every reference:
+* [x] Apply these renames in `src/lib/components/editor/Editor.svelte.ts` and update every reference:
 
 | Existing name              | New name           |
 | -------------------------- | ------------------ |
@@ -887,11 +887,11 @@ Move component-scoped CSS with the markup it styles; parent-component styles do 
 | `handlePropertiesChange`   | `setProperties`    |
 | `openInstanceParentCanvas` | `openParentCanvas` |
 
-* [ ] Rename `getNextConceptPositionAfterCard` in `canvas/layout.ts` to `getNearbyCardPosition`.
+* [x] Rename `getNextConceptPositionAfterCard` in `canvas/layout.ts` to `getNearbyCardPosition`.
 
-* [ ] Rename its caller’s `nextconceptPositionAfterCard` variable to `nextPosition`.
+* [x] Rename its caller’s `nextconceptPositionAfterCard` variable to `nextPosition`.
 
-* [ ] Apply these child-drag renames across the canvas controller and its types:
+* [x] Apply these child-drag renames across the canvas controller and its types:
 
 | Existing name                | New name                     |
 | ---------------------------- | ---------------------------- |
@@ -902,8 +902,8 @@ Move component-scoped CSS with the markup it styles; parent-component styles do 
 | `handleChildTilePointerMove` | `handleChildDragPointerMove` |
 | `finishChildTileDrag`        | `finishChildDrag`            |
 
-* [ ] Leave CSS class names unchanged during these symbol renames.
-* [ ] Keep the remaining names stable until you have used the refactored editor.
+* [x] Leave CSS class names unchanged during these symbol renames.
+* [x] Keep the remaining names stable until you have used the refactored editor.
 
 ## 13. Audit the result
 

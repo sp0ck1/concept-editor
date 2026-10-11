@@ -21,10 +21,10 @@
 
 	let rootConceptInstances = $derived.by(() => {
 		if (rootCard) {
-			return editor.getConceptChildren(rootCard.instance.id);
+			return editor.getChildCards(rootCard.instance.id);
 		}
 
-		return editor.getRootConceptInstances();
+		return editor.getRootCards();
 	});
 </script>
 <div

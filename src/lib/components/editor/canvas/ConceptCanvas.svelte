@@ -6,14 +6,14 @@
 	const editor = getEditorContext();
 </script>
 
-{#if editor.canvas.childTileDragState.active}
+{#if editor.canvas.childDragState.active}
 	<div
 		class="child-tile-drag-ghost"
-		style={`left: ${editor.canvas.childTileDragState.mouseX}px; top: ${editor.canvas.childTileDragState.mouseY}px;`}
+		style={`left: ${editor.canvas.childDragState.mouseX}px; top: ${editor.canvas.childDragState.mouseY}px;`}
 	>
 		<div class="child-tile-drag-ghost-title">
-			{editor.canvas.childTileDragState.childCard.concept.title ||
-				editor.canvas.childTileDragState.childCard.concept.id}
+			{editor.canvas.childDragState.childCard.concept.title ||
+				editor.canvas.childDragState.childCard.concept.id}
 		</div>
 	</div>
 {/if}

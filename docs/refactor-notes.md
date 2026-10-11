@@ -284,3 +284,18 @@ npm run build completed successfully
 ```
 
 The warning total matches the baseline; the warning file count increased because moved canvas accessibility/CSS diagnostics are now attributed to `ConceptCanvas.svelte` while a workspace-only unused selector remains in `ConceptEditor.svelte`. Browser verification of viewport sizing, positions, transforms, drag ghosts, selection placement, sidebar resizing, and view switching remains deferred to the final regression pass.
+
+## Phase 12 — naming cleanup
+
+The checklist's limited naming pass is complete. Editor queries now use `getChildCards`, `getRootCards`, and `getCard`; editor commands use `addTag`, `removeTag`, `setProperties`, and `openParentCanvas`. The layout helper is now `getNearbyCardPosition`, and its caller uses `nextPosition`.
+
+Child interaction symbols now describe child dragging rather than the retired tile implementation: `ChildDragState`, `childDragState`, `startChildDrag`, `emptyChildDragState`, `handleChildDragPointerMove`, and `finishChildDrag`. Existing `child-tile-*` CSS classes and DOM interaction selectors remain unchanged because they are behavioral/styling interfaces, not part of this symbol cleanup.
+
+Phase 12 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 9 files
+npm run build completed successfully
+```
+
+A source-wide search found no remaining references to any renamed symbol. No unlisted naming cleanup was performed.

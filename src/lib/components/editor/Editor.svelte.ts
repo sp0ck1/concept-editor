@@ -103,7 +103,7 @@ export class Editor {
 			return null;
 		}
 
-		return this.getCardByInstanceId(this.currentCanvasOwnerInstanceId) ?? null;
+		return this.getCard(this.currentCanvasOwnerInstanceId) ?? null;
 	});
 
 	currentConceptRelationships = $derived.by(() => {
@@ -179,7 +179,7 @@ export class Editor {
 	}
 
 	async openInstanceCanvas(instanceId: string) {
-		const targetCard = this.getCardByInstanceId(instanceId);
+		const targetCard = this.getCard(instanceId);
 
 		if (!targetCard || instanceId === this.currentCanvasOwnerInstanceId) {
 			return;
@@ -199,12 +199,12 @@ export class Editor {
 		}
 	}
 
-	async openInstanceParentCanvas() {
+	async openParentCanvas() {
 		if (this.currentCanvasOwnerInstanceId === null) {
 			return;
 		}
 
-		const currentCard = this.getCardByInstanceId(this.currentCanvasOwnerInstanceId);
+		const currentCard = this.getCard(this.currentCanvasOwnerInstanceId);
 		const parentInstanceId = currentCard?.instance.parentInstanceId ?? null;
 
 		if (parentInstanceId === null) {
@@ -222,11 +222,11 @@ export class Editor {
 		this.relationshipDefinitions = data.relationshipDefinitions;
 	}
 
-	getConceptChildren(conceptInstanceId: string): ConceptCardView[] {
+	getChildCards(conceptInstanceId: string): ConceptCardView[] {
 		return this.cards.filter((card) => card.instance.parentInstanceId === conceptInstanceId);
 	}
 
-	getRootConceptInstances(): ConceptCardView[] {
+	getRootCards(): ConceptCardView[] {
 		return this.cards.filter((card) => card.instance.parentInstanceId === null);
 	}
 
@@ -240,7 +240,7 @@ export class Editor {
 			.filter((concept): concept is Concept => Boolean(concept));
 	}
 
-	getCardByInstanceId(instanceId: string) {
+	getCard(instanceId: string) {
 		return this.cardsByInstanceId.get(instanceId);
 	}
 
@@ -248,14 +248,14 @@ export class Editor {
 		const breadcrumb: ConceptCardView[] = [];
 		const visited = new SvelteSet<string>();
 
-		let current = this.getCardByInstanceId(instanceId);
+		let current = this.getCard(instanceId);
 
 		while (current && !visited.has(current.instance.id)) {
 			visited.add(current.instance.id);
 			breadcrumb.unshift(current);
 
 			current = current.instance.parentInstanceId
-				? this.getCardByInstanceId(current.instance.parentInstanceId)
+				? this.getCard(current.instance.parentInstanceId)
 				: undefined;
 		}
 
@@ -263,7 +263,7 @@ export class Editor {
 	}
 
 	getImportChildrenOptions(targetInstanceId: string) {
-		const targetCard = this.getCardByInstanceId(targetInstanceId);
+		const targetCard = this.getCard(targetInstanceId);
 
 		if (!targetCard) {
 			return [];
@@ -305,14 +305,14 @@ export class Editor {
 		possibleDescendantInstanceId: string,
 		ancestorInstanceId: string
 	): boolean {
-		let current = this.getCardByInstanceId(possibleDescendantInstanceId);
+		let current = this.getCard(possibleDescendantInstanceId);
 
 		while (current?.instance.parentInstanceId) {
 			if (current.instance.parentInstanceId === ancestorInstanceId) {
 				return true;
 			}
 
-			current = this.getCardByInstanceId(current.instance.parentInstanceId);
+			current = this.getCard(current.instance.parentInstanceId);
 		}
 
 		return false;
@@ -433,7 +433,7 @@ export class Editor {
 		await invalidateAll();
 	}
 
-	async handlePropertiesChange(card: ConceptCardView, properties: Record<string, string>) {
+	async setProperties(card: ConceptCardView, properties: Record<string, string>) {
 		card.concept.properties = properties;
 
 		await this.updateConcept(card.concept.id, {
@@ -460,7 +460,7 @@ export class Editor {
 		]);
 	}
 
-	async handleManualTagAdd(card: ConceptCardView, title: string) {
+	async addTag(card: ConceptCardView, title: string) {
 		let result: Awaited<ReturnType<typeof ensureConceptByTitle>>;
 
 		try {
@@ -477,7 +477,7 @@ export class Editor {
 		await this.tagConceptWithConcept(card, result.concept);
 	}
 
-	async handleTagRemove(card: ConceptCardView, tagConcept: Concept) {
+	async removeTag(card: ConceptCardView, tagConcept: Concept) {
 		await this.setConceptTagConceptIds(
 			card,
 			(card.concept.tagConceptIds ?? []).filter(

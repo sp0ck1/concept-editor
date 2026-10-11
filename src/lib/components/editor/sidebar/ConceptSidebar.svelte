@@ -48,11 +48,11 @@
 			)
 		);
 
-		editor.handlePropertiesChange(card, nextProperties);
+		editor.setProperties(card, nextProperties);
 	}
 
 	function updatePropertyValue(card: ConceptCardView, key: string, value: string) {
-		editor.handlePropertiesChange(card, {
+		editor.setProperties(card, {
 			...(card.concept.properties ?? {}),
 			[key]: value
 		});
@@ -63,7 +63,7 @@
 			Object.entries(card.concept.properties ?? {}).filter(([key]) => key !== keyToRemove)
 		);
 
-		editor.handlePropertiesChange(card, nextProperties);
+		editor.setProperties(card, nextProperties);
 	}
 
 	function commitNewProperty(card: ConceptCardView) {
@@ -79,7 +79,7 @@
 			return;
 		}
 
-		editor.handlePropertiesChange(card, {
+		editor.setProperties(card, {
 			...properties,
 			[key]: newPropertyValue
 		});
@@ -98,7 +98,7 @@
 
 		sidebarNewTag = '';
 
-		await editor.handleManualTagAdd(card, title);
+		await editor.addTag(card, title);
 	}
 
 	function handleNewPropertyKeydown(event: KeyboardEvent) {
@@ -180,7 +180,7 @@
 
 					<!-- If not at root, display up button -->
 					{#if currentCanvasOwnerCard !== null}
-						<button class="canvas-breadcrumb-up" type="button" onclick={() => editor.openInstanceParentCanvas()}>Up</button>
+						<button class="canvas-breadcrumb-up" type="button" onclick={() => editor.openParentCanvas()}>Up</button>
 					{/if}
 				</div>
 				<div class="sidebar-section">
@@ -238,7 +238,7 @@
 						tags={editor.getTagConcepts(sidebarCard.concept.tagConceptIds ?? [])}
 						showInput={false}
 						onTagOpen={(tagConcept) => editor.openTagCanvas(tagConcept)}
-						onTagRemove={(tagConcept) => editor.handleTagRemove(sidebarCard, tagConcept)}
+						onTagRemove={(tagConcept) => editor.removeTag(sidebarCard, tagConcept)}
 					/>
 				</div>
 
