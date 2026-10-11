@@ -231,3 +231,22 @@ npm run build completed successfully
 ```
 
 Static audit confirms all listed state, derived values, queries, commands, and menu operations moved exactly once, `openTagCanvas` remains a stub, constructors contain no DOM/listener/timer setup, and existing child-component props remain until Phase 10. Browser mutation verification of creation, editing, tags, properties, deletion, menus, and refresh behavior remains deferred to the final protected-data regression pass.
+
+## Phase 9 — canvas controller and navigation ownership
+
+Canvas camera, pointer, drag, resize, marquee, clipboard, keyboard, layout-animation, and short-lived interaction state now live in one rune-backed `CanvasController`. `Editor` constructs the controller once and owns selection and navigation commands. Both constructors remain free of DOM access, listener registration, and timer startup.
+
+`ConceptEditor.svelte` now contains only workspace composition, incoming-data replacement, sidebar resizing, and the browser event bindings required to connect the component to the controller. It retains one `<svelte:window>` and binds the canvas element directly to `editor.canvas.canvasElement`. The controller continues to use the established `.concept-tags-preview`, `.concept-card`, `.concept-drop-area`, `data-card-instance-id`, and `data-instance-id` drop interfaces.
+
+Navigation still saves the outgoing camera without invalidating page data, clears interaction and selection state, waits for the destination render, and applies the incoming camera. Root navigation now awaits `prepareCanvasNavigation(null)` before inspecting and framing root cards, correcting the sequencing issue recorded in the baseline.
+
+During review, the first extraction introduced one new Svelte warning by reading initial `data` outside `untrack`; initialization was restored to `untrack(() => new Editor(data))`, returning validation to the baseline warning count. A stale editor-tool snapshot briefly restored the old component during that correction; the Phase 9 integration was reapplied and fully revalidated before commit.
+
+Phase 9 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+npm run build completed successfully
+```
+
+Source audit confirms controller state and methods are not duplicated in `ConceptEditor.svelte`, selection still uses replacement semantics, camera writes still bypass `invalidateAll()`, and root navigation awaits its state transition. Browser verification of zoom, pan, dragging, resizing, marquee, drops, navigation, title editing, double-Enter, and paste confirmation remains deferred to the final regression pass.

@@ -550,17 +550,17 @@ Complete this phase as one connected extraction. The canvas controller and edito
 
 ### Create the controller
 
-* [ ] Create `src/lib/components/editor/canvas/CanvasController.svelte.ts`.
-* [ ] Export a `CanvasController` class.
-* [ ] Give its constructor an `Editor` reference.
-* [ ] Import `Editor` with `import type` in this file.
-* [ ] Add a `canvas` property to `Editor`.
-* [ ] Construct it once with `new CanvasController(this)` inside the editor constructor.
-* [ ] Keep DOM access, event-listener registration, and timer startup out of both constructors.
+* [x] Create `src/lib/components/editor/canvas/CanvasController.svelte.ts`.
+* [x] Export a `CanvasController` class.
+* [x] Give its constructor an `Editor` reference.
+* [x] Import `Editor` with `import type` in this file.
+* [x] Add a `canvas` property to `Editor`.
+* [x] Construct it once with `new CanvasController(this)` inside the editor constructor.
+* [x] Keep DOM access, event-listener registration, and timer startup out of both constructors.
 
 ### Move canvas state
 
-* [ ] Move these fields from `ConceptEditor.svelte` to `CanvasController.svelte.ts`:
+* [x] Move these fields from `ConceptEditor.svelte` to `CanvasController.svelte.ts`:
 
 ```text
 canvasElement
@@ -588,12 +588,12 @@ pasteConfirmation
 lastEnterPress
 ```
 
-* [ ] Move the associated zoom limits, drag thresholds, selection threshold, double-Enter window, and animation duration into the same module.
-* [ ] Preserve their existing values.
+* [x] Move the associated zoom limits, drag thresholds, selection threshold, double-Enter window, and animation duration into the same module.
+* [x] Preserve their existing values.
 
 ### Move camera, framing, and arrangement functions
 
-* [ ] Move these functions from `ConceptEditor.svelte` to `CanvasController.svelte.ts`:
+* [x] Move these functions from `ConceptEditor.svelte` to `CanvasController.svelte.ts`:
 
 ```text
 getCurrentCamera
@@ -621,7 +621,7 @@ focusSelectionOrNearestCard
 
 ### Move pointer and drag functions
 
-* [ ] Move these functions into `CanvasController.svelte.ts`:
+* [x] Move these functions into `CanvasController.svelte.ts`:
 
 ```text
 handleChildTileDragStart
@@ -654,7 +654,7 @@ finishCardDrag
 
 ### Move marquee-selection functions
 
-* [ ] Move these functions into `CanvasController.svelte.ts`:
+* [x] Move these functions into `CanvasController.svelte.ts`:
 
 ```text
 getCardsInsideSelectionBox
@@ -673,7 +673,7 @@ finishSelectionBox
 
 ### Move interaction reset functions
 
-* [ ] Move these functions into `CanvasController.svelte.ts`:
+* [x] Move these functions into `CanvasController.svelte.ts`:
 
 ```text
 emptyDragState
@@ -689,7 +689,7 @@ clearInteractiveState
 
 ### Move clipboard and keyboard interaction
 
-* [ ] Move these functions into `CanvasController.svelte.ts`:
+* [x] Move these functions into `CanvasController.svelte.ts`:
 
 ```text
 handleCanvasPaste
@@ -706,7 +706,7 @@ handleConceptTitleBlur
 
 ### Move selection commands and navigation into the editor
 
-* [ ] Move these functions from `ConceptEditor.svelte` to `Editor.svelte.ts`:
+* [x] Move these functions from `ConceptEditor.svelte` to `Editor.svelte.ts`:
 
 ```text
 selectOnlyInstance
@@ -720,28 +720,28 @@ openInstanceCanvas
 openInstanceParentCanvas
 ```
 
-* [ ] Make editor navigation methods call `this.canvas` for camera saving, camera application, framing, and interaction resets.
-* [ ] Make `clearSelection` clear the canvas’s marquee preview as well as the editor’s selected IDs.
-* [ ] Preserve the outgoing-camera save, interaction reset, selection reset, DOM-update wait, and incoming-camera restoration.
-* [ ] Change `openRootCanvas` to `await prepareCanvasNavigation(null)` before reading `cardsInCurrentCanvas` and framing or resetting the root camera.
-* [ ] Preserve the root canvas’s current frame-all behavior.
+* [x] Make editor navigation methods call `this.canvas` for camera saving, camera application, framing, and interaction resets.
+* [x] Make `clearSelection` clear the canvas’s marquee preview as well as the editor’s selected IDs.
+* [x] Preserve the outgoing-camera save, interaction reset, selection reset, DOM-update wait, and incoming-camera restoration.
+* [x] Change `openRootCanvas` to `await prepareCanvasNavigation(null)` before reading `cardsInCurrentCanvas` and framing or resetting the root camera.
+* [x] Preserve the root canvas’s current frame-all behavior.
 
 ### Resolve ownership references
 
-* [ ] Use `this.<name>` for controller-owned state and methods.
-* [ ] Use `this.editor.<name>` for editor records, queries, selection, menu state, and persistence commands.
-* [ ] Keep extracted geometry and layout helpers as imported functions.
-* [ ] Keep the no-refresh camera write unchanged.
-* [ ] Do not import live state from `ConceptEditor.svelte`.
-* [ ] Do not duplicate record arrays inside the canvas controller.
+* [x] Use `this.<name>` for controller-owned state and methods.
+* [x] Use `this.editor.<name>` for editor records, queries, selection, menu state, and persistence commands.
+* [x] Keep extracted geometry and layout helpers as imported functions.
+* [x] Keep the no-refresh camera write unchanged.
+* [x] Do not import live state from `ConceptEditor.svelte`.
+* [x] Do not duplicate record arrays inside the canvas controller.
 
 ### Keep browser bindings in components
 
-* [ ] Keep one `<svelte:window>` in `ConceptEditor.svelte`.
-* [ ] Point its keyboard and pointer callbacks to `editor.canvas`.
-* [ ] Point its click callback to `editor.closeContextMenu`.
-* [ ] Change the viewport binding to `bind:this={editor.canvas.canvasElement}`.
-* [ ] Leave sidebar resizing state and its three handlers in `ConceptEditor.svelte`.
+* [x] Keep one `<svelte:window>` in `ConceptEditor.svelte`.
+* [x] Point its keyboard and pointer callbacks to `editor.canvas`.
+* [x] Point its click callback to `editor.closeContextMenu`.
+* [x] Change the viewport binding to `bind:this={editor.canvas.canvasElement}`.
+* [x] Leave sidebar resizing state and its three handlers in `ConceptEditor.svelte`.
 
 **Checkpoint**
 
@@ -751,7 +751,7 @@ openInstanceParentCanvas
 * [ ] Verify navigation and camera restoration.
 * [ ] Verify double-Enter creation and title editing.
 * [ ] Verify clipboard import and its confirmation.
-* [ ] Preserve existing DOM classes and data attributes used by `getDropTargetAtPoint`.
+* [x] Preserve existing DOM classes and data attributes used by `getDropTargetAtPoint`.
 
 ## 10. Replace shared-operation props with context
 

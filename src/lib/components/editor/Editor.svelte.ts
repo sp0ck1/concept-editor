@@ -1,4 +1,5 @@
 import { invalidateAll } from '$app/navigation';
+import { tick } from 'svelte';
 import {
 	createConceptRecord,
 	ensureConceptByTitle,
@@ -11,6 +12,7 @@ import {
 	updateConceptInstanceRecord,
 	updateConceptInstancesBatch
 } from '$lib/client/conceptInstances';
+import { CanvasController } from '$lib/components/editor/canvas/CanvasController.svelte';
 import { conceptSizePresets, type ConceptSizePreset } from '$lib/components/editor/canvas/layout';
 import type {
 	ContextMenu,
@@ -30,6 +32,8 @@ import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
 import { SvelteSet } from 'svelte/reactivity';
 
 export class Editor {
+	canvas: CanvasController;
+
 	concepts = $state<EditorData['concepts']>([]);
 	instances = $state<EditorData['instances']>([]);
 	relationships = $state<EditorData['relationships']>([]);
@@ -122,7 +126,96 @@ export class Editor {
 	});
 
 	constructor(data: EditorData) {
+		this.canvas = new CanvasController(this);
 		this.replaceData(data);
+	}
+
+	selectOnlyInstance(instanceId: string) {
+		this.selectedInstanceIds = new Set([instanceId]);
+		this.activeInstanceId = instanceId;
+	}
+
+	toggleInstanceSelection(instanceId: string) {
+		const nextSelectedInstanceIds = new SvelteSet(this.selectedInstanceIds);
+
+		if (nextSelectedInstanceIds.has(instanceId)) {
+			nextSelectedInstanceIds.delete(instanceId);
+		} else {
+			nextSelectedInstanceIds.add(instanceId);
+		}
+
+		this.selectedInstanceIds = nextSelectedInstanceIds;
+		this.activeInstanceId = instanceId;
+	}
+
+	clearSelection() {
+		this.selectedInstanceIds = new Set();
+		this.canvas.clearMarqueePreviewSelection();
+		this.activeInstanceId = null;
+	}
+
+	async prepareCanvasNavigation(nextOwnerInstanceId: string | null) {
+		this.canvas.clearInteractiveState();
+		this.clearSelection();
+		this.closeContextMenu();
+
+		this.currentCanvasOwnerInstanceId = nextOwnerInstanceId;
+		this.activeInstanceId = null;
+
+		await tick();
+	}
+
+	async openCardCanvas(card: ConceptCardView) {
+		await this.openInstanceCanvas(card.instance.id);
+	}
+
+	// Root uses frame-all as its camera position until it has its own saved camera.
+	async openRootCanvas() {
+		await this.canvas.saveCurrentCanvasCamera();
+		await this.prepareCanvasNavigation(null);
+
+		if (this.cardsInCurrentCanvas.length > 0) {
+			this.canvas.frameCardsInCurrentCanvas();
+		} else {
+			this.canvas.applyCamera({ panX: 0, panY: 0, zoom: 1 });
+		}
+	}
+
+	async openInstanceCanvas(instanceId: string) {
+		const targetCard = this.getCardByInstanceId(instanceId);
+
+		if (!targetCard || instanceId === this.currentCanvasOwnerInstanceId) {
+			return;
+		}
+
+		await this.canvas.saveCurrentCanvasCamera();
+		await this.prepareCanvasNavigation(instanceId);
+
+		const savedCamera = this.canvas.getSavedCameraForInstance(targetCard.instance);
+
+		if (savedCamera) {
+			this.canvas.applyCamera(savedCamera);
+		} else if (this.cardsInCurrentCanvas.length > 0) {
+			this.canvas.frameCardsInCurrentCanvas();
+		} else {
+			this.canvas.applyCamera({ panX: 0, panY: 0, zoom: 1 });
+		}
+	}
+
+	async openInstanceParentCanvas() {
+		if (this.currentCanvasOwnerInstanceId === null) {
+			return;
+		}
+
+		const currentCard = this.getCardByInstanceId(this.currentCanvasOwnerInstanceId);
+		const parentInstanceId = currentCard?.instance.parentInstanceId ?? null;
+
+		if (parentInstanceId === null) {
+			await this.openRootCanvas();
+			return;
+		}
+
+		await this.openInstanceCanvas(parentInstanceId);
 	}
 
 	replaceData(data: EditorData) {
