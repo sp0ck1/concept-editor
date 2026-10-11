@@ -1,6 +1,16 @@
 import type { Concept } from '$lib/model/Concept';
 import type { ConceptCardView } from '$lib/model/ConceptCardView';
+import type { ConceptInstance } from '$lib/model/ConceptInstance';
+import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
+import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
 import type { ConceptSizePreset } from '$lib/components/editor/canvas/layout';
+
+export type EditorData = {
+	concepts: Concept[];
+	instances: ConceptInstance[];
+	relationships: ConceptRelationship[];
+	relationshipDefinitions: RelationshipDefinition[];
+};
 
 export type CreateConceptOptions = {
 	position?: { x: number; y: number };

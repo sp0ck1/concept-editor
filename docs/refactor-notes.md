@@ -197,3 +197,20 @@ npm run build completed successfully
 ```
 
 Manual verification of frame-all, focus, grid arrangement, imported-card sizing, and new-card positioning remains part of the final browser regression pass.
+
+## Phase 7 — canonical records and derived cards
+
+The page loader now returns only Concepts, ConceptInstances, relationships, and relationship definitions. `ConceptEditor.svelte` stores those four canonical collections and derives card views by joining each instance to its Concept by ID. The derived cards reuse the canonical objects and continue to omit instances whose Concept is missing.
+
+The four collections initialize synchronously from page data so server rendering includes the loaded cards. A narrowly scoped effect then replaces only those collections when `invalidateAll()` supplies new page data. Selection, navigation, camera, context-menu, and import-menu state are not reset by that bridge.
+
+Loaded records now use the shared model normalizers. As recorded in Phase 2, a missing instance zoom therefore receives the shared normalizer's existing `0` default; no persisted record shape changed.
+
+Phase 7 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+npm run build completed successfully
+```
+
+Audit confirms keyed rendering still uses `card.instance.id`, multiple instances share one canonical Concept object, and each instance retains its own canonical geometry/camera object. Browser verification of shared metadata updates, independent instance geometry, and refresh preservation remains deferred to the final regression pass.

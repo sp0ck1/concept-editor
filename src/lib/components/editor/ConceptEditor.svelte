@@ -6,8 +6,6 @@
 	import CanvasTopbar from '$lib/components/editor/canvas/CanvasTopbar.svelte';
 	import ConceptSidebar from '$lib/components/editor/sidebar/ConceptSidebar.svelte';
 	import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
-	import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
-	import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
 	import type { Concept } from '$lib/model/Concept';
 	import type { ConceptInstance } from '$lib/model/ConceptInstance';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
@@ -22,6 +20,7 @@
 	import type {
 		ContextMenu,
 		CreateConceptOptions,
+		EditorData,
 		MainView,
 		SidebarTab,
 		TitleConflictState
@@ -43,10 +42,8 @@
 		getRectangleOverlapRatio,
 		type Rectangle
 	} from '$lib/components/editor/canvas/geometry';
-	import {
-		defaultConceptWidth,
-		defaultConceptHeight
-	} from '$lib/model/normalizeConceptInstance';
+	import { normalizeConcept } from '$lib/model/normalizeConcept';
+	import { normalizeConceptInstance } from '$lib/model/normalizeConceptInstance';
 	import { lineParser, type ParsedConceptInput } from '$lib/parsers';
 	import PasteImportConfirmation from '$lib/components/editor/canvas/PasteImportConfirmation.svelte';
 	import CanvasSelectionBox from '$lib/components/editor/canvas/CanvasSelectionBox.svelte';
@@ -67,20 +64,7 @@
 
 	// let Declarations
 
-	let { initialCards, initialConcepts, initialRelationships, initialRelationshipDefinitions } =
-		$props<{
-			initialCards: ConceptCardView[];
-			initialConcepts: Concept[];
-			initialRelationships: ConceptRelationship[];
-			initialRelationshipDefinitions: RelationshipDefinition[];
-		}>();
-
-	$effect(() => {
-		concepts = initialConcepts.map(normalizeConcept);
-		cards = initialCards.map(normalizeCard);
-		relationships = initialRelationships;
-	});
-
+	let { data } = $props<{ data: EditorData }>();
 
 	let titleConflict = $state<TitleConflictState | null>(null);
 
@@ -114,17 +98,35 @@
 		targetInstanceId: null
 	});
 
-	let cards = $state<ConceptCardView[]>([]);
-	let concepts = $state<Concept[]>([]);
-	let relationships = $state<ConceptRelationship[]>([]);
+	let concepts = $state<EditorData['concepts']>(data.concepts.map(normalizeConcept));
+	let instances = $state<EditorData['instances']>(data.instances.map(normalizeConceptInstance));
+	let relationships = $state<EditorData['relationships']>(data.relationships);
+	let relationshipDefinitions = $state<EditorData['relationshipDefinitions']>(
+		data.relationshipDefinitions
+	);
 
-	let sidebarVisible = $state(true);
-	let cardsByInstanceId = $derived.by(() => {
-		return new Map(cards.map((card) => [card.instance.id, card]));
+	$effect(() => {
+		concepts = data.concepts.map(normalizeConcept);
+		instances = data.instances.map(normalizeConceptInstance);
+		relationships = data.relationships;
+		relationshipDefinitions = data.relationshipDefinitions;
 	});
 
+	let sidebarVisible = $state(true);
 	let conceptsById = $derived.by(() => {
 		return new Map(concepts.map((concept) => [concept.id, concept]));
+	});
+
+	let cards = $derived.by((): ConceptCardView[] => {
+		return instances.flatMap((instance) => {
+			const concept = conceptsById.get(instance.conceptId);
+
+			return concept ? [{ concept, instance }] : [];
+		});
+	});
+
+	let cardsByInstanceId = $derived.by(() => {
+		return new Map(cards.map((card) => [card.instance.id, card]));
 	});
 
 	let canvasElement = $state<HTMLElement | null>(null);
@@ -195,38 +197,6 @@
 
 	const arrangeAnimationMs = 4000;
 	const cardDragThresholdPx = 4;
-
-
-	// Initialization of cards
-
-	function normalizeConcept(concept: Concept): Concept {
-		return {
-			...concept,
-			properties: concept.properties ?? {},
-			tagConceptIds: concept.tagConceptIds ?? []
-		};
-	}
-
-	function normalizeInstance(instance: ConceptInstance): ConceptInstance {
-		return {
-			...instance,
-			parentInstanceId: instance.parentInstanceId ?? null,
-			x: instance.x ?? 0,
-			y: instance.y ?? 0,
-			width: instance.width ?? defaultConceptWidth,
-			height: instance.height ?? defaultConceptHeight,
-			lastCameraPanX: instance.lastCameraPanX ?? 0,
-			lastCameraPanY: instance.lastCameraPanY ?? 0,
-			lastCameraZoom: instance.lastCameraZoom ?? 1
-		};
-	}
-
-	function normalizeCard(card: ConceptCardView): ConceptCardView {
-		return {
-			concept: normalizeConcept(card.concept),
-			instance: normalizeInstance(card.instance)
-		};
-	}
 
 	// Refactor eventually. No reason to have both. Should be dragState = {active: false ...}
 	function resetDragState() {
@@ -2131,7 +2101,7 @@
 					onTagRemove={handleTagRemove}
 					onPropertiesChange={handlePropertiesChange}
 					relationships={currentConceptRelationships}
-					relationshipDefinitions={initialRelationshipDefinitions}
+					relationshipDefinitions={relationshipDefinitions}
 					{getConceptById}
 				/>
 

@@ -1,25 +1,10 @@
 <script lang="ts">
 	import ConceptEditor from '$lib/components/editor/ConceptEditor.svelte';
-	import type { Concept } from '$lib/model/Concept';
-	import type { ConceptCardView } from '$lib/model/ConceptCardView';
-	import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
-	import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
+	import type { PageData } from './$types';
 
-	let { data } = $props<{
-		data: {
-			concepts: Concept[];
-			cards: ConceptCardView[];
-			relationships: ConceptRelationship[];
-			relationshipDefinitions: RelationshipDefinition[];
-		};
-	}>();
+	let { data } = $props<{ data: PageData }>();
 </script>
 
 <main class="app">
-	<ConceptEditor
-	initialCards={data.cards} 
-	initialConcepts={data.concepts} 
-	initialRelationships={data.relationships}
-	initialRelationshipDefinitions={data.relationshipDefinitions}
-	/>
+	<ConceptEditor {data} />
 </main>

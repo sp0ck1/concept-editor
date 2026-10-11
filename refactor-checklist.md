@@ -349,7 +349,7 @@ Complete this phase before moving the data into a class.
 
 ### Simplify the page-to-editor interface
 
-* [ ] Add an `EditorData` type to `src/lib/components/editor/EditorTypes.ts` with these fields:
+* [x] Add an `EditorData` type to `src/lib/components/editor/EditorTypes.ts` with these fields:
 
 ```ts
 concepts: Concept[];
@@ -358,36 +358,36 @@ relationships: ConceptRelationship[];
 relationshipDefinitions: RelationshipDefinition[];
 ```
 
-* [ ] Remove the `cards` construction from `src/routes/+page.server.ts`.
-* [ ] Return the four collections above.
-* [ ] Replace the handwritten page-data type in `src/routes/+page.svelte` with the generated `PageData` type from `./$types`.
-* [ ] Replace the four `initial...` props with:
+* [x] Remove the `cards` construction from `src/routes/+page.server.ts`.
+* [x] Return the four collections above.
+* [x] Replace the handwritten page-data type in `src/routes/+page.svelte` with the generated `PageData` type from `./$types`.
+* [x] Replace the four `initial...` props with:
 
 ```svelte
 <ConceptEditor {data} />
 ```
 
-* [ ] Change `ConceptEditor.svelte` to accept `data: EditorData`.
+* [x] Change `ConceptEditor.svelte` to accept `data: EditorData`.
 
 ### Make cards derived views
 
-* [ ] Add reactive `instances` and `relationshipDefinitions` collections to `ConceptEditor.svelte`.
-* [ ] Keep `concepts`, `instances`, `relationships`, and `relationshipDefinitions` as the loaded record collections.
-* [ ] Replace writable `cards` state with a `$derived` collection joining instances to concepts by `conceptId`.
-* [ ] Reuse the canonical concept and instance objects inside each card.
-* [ ] Do not spread or clone each concept while constructing cards.
-* [ ] Preserve the loader’s existing behavior of omitting cards whose concept cannot be found.
-* [ ] Keep the keyed card rendering based on `card.instance.id`.
+* [x] Add reactive `instances` and `relationshipDefinitions` collections to `ConceptEditor.svelte`.
+* [x] Keep `concepts`, `instances`, `relationships`, and `relationshipDefinitions` as the loaded record collections.
+* [x] Replace writable `cards` state with a `$derived` collection joining instances to concepts by `conceptId`.
+* [x] Reuse the canonical concept and instance objects inside each card.
+* [x] Do not spread or clone each concept while constructing cards.
+* [x] Preserve the loader’s existing behavior of omitting cards whose concept cannot be found.
+* [x] Keep the keyed card rendering based on `card.instance.id`.
 
 Keep the join derived rather than synchronizing another writable collection through an effect. `$derived` can track the reactive records read while constructing the view. ([Svelte][2])
 
 ### Consolidate incoming-data handling
 
-* [ ] Replace references to `initialCards`, `initialConcepts`, `initialRelationships`, and `initialRelationshipDefinitions`.
-* [ ] Update all four record collections when replacement page data arrives.
-* [ ] Use the normalizers in `src/lib/model/`.
-* [ ] Delete local `normalizeConcept`, `normalizeInstance`, and `normalizeCard` from `ConceptEditor.svelte`.
-* [ ] Keep selection, navigation, camera, and open menus out of the incoming-data reset.
+* [x] Replace references to `initialCards`, `initialConcepts`, `initialRelationships`, and `initialRelationshipDefinitions`.
+* [x] Update all four record collections when replacement page data arrives.
+* [x] Use the normalizers in `src/lib/model/`.
+* [x] Delete local `normalizeConcept`, `normalizeInstance`, and `normalizeCard` from `ConceptEditor.svelte`.
+* [x] Keep selection, navigation, camera, and open menus out of the incoming-data reset.
 
 **Checkpoint**
 
