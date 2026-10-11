@@ -757,85 +757,85 @@ openInstanceParentCanvas
 
 ### Simplify `ConceptCard.svelte`
 
-* [ ] Retrieve the editor with `getEditorContext()` during component initialization.
-* [ ] Keep `card` as a prop.
-* [ ] Derive active, selected, dragging, marquee-preview, arranging, title-focus, and tag values from the editor and canvas state.
-* [ ] Replace pointer, resize, title, tag, and context-menu callback props with direct calls to `editor` or `editor.canvas`.
-* [ ] Replace `onChildDragStart` with a call to the canvas controller from the existing hold-timer callback.
-* [ ] Replace `onTitleFocused` with clearing `editor.pendingFocusInstanceId` when it matches this card.
-* [ ] Remove the replaced props and their attributes from the parent invocation.
-* [ ] Keep the title-input element and focus effect local.
-* [ ] Keep the child-hold timer local.
-* [ ] Call `cancelChildTileHold` when the card is destroyed.
+* [x] Retrieve the editor with `getEditorContext()` during component initialization.
+* [x] Keep `card` as a prop.
+* [x] Derive active, selected, dragging, marquee-preview, arranging, title-focus, and tag values from the editor and canvas state.
+* [x] Replace pointer, resize, title, tag, and context-menu callback props with direct calls to `editor` or `editor.canvas`.
+* [x] Replace `onChildDragStart` with a call to the canvas controller from the existing hold-timer callback.
+* [x] Replace `onTitleFocused` with clearing `editor.pendingFocusInstanceId` when it matches this card.
+* [x] Remove the replaced props and their attributes from the parent invocation.
+* [x] Keep the title-input element and focus effect local.
+* [x] Keep the child-hold timer local.
+* [x] Call `cancelChildTileHold` when the card is destroyed.
 
 ### Simplify `ConceptDropArea.svelte`
 
-* [ ] Retrieve the editor from context.
-* [ ] Replace the `getConceptChildren` prop with the editor query.
-* [ ] Replace the `onCardOpen` prop with `editor.openInstanceCanvas(card.instance.id)`.
-* [ ] Keep `openCardFromDropArea` and its existing guard against opening the parent when a tree row is double-clicked.
-* [ ] Keep `card`, `onChildPointerDown`, and `onChildPointerUp` as props.
+* [x] Retrieve the editor from context.
+* [x] Replace the `getConceptChildren` prop with the editor query.
+* [x] Replace the `onCardOpen` prop with `editor.openInstanceCanvas(card.instance.id)`.
+* [x] Keep `openCardFromDropArea` and its existing guard against opening the parent when a tree row is double-clicked.
+* [x] Keep `card`, `onChildPointerDown`, and `onChildPointerUp` as props.
 
 ### Simplify `TreeView.svelte` and `TreeViewNode.svelte`
 
-* [ ] Retrieve the editor from context.
-* [ ] Replace `getConceptChildren` and `getRootConceptInstances` props with editor queries.
-* [ ] Remove those query props from recursive calls and all parent invocations.
-* [ ] Keep `rootCard` on `TreeView`.
-* [ ] Keep `card` and `level` on `TreeViewNode`.
-* [ ] Keep `rootExpanded` and `expanded` local.
-* [ ] Keep `onChildPointerDown` and `onChildPointerUp` as explicit props.
+* [x] Retrieve the editor from context.
+* [x] Replace `getConceptChildren` and `getRootConceptInstances` props with editor queries.
+* [x] Remove those query props from recursive calls and all parent invocations.
+* [x] Keep `rootCard` on `TreeView`.
+* [x] Keep `card` and `level` on `TreeViewNode`.
+* [x] Keep `rootExpanded` and `expanded` local.
+* [x] Keep `onChildPointerDown` and `onChildPointerUp` as explicit props.
 
 **Preserve the existing difference between the two tree usages:** the card tree receives drag callbacks; the sidebar tree does not.
 
-* [ ] Do not enable sidebar dragging as a side effect of introducing context.
-* [ ] Do not implement the missing tree-row opening behavior during this refactor.
+* [x] Do not enable sidebar dragging as a side effect of introducing context.
+* [x] Do not implement the missing tree-row opening behavior during this refactor.
 
 ### Simplify `ConceptSidebar.svelte`
 
-* [ ] Retrieve the editor from context.
+* [x] Retrieve the editor from context.
 
-* [ ] Read the current card, sidebar tab, relationships, relationship definitions, and concept queries from the editor.
+* [x] Read the current card, sidebar tab, relationships, relationship definitions, and concept queries from the editor.
 
-* [ ] Replace shared navigation, title-editing, tag-removal, and property-update callback props with direct calls.
+* [x] Replace shared navigation, title-editing, tag-removal, and property-update callback props with direct calls.
 
-* [ ] Pass a bound wrapper when supplying `editor.getConceptById` to `getRelationshipDisplayParts`.
+* [x] Pass a bound wrapper when supplying `editor.getConceptById` to `getRelationshipDisplayParts`.
 
-* [ ] Move `sidebarNewTag` from `ConceptEditor.svelte` into `ConceptSidebar.svelte`.
+* [x] Move `sidebarNewTag` from `ConceptEditor.svelte` into `ConceptSidebar.svelte`.
 
-* [ ] Move `addSidebarTag` from `ConceptEditor.svelte` into `ConceptSidebar.svelte`.
+* [x] Move `addSidebarTag` from `ConceptEditor.svelte` into `ConceptSidebar.svelte`.
 
-* [ ] Change its final call to `editor.handleManualTagAdd(card, title)`.
+* [x] Change its final call to `editor.handleManualTagAdd(card, title)`.
 
-* [ ] Bind the tag input to the local draft.
+* [x] Bind the tag input to the local draft.
 
-* [ ] Preserve submission on Enter and blur.
+* [x] Preserve submission on Enter and blur.
 
-* [ ] Remove `sidebarNewTag`, `onSidebarNewTagChange`, and `onSidebarTagAdd` from the sidebar interface.
+* [x] Remove `sidebarNewTag`, `onSidebarNewTagChange`, and `onSidebarTagAdd` from the sidebar interface.
 
-* [ ] Keep the existing property draft fields and property-input helpers local.
+* [x] Keep the existing property draft fields and property-input helpers local.
 
-* [ ] Keep the existing property-draft reset effect.
+* [x] Keep the existing property-draft reset effect.
 
 ### Simplify the topbar and context menu
 
-* [ ] Retrieve the editor from context in `CanvasTopbar.svelte`.
-* [ ] Replace editor-state and editor-operation props with editor access.
-* [ ] Call `editor.canvas` for focus, frame-all, and grid arrangement.
-* [ ] Retrieve the editor from context in `CanvasContextMenu.svelte`.
-* [ ] Replace its shared menu-state and operation props with editor access.
-* [ ] Preserve existing event propagation and menu-closing behavior.
+* [x] Retrieve the editor from context in `CanvasTopbar.svelte`.
+* [x] Replace editor-state and editor-operation props with editor access.
+* [x] Call `editor.canvas` for focus, frame-all, and grid arrangement.
+* [x] Retrieve the editor from context in `CanvasContextMenu.svelte`.
+* [x] Replace its shared menu-state and operation props with editor access.
+* [x] Preserve existing event propagation and menu-closing behavior.
 
 ### Keep straightforward components straightforward
 
-* [ ] Keep `CanvasSelectionBox` receiving its rectangle through props.
-* [ ] Keep `PasteImportConfirmation` receiving its count, target label, and confirm/cancel callbacks.
-* [ ] Keep `ConceptTagsPreview` receiving its tags and presentation-specific callbacks.
-* [ ] Delete `openCardCanvas` from `Editor.svelte.ts` once every caller uses `openInstanceCanvas(card.instance.id)` directly.
+* [x] Keep `CanvasSelectionBox` receiving its rectangle through props.
+* [x] Keep `PasteImportConfirmation` receiving its count, target label, and confirm/cancel callbacks.
+* [x] Keep `ConceptTagsPreview` receiving its tags and presentation-specific callbacks.
+* [x] Delete `openCardCanvas` from `Editor.svelte.ts` once every caller uses `openInstanceCanvas(card.instance.id)` directly.
 
 **Checkpoint**
 
-* [ ] Verify that adding an editor method no longer requires forwarding it through intermediate components.
+* [x] Verify that adding an editor method no longer requires forwarding it through intermediate components.
 * [ ] Verify that tree expansion and input drafts remain independent between component instances.
 * [ ] Verify both card-tree and sidebar-tree behavior separately.
 

@@ -1,59 +1,36 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import ConceptTagsPreview from '$lib/components/editor/ConceptTagsPreview.svelte';
-	import type { Concept } from '$lib/model/Concept';
+	import ConceptDropArea from '$lib/components/editor/card/ConceptDropArea.svelte';
+	import { getEditorContext } from '$lib/components/editor/EditorContext';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
-	import ConceptDropArea from '$lib/components/editor/card/ConceptDropArea.svelte';
+	let { card } = $props<{ card: ConceptCardView }>();
 
-	let {
-		card,
-		isActive = false,
-		isDragging = false,
-		isSelected = false,
-		isArranging = false,
-		isMarqueePreviewed = false,
-		onPointerDown,
-		onContextMenu,
-		onTitleBlur,
-		onTitleKeydown,
-		onResizePointerDown,
-		onCardOpen,
-		onChildDragStart,
-		shouldFocusTitle = false,
-		onTitleFocused,
-		tagConcepts = [],
-		onManualTagAdd,
-		onTagOpen,
-		onTagRemove,
-		getConceptChildren
-	} = $props<{
-		card: ConceptCardView;
-		isActive?: boolean;
-		isDragging?: boolean;
-		isSelected?: boolean;
-		isArranging?: boolean;
-		isMarqueePreviewed?: boolean;
-		shouldFocusTitle?: boolean;
-		onTitleFocused?: () => void;
-		onPointerDown: (event: PointerEvent, card: ConceptCardView) => void;
-		onContextMenu: (event: MouseEvent, card: ConceptCardView) => void;
-		onTitleBlur: (event: FocusEvent, card: ConceptCardView) => void;
-		onTitleKeydown: (event: KeyboardEvent, card: ConceptCardView) => void;
-		onResizePointerDown: (event: PointerEvent, card: ConceptCardView) => void;
-		onCardOpen?: (card: ConceptCardView) => void;
-		onChildDragStart?: (event: PointerEvent, childCard: ConceptCardView) => void;
-		tagConcepts?: Concept[];
-		onManualTagAdd?: (card: ConceptCardView, title: string) => void;
-		onTagOpen?: (tagConcept: Concept) => void;
-		onTagRemove?: (card: ConceptCardView, tagConcept: Concept) => void;
-		getConceptChildren: (conceptInstanceId: string) => ConceptCardView[];
-	}>();
+	const editor = getEditorContext();
 
 	let concept = $derived(card.concept);
 	let instance = $derived(card.instance);
-
+	let isActive = $derived(editor.activeInstanceId === instance.id);
+	let isDragging = $derived(
+		(editor.canvas.dragState.active &&
+			editor.canvas.dragState.draggedCards.some(
+				(draggedCard) => draggedCard.instanceId === instance.id
+			)) ||
+			(editor.canvas.resizeState.active && editor.canvas.resizeState.instanceId === instance.id)
+	);
+	let isSelected = $derived(editor.selectedInstanceIds.has(instance.id));
+	let isArranging = $derived(editor.canvas.arrangingCards);
+	let isMarqueePreviewed = $derived(editor.canvas.marqueePreviewInstanceIds.has(instance.id));
+	let shouldFocusTitle = $derived(editor.pendingFocusInstanceId === instance.id);
+	let tagConcepts = $derived(editor.getTagConcepts(concept.tagConceptIds ?? []));
 	let isCollapsed = $derived(instance.width <= 190 || instance.height <= 80);
 
+	const childTileHoldDelayMs = 300;
+
+	let childTileHoldTimer: ReturnType<typeof setTimeout> | null = null;
+	let pendingChildDragCard: ConceptCardView | null = null;
+	let titleInput = $state<HTMLInputElement | null>(null);
 
 	function handleChildTilePointerDown(event: PointerEvent, childCard: ConceptCardView) {
 		if (event.button !== 0) {
@@ -78,7 +55,7 @@
 			}
 
 			event.preventDefault();
-			onChildDragStart?.(event, pendingChildDragCard);
+			editor.canvas.handleChildTileDragStart(event, pendingChildDragCard);
 			pendingChildDragCard = null;
 		}, childTileHoldDelayMs);
 	}
@@ -92,9 +69,6 @@
 		pendingChildDragCard = null;
 	}
 
-
-	let titleInput = $state<HTMLInputElement | null>(null);
-
 	$effect(() => {
 		if (!shouldFocusTitle || !titleInput) {
 			return;
@@ -102,15 +76,13 @@
 
 		titleInput.focus();
 		titleInput.select();
-		onTitleFocused?.();
+
+		if (editor.pendingFocusInstanceId === instance.id) {
+			editor.pendingFocusInstanceId = null;
+		}
 	});
 
-
-	const childTileHoldDelayMs = 300;
-
-	let childTileHoldTimer: ReturnType<typeof setTimeout> | null = null;
-	let pendingChildDragCard: ConceptCardView | null = null;
-
+	onDestroy(cancelChildTileHold);
 </script>
 
 <article
@@ -129,16 +101,16 @@
 	`}
 	
 	aria-label={concept.title || 'Untitled concept'}
-	onpointerdown={(event) => onPointerDown(event, card)}
-	oncontextmenu={(event) => onContextMenu(event, card)}
+	onpointerdown={(event) => editor.canvas.handleCardPointerDown(event, card)}
+	oncontextmenu={(event) => editor.canvas.handleCardContextMenu(event, card)}
 >
 	<input
 		bind:this={titleInput}
 		class="concept-title-input"
 		value={concept.title}
 		aria-label="Concept title"
-		onkeydown={(event) => onTitleKeydown(event, card)}
-		onblur={(event) => onTitleBlur(event, card)}
+		onkeydown={(event) => editor.canvas.handleConceptTitleKeydown(event, card)}
+		onblur={(event) => editor.canvas.handleConceptTitleBlur(event, card)}
 		ondblclick={(event) => event.stopPropagation()}
 	/>
 
@@ -151,9 +123,9 @@
 	
 				<ConceptTagsPreview
 					tags={tagConcepts}
-					onManualTagAdd={(title) => onManualTagAdd?.(card, title)}
-					{onTagOpen}
-					onTagRemove={(tagConcept) => onTagRemove?.(card, tagConcept)}
+					onManualTagAdd={(title) => editor.handleManualTagAdd(card, title)}
+					onTagOpen={(tagConcept) => editor.openTagCanvas(tagConcept)}
+					onTagRemove={(tagConcept) => editor.handleTagRemove(card, tagConcept)}
 				/>
 
 				<div class="card-sidebar-overlay" style="width:30px; height:max-content; background-color: red;">
@@ -162,8 +134,6 @@
 
 <ConceptDropArea
 	{card}
-	{getConceptChildren}
-	{onCardOpen}
 	onChildPointerDown={handleChildTilePointerDown}
 	onChildPointerUp={cancelChildTileHold}
 />
@@ -174,7 +144,7 @@
 		class="concept-resize-handle"
 		type="button"
 		aria-label="Resize concept"
-		onpointerdown={(event) => onResizePointerDown(event, card)}
+		onpointerdown={(event) => editor.canvas.handleResizePointerDown(event, card)}
 	></button>
 </article>
 

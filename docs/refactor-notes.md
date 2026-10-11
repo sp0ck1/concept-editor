@@ -250,3 +250,20 @@ npm run build completed successfully
 ```
 
 Source audit confirms controller state and methods are not duplicated in `ConceptEditor.svelte`, selection still uses replacement semantics, camera writes still bypass `invalidateAll()`, and root navigation awaits its state transition. Browser verification of zoom, pan, dragging, resizing, marquee, drops, navigation, title editing, double-Enter, and paste confirmation remains deferred to the final regression pass.
+
+## Phase 10 — context-based component operations
+
+Editor descendants now retrieve the scoped editor through `getEditorContext()` instead of receiving shared queries, state, and operation callbacks through multiple component layers. `ConceptEditor.svelte` now invokes the topbar, sidebar, context menu, and each card without forwarding editor operations.
+
+`ConceptCard` retains only its card identity prop. Card title focus, the title input element, and the 300 ms child-hold timer remain local; timer cancellation now also runs when the component is destroyed. `ConceptDropArea` and both tree components query hierarchy through context while preserving explicit optional child-pointer callbacks. The card tree still receives drag callbacks, and the sidebar tree still does not.
+
+The sidebar now owns its tag draft and submission helper alongside its existing property drafts. Relationship display receives a bound lookup wrapper that converts the editor query's `null` result to the query helper's expected `undefined`. Topbar and context-menu operations call the editor/controller directly while retaining existing event propagation and menu-close sequencing. Straightforward presentation components continue to use props.
+
+Phase 10 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+npm run build completed successfully
+```
+
+Static review confirms the removed shared-operation props have no remaining callers, `openCardCanvas` is deleted, tree expansion remains component-local, and the unfinished tree-row opening behavior was not enabled. Browser verification of independent component drafts/expansion and separate card/sidebar tree behavior remains deferred to the final regression pass.

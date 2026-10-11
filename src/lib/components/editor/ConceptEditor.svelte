@@ -7,7 +7,6 @@
 	import PasteImportConfirmation from '$lib/components/editor/canvas/PasteImportConfirmation.svelte';
 	import ConceptSidebar from '$lib/components/editor/sidebar/ConceptSidebar.svelte';
 	import { clamp } from '$lib/components/editor/canvas/geometry';
-	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 	import type { EditorData } from '$lib/components/editor/EditorTypes';
 	import { Editor } from '$lib/components/editor/Editor.svelte';
 	import { setEditorContext } from '$lib/components/editor/EditorContext';
@@ -33,7 +32,6 @@
 	let isResizingSidebar = $state(false);
 	let sidebarResizeStartX = 0;
 	let sidebarResizeStartWidth = 0;
-	let sidebarNewTag = $state('');
 
 	const minSidebarWidth = 180;
 	const minCanvasWidth = 240;
@@ -67,16 +65,6 @@
 		if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
 		isResizingSidebar = false;
 	}
-
-	async function addSidebarTag(card: ConceptCardView) {
-		const title = sidebarNewTag.trim();
-		if (!title) {
-			sidebarNewTag = '';
-			return;
-		}
-		sidebarNewTag = '';
-		await editor.handleManualTagAdd(card, title);
-	}
 </script>
 
 <svelte:window
@@ -87,19 +75,7 @@
 />
 
 <section class="concept-workspace">
-	<CanvasTopbar
-		currentBreadcrumb={editor.currentBreadcrumb}
-		currentCanvasOwnerCard={editor.currentCanvasOwnerCard}
-		currentCanvasOwnerInstanceId={editor.currentCanvasOwnerInstanceId}
-		mainView={editor.mainView}
-		onGoToRootCanvas={() => editor.openRootCanvas()}
-		onGoToCanvas={(id) => editor.openInstanceCanvas(id)}
-		onGoUpOneLevel={() => editor.openInstanceParentCanvas()}
-		onMainViewChange={(view) => editor.setMainView(view)}
-		onFocus={() => editor.canvas.focusSelectionOrNearestCard()}
-		onFrameAll={() => editor.canvas.frameCardsInCurrentCanvas()}
-		onArrangeGrid={() => editor.canvas.arrangeCardsInCurrentCanvasInGrid()}
-	/>
+	<CanvasTopbar />
 
 	<div class="concept-workspace-body">
 		{#if editor.sidebarVisible}
@@ -108,31 +84,7 @@
 				class="sidebar-shell"
 				style:width={sidebarWidth === null ? undefined : `${sidebarWidth}px`}
 			>
-				<ConceptSidebar
-					sidebarTab={editor.sidebarTab}
-					currentCanvasOwnerCard={editor.currentCanvasOwnerCard}
-					{sidebarNewTag}
-					getTagConcepts={(ids) => editor.getTagConcepts(ids)}
-					getConceptChildren={(id) => editor.getConceptChildren(id)}
-					getRootConceptInstances={() => editor.getRootConceptInstances()}
-					onGoUpOneLevel={() => editor.openInstanceParentCanvas()}
-					onSidebarTabChange={(tab) => {
-						editor.sidebarTab = tab;
-					}}
-					onTitleKeydown={(event, card) => editor.canvas.handleConceptTitleKeydown(event, card)}
-					onTitleBlur={(event, card) => editor.canvas.handleConceptTitleBlur(event, card)}
-					onSidebarNewTagChange={(value) => {
-						sidebarNewTag = value;
-					}}
-					onSidebarTagAdd={addSidebarTag}
-					onTagOpen={(tag) => editor.openTagCanvas(tag)}
-					onTagRemove={(card, tag) => editor.handleTagRemove(card, tag)}
-					onPropertiesChange={(card, properties) =>
-						editor.handlePropertiesChange(card, properties)}
-					relationships={editor.currentConceptRelationships}
-					relationshipDefinitions={editor.relationshipDefinitions}
-					getConceptById={(id) => editor.getConceptById(id)}
-				/>
+				<ConceptSidebar />
 
 				<button
 					class="sidebar-resize-handle"
@@ -191,44 +143,7 @@
 					class:is-arranging-camera={editor.canvas.arrangingCamera}
 				>
 					{#each editor.cardsInCurrentCanvas as card (card.instance.id)}
-						<ConceptCard
-							{card}
-							isActive={editor.activeInstanceId === card.instance.id}
-							isDragging={(editor.canvas.dragState.active &&
-								editor.canvas.dragState.draggedCards.some(
-									(draggedCard) => draggedCard.instanceId === card.instance.id
-								)) ||
-								(editor.canvas.resizeState.active &&
-									editor.canvas.resizeState.instanceId === card.instance.id)}
-							isSelected={editor.selectedInstanceIds.has(card.instance.id)}
-							isMarqueePreviewed={editor.canvas.marqueePreviewInstanceIds.has(card.instance.id)}
-							isArranging={editor.canvas.arrangingCards}
-							shouldFocusTitle={editor.pendingFocusInstanceId === card.instance.id}
-							onTitleFocused={() => {
-								if (editor.pendingFocusInstanceId === card.instance.id) {
-									editor.pendingFocusInstanceId = null;
-								}
-							}}
-							onChildDragStart={(event, childCard) =>
-								editor.canvas.handleChildTileDragStart(event, childCard)}
-							onPointerDown={(event, currentCard) =>
-								editor.canvas.handleCardPointerDown(event, currentCard)}
-							onContextMenu={(event, currentCard) =>
-								editor.canvas.handleCardContextMenu(event, currentCard)}
-							onTitleBlur={(event, currentCard) =>
-								editor.canvas.handleConceptTitleBlur(event, currentCard)}
-							onTitleKeydown={(event, currentCard) =>
-								editor.canvas.handleConceptTitleKeydown(event, currentCard)}
-							onResizePointerDown={(event, currentCard) =>
-								editor.canvas.handleResizePointerDown(event, currentCard)}
-							onCardOpen={(currentCard) => editor.openCardCanvas(currentCard)}
-							tagConcepts={editor.getTagConcepts(card.concept.tagConceptIds ?? [])}
-							onManualTagAdd={(currentCard, title) =>
-								editor.handleManualTagAdd(currentCard, title)}
-							onTagOpen={(tag) => editor.openTagCanvas(tag)}
-							onTagRemove={(currentCard, tag) => editor.handleTagRemove(currentCard, tag)}
-							getConceptChildren={(id) => editor.getConceptChildren(id)}
-						/>
+						<ConceptCard {card} />
 					{/each}
 				</div>
 			{:else}
@@ -249,17 +164,7 @@
 					onCancel={() => editor.canvas.cancelPasteImport()}
 				/>
 			{/if}
-			<CanvasContextMenu
-				contextMenu={editor.contextMenu}
-				importChildrenMenu={editor.importChildrenMenu}
-				importOptions={editor.importChildrenOptions}
-				onCreateConceptFromMenu={(size) => editor.createConceptFromMenu(size)}
-				onGoToCanvas={(id) => editor.openInstanceCanvas(id)}
-				onCloseContextMenu={() => editor.closeContextMenu()}
-				onOpenImportChildrenMenu={() => editor.openImportChildrenMenu()}
-				onDeleteInstanceFromMenu={() => editor.deleteInstanceFromMenu()}
-				onImportChildrenFromSource={(id) => editor.importChildrenFromSource(id)}
-			/>
+			<CanvasContextMenu />
 			<div class="zoom-indicator">
 				{Math.round(editor.canvas.zoom * 100)}%
 			</div>

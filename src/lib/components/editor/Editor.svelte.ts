@@ -165,9 +165,6 @@ export class Editor {
 		await tick();
 	}
 
-	async openCardCanvas(card: ConceptCardView) {
-		await this.openInstanceCanvas(card.instance.id);
-	}
 
 	// Root uses frame-all as its camera position until it has its own saved camera.
 	async openRootCanvas() {

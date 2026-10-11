@@ -1,33 +1,7 @@
 <script lang="ts">
-import type { ConceptCardView } from '$lib/model/ConceptCardView';
-import type { MainView } from '$lib/components/editor/EditorTypes';
+	import { getEditorContext } from '$lib/components/editor/EditorContext';
 
-
-let	{ 
-	currentBreadcrumb,
-	currentCanvasOwnerCard,
-	currentCanvasOwnerInstanceId,
-	mainView,
-	onGoToRootCanvas,
-	onGoToCanvas,
-	onGoUpOneLevel,
-	onMainViewChange,
-	onFocus,
-	onFrameAll,
-	onArrangeGrid
-} = $props<{
-	currentBreadcrumb: ConceptCardView[];
-	currentCanvasOwnerCard: ConceptCardView | null;
-	currentCanvasOwnerInstanceId: string | null;
-	mainView: MainView;
-	onGoToRootCanvas: () => void;
-	onGoToCanvas: (instanceId: string) => void;
-	onGoUpOneLevel: () => void;
-	onMainViewChange: (view: MainView) => void;
-	onFocus: () => void;
-	onFrameAll: () => void;
-	onArrangeGrid: () => void;
-}>();
+	const editor = getEditorContext();
 </script>
 
 <header class="concept-topbar">
@@ -36,15 +10,15 @@ let	{
 			aria-label="Canvas breadcrumb"
 			
 		>
-			<button class="canvas-breadcrumb-item" type="button" onclick={onGoToRootCanvas}>Context Name (Root)</button>
+			<button class="canvas-breadcrumb-item" type="button" onclick={() => editor.openRootCanvas()}>Context Name (Root)</button>
 
-			{#each currentBreadcrumb as breadcrumbCard}
+			{#each editor.currentBreadcrumb as breadcrumbCard}
 				<span class="canvas-breadcrumb-separator">&gt;</span>
 
 				<button
 					class="canvas-breadcrumb-item"
 					type="button"
-					onclick={() => onGoToCanvas(breadcrumbCard.instance.id)}
+					onclick={() => editor.openInstanceCanvas(breadcrumbCard.instance.id)}
 				>
 					{breadcrumbCard.concept.title || breadcrumbCard.concept.id}
 				</button>
@@ -53,8 +27,8 @@ let	{
 		</nav>
 
 		<div class="concept-topbar-title">
-			{#if currentCanvasOwnerCard}
-				{currentCanvasOwnerCard.concept.title || currentCanvasOwnerCard.concept.id}
+			{#if editor.currentCanvasOwnerCard}
+				{editor.currentCanvasOwnerCard.concept.title || editor.currentCanvasOwnerCard.concept.id}
 			{:else}
 				Context Name (Placeholder)
 			{/if}
@@ -63,26 +37,26 @@ let	{
 		<div class="concept-topbar-actions">
 			<div class="topbar-button-group" aria-label="Main view">
 				<button
-					class:active={mainView === 'canvas'}
+					class:active={editor.mainView === 'canvas'}
 					type="button"
-					onclick={() => onMainViewChange('canvas')}
+					onclick={() => editor.setMainView('canvas')}
 				>
 					Canvas
 				</button>
 
 				<button
-					class:active={mainView === 'table'}
+					class:active={editor.mainView === 'table'}
 					type="button"
-					onclick={() => onMainViewChange('table')}
+					onclick={() => editor.setMainView('table')}
 				>
 					Table
 				</button>
 			</div>
 
 			<div class="topbar-button-group" aria-label="Canvas navigation">
-				<button type="button" onclick={onFocus}>Focus Selected</button>
-				<button type="button" onclick={onFrameAll}>Frame All</button>
-				<button type="button" onclick={onArrangeGrid}>Grid</button>
+				<button type="button" onclick={() => editor.canvas.focusSelectionOrNearestCard()}>Focus Selected</button>
+				<button type="button" onclick={() => editor.canvas.frameCardsInCurrentCanvas()}>Frame All</button>
+				<button type="button" onclick={() => editor.canvas.arrangeCardsInCurrentCanvasInGrid()}>Grid</button>
 			</div>
 		</div>
 	</header>

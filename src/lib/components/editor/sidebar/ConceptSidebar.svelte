@@ -1,57 +1,22 @@
 <script lang="ts">
 	import ConceptTagsPreview from '$lib/components/editor/ConceptTagsPreview.svelte';
-	import type { Concept } from '$lib/model/Concept';
-	import type { ConceptCardView } from '$lib/model/ConceptCardView';
+	import { getEditorContext } from '$lib/components/editor/EditorContext';
 	import TreeView from '$lib/components/editor/tree/TreeView.svelte';
-	import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
-	import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
+	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 	import { getRelationshipDisplayParts } from '$lib/model/relationshipQueries';
 
-	let {
-		sidebarTab,
-		currentCanvasOwnerCard,
-		sidebarNewTag,
-		getTagConcepts,
-		onSidebarTabChange,
-		onTitleKeydown,
-		onTitleBlur,
-		onSidebarNewTagChange,
-		onSidebarTagAdd,
-		onTagOpen,
-		onTagRemove,
-		onGoUpOneLevel,
-		onPropertiesChange,
-		getConceptChildren,
-		getRootConceptInstances,
-		relationships,
-		relationshipDefinitions,
-		getConceptById
-	} = $props<{
-		sidebarTab: 'concept' | 'tree';
-		currentCanvasOwnerCard: ConceptCardView | null;
-		sidebarNewTag: string;
-		getTagConcepts: (tagConceptIds: string[]) => Concept[];
-		onSidebarTabChange: (tab: 'concept' | 'tree') => void;
-		onTitleKeydown: (event: KeyboardEvent, card: ConceptCardView) => void;
-		onTitleBlur: (event: FocusEvent, card: ConceptCardView) => void;
-		onSidebarNewTagChange: (value: string) => void;
-		onSidebarTagAdd: (card: ConceptCardView) => void;
-		onTagOpen: (tagConcept: Concept) => void;
-		onTagRemove: (card: ConceptCardView, tagConcept: Concept) => void;
-		onGoUpOneLevel: () => void;
-		onPropertiesChange: (card: ConceptCardView, properties: Record<string, string>) => void;
-		getConceptChildren: (conceptInstanceId: string) => ConceptCardView[];
-		getRootConceptInstances: () => ConceptCardView[];
-		relationships: ConceptRelationship[];
-		relationshipDefinitions: RelationshipDefinition[];
-		getConceptById: (conceptId: string) => Concept | null;
-	}>();
+	const editor = getEditorContext();
 
+	let sidebarTab = $derived(editor.sidebarTab);
+	let currentCanvasOwnerCard = $derived(editor.currentCanvasOwnerCard);
+	let relationships = $derived(editor.currentConceptRelationships);
+	let relationshipDefinitions = $derived(editor.relationshipDefinitions);
+	let sidebarNewTag = $state('');
 	let newPropertyKey = $state('');
 	let newPropertyValue = $state('');
 
 	$effect(() => {
-		currentCanvasOwnerCard?.instance.id;
+		void currentCanvasOwnerCard?.instance.id;
 
 		newPropertyKey = '';
 		newPropertyValue = '';
@@ -83,11 +48,11 @@
 			)
 		);
 
-		onPropertiesChange(card, nextProperties);
+		editor.handlePropertiesChange(card, nextProperties);
 	}
 
 	function updatePropertyValue(card: ConceptCardView, key: string, value: string) {
-		onPropertiesChange(card, {
+		editor.handlePropertiesChange(card, {
 			...(card.concept.properties ?? {}),
 			[key]: value
 		});
@@ -98,7 +63,7 @@
 			Object.entries(card.concept.properties ?? {}).filter(([key]) => key !== keyToRemove)
 		);
 
-		onPropertiesChange(card, nextProperties);
+		editor.handlePropertiesChange(card, nextProperties);
 	}
 
 	function commitNewProperty(card: ConceptCardView) {
@@ -114,13 +79,26 @@
 			return;
 		}
 
-		onPropertiesChange(card, {
+		editor.handlePropertiesChange(card, {
 			...properties,
 			[key]: newPropertyValue
 		});
 
 		newPropertyKey = '';
 		newPropertyValue = '';
+	}
+
+	async function addSidebarTag(card: ConceptCardView) {
+		const title = sidebarNewTag.trim();
+
+		if (!title) {
+			sidebarNewTag = '';
+			return;
+		}
+
+		sidebarNewTag = '';
+
+		await editor.handleManualTagAdd(card, title);
 	}
 
 	function handleNewPropertyKeydown(event: KeyboardEvent) {
@@ -161,7 +139,9 @@
 			role="tab"
 			aria-selected={sidebarTab === 'concept'}
 			class:active={sidebarTab === 'concept'}
-			onclick={() => onSidebarTabChange('concept')}
+			onclick={() => {
+							editor.sidebarTab = 'concept';
+						}}
 		>
 			Concept
 		</button>
@@ -171,7 +151,9 @@
 			role="tab"
 			aria-selected={sidebarTab === 'tree'}
 			class:active={sidebarTab === 'tree'}
-			onclick={() => onSidebarTabChange('tree')}
+			onclick={() => {
+							editor.sidebarTab = 'tree';
+						}}
 		>
 			Tree
 		</button>
@@ -190,15 +172,15 @@
 						value={sidebarCard.concept.title}
 						placeholder="Untitled Concept"
 						aria-label="Concept title"
-						onkeydown={(event) => onTitleKeydown(event, sidebarCard)}
-						onblur={(event) => onTitleBlur(event, sidebarCard)}
+						onkeydown={(event) => editor.canvas.handleConceptTitleKeydown(event, sidebarCard)}
+						onblur={(event) => editor.canvas.handleConceptTitleBlur(event, sidebarCard)}
 					/>
 
 					<div class="sidebar-id">{sidebarCard.instance.id}</div>
 
 					<!-- If not at root, display up button -->
 					{#if currentCanvasOwnerCard !== null}
-						<button class="canvas-breadcrumb-up" type="button" onclick={onGoUpOneLevel}>Up</button>
+						<button class="canvas-breadcrumb-up" type="button" onclick={() => editor.openInstanceParentCanvas()}>Up</button>
 					{/if}
 				</div>
 				<div class="sidebar-section">
@@ -208,7 +190,12 @@
 						<div class="sidebar-relationship-list">
 							{#each relationships as relationship (relationship.id)}
 								<div class="sidebar-relationship-row">
-									{#each getRelationshipDisplayParts(relationship, relationshipDefinitions, sidebarCard.concept.id, getConceptById) as part}
+									{#each getRelationshipDisplayParts(
+																			relationship,
+																			relationshipDefinitions,
+																			sidebarCard.concept.id,
+																			(conceptId) => editor.getConceptById(conceptId) ?? undefined
+																		) as part}
 										{#if part.type === 'text'}
 											<span>{part.value}</span>
 										{:else}
@@ -233,28 +220,25 @@
 
 						<input
 							class="concept-tag-input sidebar-tag-input"
-							value={sidebarNewTag}
+							bind:value={sidebarNewTag}
 							placeholder="+ tag"
 							aria-label="Add tag"
-							oninput={(event) => {
-								onSidebarNewTagChange((event.currentTarget as HTMLInputElement).value);
-							}}
 							onkeydown={(event) => {
 								if (event.key === 'Enter') {
 									event.preventDefault();
 									event.stopPropagation();
-									onSidebarTagAdd(sidebarCard);
+									addSidebarTag(sidebarCard);
 								}
 							}}
-							onblur={() => onSidebarTagAdd(sidebarCard)}
+							onblur={() => addSidebarTag(sidebarCard)}
 						/>
 					</div>
 
 					<ConceptTagsPreview
-						tags={getTagConcepts(sidebarCard.concept.tagConceptIds ?? [])}
+						tags={editor.getTagConcepts(sidebarCard.concept.tagConceptIds ?? [])}
 						showInput={false}
-						{onTagOpen}
-						onTagRemove={(tagConcept) => onTagRemove(sidebarCard, tagConcept)}
+						onTagOpen={(tagConcept) => editor.openTagCanvas(tagConcept)}
+						onTagRemove={(tagConcept) => editor.handleTagRemove(sidebarCard, tagConcept)}
 					/>
 				</div>
 
@@ -350,7 +334,7 @@
 	{:else}
 		<div class="sidebar-panel sidebar-tree-panel">
 			<div class="sidebar-section">
-				<TreeView {getConceptChildren} {getRootConceptInstances} />
+				<TreeView />
 			</div>
 		</div>
 	{/if}

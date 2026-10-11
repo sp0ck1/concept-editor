@@ -1,28 +1,20 @@
 <script lang="ts">
+	import { getEditorContext } from '$lib/components/editor/EditorContext';
 	import TreeViewNode from './TreeViewNode.svelte';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
-	let {
-		card,
-		getConceptChildren,
-		level,
-		onChildPointerDown,
-		onChildPointerUp
-	} = $props<{
+	let { card, level, onChildPointerDown, onChildPointerUp } = $props<{
 		card: ConceptCardView;
-		getConceptChildren: (
-			conceptInstanceId: string
-		) => ConceptCardView[];
 		level: number;
 		onChildPointerDown?: (event: PointerEvent, childCard: ConceptCardView) => void;
 		onChildPointerUp?: () => void;
 	}>();
 
+	const editor = getEditorContext();
+
 	let expanded = $state(false);
 
-	let children = $derived(
-		getConceptChildren(card.instance.id)
-	);
+	let children = $derived(editor.getConceptChildren(card.instance.id));
 
 	let hasChildren = $derived(children.length > 0);
 
@@ -78,7 +70,6 @@
 			{#each children as child (child.instance.id)}
 				<TreeViewNode
 					card={child}
-					{getConceptChildren}
 					level={level + 1}
 					{onChildPointerDown}
 					{onChildPointerUp}

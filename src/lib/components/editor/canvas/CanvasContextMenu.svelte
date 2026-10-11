@@ -1,56 +1,23 @@
 <script lang="ts">
-	import type { ContextMenu } from '$lib/components/editor/EditorTypes';
-	import type { ConceptSizePreset } from '$lib/components/editor/canvas/layout';
+	import { getEditorContext } from '$lib/components/editor/EditorContext';
 
-	type ImportChildrenMenuState = {
-		visible: boolean;
-		x: number;
-		y: number;
-		targetInstanceId: string | null;
-	};
-
-	type ImportChildrenOption = {
-		instanceId: string;
-		breadcrumb: string;
-	};
-
-	let {
-		contextMenu,
-		importChildrenMenu,
-		importOptions,
-		onCreateConceptFromMenu,
-		onGoToCanvas,
-		onCloseContextMenu,
-		onOpenImportChildrenMenu,
-		onDeleteInstanceFromMenu,
-		onImportChildrenFromSource
-	} = $props<{
-		contextMenu: ContextMenu;
-		importChildrenMenu: ImportChildrenMenuState;
-		importOptions: ImportChildrenOption[];
-		onCreateConceptFromMenu: (sizePreset: ConceptSizePreset) => void;
-		onGoToCanvas: (instanceId: string) => void;
-		onCloseContextMenu: () => void;
-		onOpenImportChildrenMenu: () => void;
-		onDeleteInstanceFromMenu: () => void;
-		onImportChildrenFromSource: (instanceId: string) => void;
-	}>();
+	const editor = getEditorContext();
 </script>
 
-{#if contextMenu.visible}
+{#if editor.contextMenu.visible}
 	<div
 		class="context-menu"
-		style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
+		style={`left: ${editor.contextMenu.x}px; top: ${editor.contextMenu.y}px;`}
 		onclick={(event) => event.stopPropagation()}
 		onpointerdown={(event) => event.stopPropagation()}
 	>
-		{#if contextMenu.targetType === 'canvas'}
+		{#if editor.contextMenu.targetType === 'canvas'}
 			<button
 				class="context-menu-item"
 				type="button"
 				onclick={(event) => {
 					event.stopPropagation();
-					onCreateConceptFromMenu('small');
+					editor.createConceptFromMenu('small');
 				}}
 			>
 				New Small Concept
@@ -61,7 +28,7 @@
 				type="button"
 				onclick={(event) => {
 					event.stopPropagation();
-					onCreateConceptFromMenu('medium');
+					editor.createConceptFromMenu('medium');
 				}}
 			>
 				New Medium Concept
@@ -72,21 +39,25 @@
 				type="button"
 				onclick={(event) => {
 					event.stopPropagation();
-					onCreateConceptFromMenu('large');
+					editor.createConceptFromMenu('large');
 				}}
 			>
 				New Large Concept
 			</button>
 		{/if}
 
-		{#if contextMenu.targetType === 'card'}
+		{#if editor.contextMenu.targetType === 'card'}
 			<button
 				class="context-menu-item"
 				type="button"
 				onclick={(event) => {
 					event.stopPropagation();
-					onGoToCanvas(contextMenu.instanceId);
-					onCloseContextMenu();
+
+					if (editor.contextMenu.instanceId) {
+						editor.openInstanceCanvas(editor.contextMenu.instanceId);
+					}
+
+					editor.closeContextMenu();
 				}}
 			>
 				Open Canvas
@@ -97,7 +68,7 @@
 				type="button"
 				onclick={(event) => {
 					event.stopPropagation();
-					onOpenImportChildrenMenu();
+					editor.openImportChildrenMenu();
 				}}
 			>
 				Import Children from Same Concept
@@ -108,7 +79,7 @@
 				type="button"
 				onclick={(event) => {
 					event.stopPropagation();
-					onDeleteInstanceFromMenu();
+					editor.deleteInstanceFromMenu();
 				}}
 			>
 				Delete
@@ -117,23 +88,23 @@
 	</div>
 {/if}
 
-{#if importChildrenMenu.visible && importChildrenMenu.targetInstanceId}
+{#if editor.importChildrenMenu.visible && editor.importChildrenMenu.targetInstanceId}
 	<div
 		class="context-menu import-children-menu"
-		style={`left: ${importChildrenMenu.x}px; top: ${importChildrenMenu.y}px;`}
+		style={`left: ${editor.importChildrenMenu.x}px; top: ${editor.importChildrenMenu.y}px;`}
 		onclick={(event) => event.stopPropagation()}
 		onpointerdown={(event) => event.stopPropagation()}
 	>
-		{#if importOptions.length === 0}
+		{#if editor.importChildrenOptions.length === 0}
 			<div class="context-menu-empty">No other instances with children</div>
 		{:else}
-			{#each importOptions as option (option.instanceId)}
+			{#each editor.importChildrenOptions as option (option.instanceId)}
 				<button
 					class="context-menu-item"
 					type="button"
 					onclick={(event) => {
 						event.stopPropagation();
-						onImportChildrenFromSource(option.instanceId);
+						editor.importChildrenFromSource(option.instanceId);
 					}}
 				>
 					{option.breadcrumb}

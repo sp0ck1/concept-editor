@@ -1,27 +1,20 @@
 <script lang="ts">
+	import { getEditorContext } from '$lib/components/editor/EditorContext';
 	import TreeView from '$lib/components/editor/tree/TreeView.svelte';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
-	let {
-		card,
-		getConceptChildren,
-		onCardOpen,
-		onChildPointerDown,
-		onChildPointerUp
-	} = $props<{
+	let { card, onChildPointerDown, onChildPointerUp } = $props<{
 		card: ConceptCardView;
-		getConceptChildren: (conceptInstanceId: string) => ConceptCardView[];
-		onCardOpen?: (card: ConceptCardView) => void;
 		onChildPointerDown?: (event: PointerEvent, childCard: ConceptCardView) => void;
 		onChildPointerUp?: () => void;
 	}>();
 
+	const editor = getEditorContext();
+
 	let concept = $derived(card.concept);
 	let instance = $derived(card.instance);
 
-	let conceptChildren = $derived.by(() =>
-		getConceptChildren(instance.id)
-	);
+	let conceptChildren = $derived.by(() => editor.getConceptChildren(instance.id));
 
 	function openCardFromDropArea(event: MouseEvent) {
 		const target = event.target;
@@ -40,7 +33,7 @@
 		event.preventDefault();
 		event.stopPropagation();
 
-		onCardOpen?.(card);
+		editor.openInstanceCanvas(card.instance.id);
 	}
 </script>
 
@@ -58,7 +51,6 @@
 	{:else}
 		<TreeView
 			rootCard={card}
-			{getConceptChildren}
 			{onChildPointerDown}
 			{onChildPointerUp}
 		/>
