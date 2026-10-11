@@ -1,12 +1,11 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import ConceptCard from '$lib/components/editor/card/ConceptCard.svelte';
 	import CanvasContextMenu from '$lib/components/editor/canvas/CanvasContextMenu.svelte';
 	import CanvasTopbar from '$lib/components/editor/canvas/CanvasTopbar.svelte';
 	import ConceptSidebar from '$lib/components/editor/sidebar/ConceptSidebar.svelte';
-	import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
-	import type { Concept } from '$lib/model/Concept';
+
 	import type { ConceptInstance } from '$lib/model/ConceptInstance';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 	import type {
@@ -17,21 +16,15 @@
 		ResizeState,
 		SelectionBoxState
 	} from '$lib/components/editor/canvas/CanvasTypes';
-	import type {
-		ContextMenu,
-		CreateConceptOptions,
-		EditorData,
-		MainView,
-		SidebarTab,
-		TitleConflictState
-	} from '$lib/components/editor/EditorTypes';
+	import type { EditorData } from '$lib/components/editor/EditorTypes';
+	import { Editor } from '$lib/components/editor/Editor.svelte';
+	import { setEditorContext } from '$lib/components/editor/EditorContext';
 	import {
 		conceptSizePresets,
 		chooseBestPackedLayout,
 		getImportedConceptSize,
 		getNextConceptPositionAfterCard,
-		getTitleSizedConceptWidth,
-		type ConceptSizePreset
+		getTitleSizedConceptWidth
 	} from '$lib/components/editor/canvas/layout';
 	import {
 		clamp,
@@ -42,31 +35,30 @@
 		getRectangleOverlapRatio,
 		type Rectangle
 	} from '$lib/components/editor/canvas/geometry';
-	import { normalizeConcept } from '$lib/model/normalizeConcept';
-	import { normalizeConceptInstance } from '$lib/model/normalizeConceptInstance';
+
 	import { lineParser, type ParsedConceptInput } from '$lib/parsers';
 	import PasteImportConfirmation from '$lib/components/editor/canvas/PasteImportConfirmation.svelte';
 	import CanvasSelectionBox from '$lib/components/editor/canvas/CanvasSelectionBox.svelte';
-	import {
-		createConceptRecord,
-		ensureConceptByTitle,
-		updateConceptRecord,
-		updateConceptTitleFromInstanceRecord
-	} from '$lib/client/concepts';
-	import {
-		deleteConceptInstanceRecord,
-		importChildrenFromConceptInstance,
-		updateConceptInstanceRecord,
-		updateConceptInstancesBatch
-	} from '$lib/client/conceptInstances';
-	import { getRelationshipsForConcept } from '$lib/model/relationshipQueries';
-	import {SvelteSet} from "svelte/reactivity";
+	import { updateConceptInstanceRecord } from '$lib/client/conceptInstances';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	// let Declarations
 
 	let { data } = $props<{ data: EditorData }>();
 
-	let titleConflict = $state<TitleConflictState | null>(null);
+	const editor = untrack(() => new Editor(data));
+	setEditorContext(editor);
+
+	$effect(() => {
+		const concepts = data.concepts;
+		const instances = data.instances;
+		const relationships = data.relationships;
+		const relationshipDefinitions = data.relationshipDefinitions;
+
+		untrack(() => {
+			editor.replaceData({ concepts, instances, relationships, relationshipDefinitions });
+		});
+	});
 
 	let sidebarElement = $state<HTMLElement | null>(null);
 	let sidebarWidth = $state<number | null>(null);
@@ -78,68 +70,11 @@
 	const minSidebarWidth = 180;
 	const minCanvasWidth = 240;
 
-	let contextMenu = $state<ContextMenu>({
-		visible: false,
-		x: 0,
-		y: 0,
-		targetType: null,
-		instanceId: null
-	});
-
-	let importChildrenMenu = $state<{
-		visible: boolean;
-		x: number;
-		y: number;
-		targetInstanceId: string | null;
-	}>({
-		visible: false,
-		x: 0,
-		y: 0,
-		targetInstanceId: null
-	});
-
-	let concepts = $state<EditorData['concepts']>(data.concepts.map(normalizeConcept));
-	let instances = $state<EditorData['instances']>(data.instances.map(normalizeConceptInstance));
-	let relationships = $state<EditorData['relationships']>(data.relationships);
-	let relationshipDefinitions = $state<EditorData['relationshipDefinitions']>(
-		data.relationshipDefinitions
-	);
-
-	$effect(() => {
-		concepts = data.concepts.map(normalizeConcept);
-		instances = data.instances.map(normalizeConceptInstance);
-		relationships = data.relationships;
-		relationshipDefinitions = data.relationshipDefinitions;
-	});
-
-	let sidebarVisible = $state(true);
-	let conceptsById = $derived.by(() => {
-		return new Map(concepts.map((concept) => [concept.id, concept]));
-	});
-
-	let cards = $derived.by((): ConceptCardView[] => {
-		return instances.flatMap((instance) => {
-			const concept = conceptsById.get(instance.conceptId);
-
-			return concept ? [{ concept, instance }] : [];
-		});
-	});
-
-	let cardsByInstanceId = $derived.by(() => {
-		return new Map(cards.map((card) => [card.instance.id, card]));
-	});
-
 	let canvasElement = $state<HTMLElement | null>(null);
-
-	let activeInstanceId = $state<string | null>(null);
-	let pendingFocusInstanceId = $state<string | null>(null);
-	let currentCanvasOwnerInstanceId = $state<string | null>(null);
-	let selectedInstanceIds = $state<Set<string>>(new Set());
 	let marqueePreviewInstanceIds = $state<Set<string>>(new Set());
 	let sidebarNewTag = $state('');
 	let arrangingCards = $state(false);
-	let sidebarTab = $state<SidebarTab>('concept');
-	let mainView = $state<MainView>('canvas');
+
 	let arrangingCamera = $state(false);
 
 	let panX = $state(0);
@@ -177,9 +112,6 @@
 		time: 0
 	});
 
-	let cardsInCurrentCanvas = $derived(
-		cards.filter((card) => card.instance.parentInstanceId === currentCanvasOwnerInstanceId)
-	);
 
 	let childTileDragState = $state<ChildTileDragState>({
 		active: false,
@@ -320,13 +252,13 @@
 
 	// Saves camera to the ConceptInstance
 	async function saveCurrentCanvasCamera() {
-		if (currentCanvasOwnerInstanceId === null) {
+		if (editor.currentCanvasOwnerInstanceId === null) {
 			return;
 		}
 
 		const camera = getCurrentCamera();
 
-		const currentCard = getCardByInstanceId(currentCanvasOwnerInstanceId);
+		const currentCard = editor.getCardByInstanceId(editor.currentCanvasOwnerInstanceId);
 
 		if (currentCard) {
 			currentCard.instance.lastCameraPanX = camera.panX;
@@ -334,7 +266,7 @@
 			currentCard.instance.lastCameraZoom = camera.zoom;
 		}
 
-		await updateConceptInstanceRecord(currentCanvasOwnerInstanceId, {
+		await updateConceptInstanceRecord(editor.currentCanvasOwnerInstanceId, {
 			lastCameraPanX: camera.panX,
 			lastCameraPanY: camera.panY,
 			lastCameraZoom: camera.zoom
@@ -342,17 +274,9 @@
 	}
 
 
-	function getConceptChildren(conceptInstanceId: string): ConceptCardView[] {
-		return cards.filter((card) => card.instance.parentInstanceId === conceptInstanceId);
-	}
-
-	function getRootConceptInstances(): ConceptCardView[] {
-		return cards.filter((card) => card.instance.parentInstanceId === null);
-	}
-
 
 	function handleChildTileDragStart(event: PointerEvent, childCard: ConceptCardView) {
-		closeContextMenu();
+		editor.closeContextMenu();
 
 		childTileDragState = {
 			active: true,
@@ -368,23 +292,6 @@
 		resetResizeState();
 	}
 
-	async function createConceptFromMenu(sizePreset: ConceptSizePreset = 'medium') {
-		if (contextMenu.targetType === 'canvas') {
-			await createConcept({
-				position: {
-					x: contextMenu.worldX,
-					y: contextMenu.worldY
-				},
-				sizePreset
-			});
-		} else {
-			await createConcept({
-				sizePreset
-			});
-		}
-
-		closeContextMenu();
-	}
 
 	async function handleCanvasPaste(event: ClipboardEvent) {
 		if (isInteractiveElement(document.activeElement)) {
@@ -407,7 +314,7 @@
 		event.stopPropagation();
 
 		const targetConceptName =
-			currentCanvasOwnerCard?.concept.title || currentCanvasOwnerCard?.concept.id || 'Root';
+			editor.currentCanvasOwnerCard?.concept.title || editor.currentCanvasOwnerCard?.concept.id || 'Root';
 
 		if (result.items.length > 25) {
 			pasteConfirmation = {
@@ -466,9 +373,9 @@
 			const row = Math.floor(index / columns);
 			const size = importedSizes[index];
 
-			const result = await createConcept({
+			const result = await editor.createConcept({
 				title: item.title,
-				parentInstanceId: currentCanvasOwnerInstanceId,
+				parentInstanceId: editor.currentCanvasOwnerInstanceId,
 				position: {
 					x: start.x + column * gapX,
 					y: start.y + row * gapY
@@ -487,8 +394,8 @@
 		}
 
 		if (lastCreatedInstanceId) {
-			activeInstanceId = lastCreatedInstanceId;
-			pendingFocusInstanceId = null;
+			editor.activeInstanceId = lastCreatedInstanceId;
+			editor.pendingFocusInstanceId = null;
 		}
 
 		await invalidateAll();
@@ -504,61 +411,9 @@
 
 		sidebarNewTag = '';
 
-		await handleManualTagAdd(card, title);
+		await editor.handleManualTagAdd(card, title);
 	}
 
-	function getConceptById(conceptId: string) {
-		return conceptsById.get(conceptId) ?? null;
-	}
-
-	function getTagConcepts(tagConceptIds: string[]) {
-		return tagConceptIds
-			.map((conceptId) => getConceptById(conceptId))
-			.filter((concept): concept is Concept => Boolean(concept));
-	}
-
-	async function setConceptTagConceptIds(card: ConceptCardView, tagConceptIds: string[]) {
-		const uniqueTagConceptIds = [...new Set(tagConceptIds)].filter(
-			(conceptId) => conceptId !== card.concept.id
-		);
-
-		card.concept.tagConceptIds = uniqueTagConceptIds;
-
-		await updateConcept(card.concept.id, {
-			tagConceptIds: uniqueTagConceptIds
-		});
-	}
-
-	async function tagConceptWithConcept(targetCard: ConceptCardView, tagConcept: Concept) {
-		await setConceptTagConceptIds(targetCard, [
-			...(targetCard.concept.tagConceptIds ?? []),
-			tagConcept.id
-		]);
-	}
-
-	async function handleManualTagAdd(card: ConceptCardView, title: string) {
-		let result: Awaited<ReturnType<typeof ensureConceptByTitle>>;
-
-		try {
-			result = await ensureConceptByTitle(title);
-		} catch {
-			console.error('Failed to ensure tag concept');
-			return;
-		}
-
-		if (!concepts.some((concept) => concept.id === result.concept.id)) {
-			concepts = [...concepts, normalizeConcept(result.concept)];
-		}
-
-		await tagConceptWithConcept(card, result.concept);
-	}
-
-	async function handleTagRemove(card: ConceptCardView, tagConcept: Concept) {
-		await setConceptTagConceptIds(
-			card,
-			(card.concept.tagConceptIds ?? []).filter((conceptId) => conceptId !== tagConcept.id)
-		);
-	}
 
 	function nextAnimationFrame() {
 		return new Promise<void>((resolve) => {
@@ -566,9 +421,6 @@
 		});
 	}
 
-	function openTagCanvas(tagConcept: Concept) {
-		console.log('open tag canvas later:', tagConcept.title || tagConcept.id);
-	}
 
 	function getBoundsForInstanceUpdates(
 		updates: {
@@ -581,7 +433,7 @@
 	) {
 		const updatedCards = updates
 			.map((update) => {
-				const card = cards.find((item) => item.instance.id === update.id);
+				const card = editor.cards.find((item) => item.instance.id === update.id);
 
 				if (!card) {
 					return null;
@@ -611,12 +463,12 @@
 	}
 
 	function frameCardsInCurrentCanvas() {
-		if (cardsInCurrentCanvas.length === 0) {
+		if (editor.cardsInCurrentCanvas.length === 0) {
 			return;
 		}
 
 		applyCamera(
-			getCameraForBounds(getCardsWorldBounds(cardsInCurrentCanvas), {
+			getCameraForBounds(getCardsWorldBounds(editor.cardsInCurrentCanvas), {
 				padding: 6,
 				allowZoomIn: true
 			})
@@ -647,7 +499,7 @@
 		await nextAnimationFrame();
 
 		for (const update of updates) {
-			const card = cards.find((item) => item.instance.id === update.id);
+			const card = editor.cards.find((item) => item.instance.id === update.id);
 
 			if (!card) {
 				continue;
@@ -668,15 +520,15 @@
 		arrangingCards = false;
 		arrangingCamera = false;
 
-		await updateInstancesBatch(updates);
+		await editor.updateInstancesBatch(updates);
 	}
 
 	async function arrangeCardsInCurrentCanvasInGrid() {
-		if (cardsInCurrentCanvas.length === 0) {
+		if (editor.cardsInCurrentCanvas.length === 0) {
 			return;
 		}
 
-		const sortedCards = [...cardsInCurrentCanvas].sort((a, b) => {
+		const sortedCards = [...editor.cardsInCurrentCanvas].sort((a, b) => {
 			const titleA = a.concept.title || a.concept.id;
 			const titleB = b.concept.title || b.concept.id;
 
@@ -747,9 +599,9 @@
 	}
 
 	function focusSelectionOrNearestCard() {
-		if (selectedInstanceIds.size > 0) {
-			const selectedCards = cardsInCurrentCanvas.filter((card) =>
-				selectedInstanceIds.has(card.instance.id)
+		if (editor.selectedInstanceIds.size > 0) {
+			const selectedCards = editor.cardsInCurrentCanvas.filter((card) =>
+				editor.selectedInstanceIds.has(card.instance.id)
 			);
 
 			const bounds = getCardsWorldBounds(selectedCards);
@@ -764,7 +616,7 @@
 
 		const viewportCenter = getViewportCenterWorldPoint();
 
-		const nearestCard = cardsInCurrentCanvas
+		const nearestCard = editor.cardsInCurrentCanvas
 			.map((card) => {
 				const center = getCardCenter(card);
 				const distance = Math.hypot(center.x - viewportCenter.x, center.y - viewportCenter.y);
@@ -786,7 +638,7 @@
 			return [];
 		}
 
-		return cardsInCurrentCanvas.filter((card) => {
+		return editor.cardsInCurrentCanvas.filter((card) => {
 			const overlapRatio = getRectangleOverlapRatio(getCardWorldRect(card), selectionWorldRect);
 			return overlapRatio >= selectionOverlapThreshold;
 		});
@@ -810,12 +662,12 @@
 		const selectedByBox = [...marqueePreviewInstanceIds];
 
 		if (selectionBoxState.active && selectionBoxState.additive) {
-			selectedInstanceIds = new Set([...selectedInstanceIds, ...selectedByBox]);
+			editor.selectedInstanceIds = new Set([...editor.selectedInstanceIds, ...selectedByBox]);
 		} else {
-			selectedInstanceIds = new Set(selectedByBox);
+			editor.selectedInstanceIds = new Set(selectedByBox);
 		}
 
-		activeInstanceId = selectedByBox[selectedByBox.length - 1] ?? null;
+		editor.activeInstanceId = selectedByBox[selectedByBox.length - 1] ?? null;
 		clearMarqueePreviewSelection();
 	}
 
@@ -870,12 +722,12 @@
 	}
 
 	function selectOnlyInstance(instanceId: string) {
-		selectedInstanceIds = new Set([instanceId]);
-		activeInstanceId = instanceId;
+		editor.selectedInstanceIds = new Set([instanceId]);
+		editor.activeInstanceId = instanceId;
 	}
 
 	function toggleInstanceSelection(instanceId: string) {
-		const nextSelectedInstanceIds = new SvelteSet(selectedInstanceIds);
+		const nextSelectedInstanceIds = new SvelteSet(editor.selectedInstanceIds);
 
 		if (nextSelectedInstanceIds.has(instanceId)) {
 			nextSelectedInstanceIds.delete(instanceId);
@@ -883,14 +735,14 @@
 			nextSelectedInstanceIds.add(instanceId);
 		}
 
-		selectedInstanceIds = nextSelectedInstanceIds;
-		activeInstanceId = instanceId;
+		editor.selectedInstanceIds = nextSelectedInstanceIds;
+		editor.activeInstanceId = instanceId;
 	}
 
 	function clearSelection() {
-		selectedInstanceIds = new Set();
+		editor.selectedInstanceIds = new Set();
 		clearMarqueePreviewSelection();
-		activeInstanceId = null;
+		editor.activeInstanceId = null;
 	}
 
 	function handleCardSelectionPointerDown(event: PointerEvent, card: ConceptCardView) {
@@ -899,12 +751,12 @@
 			return;
 		}
 
-		if (!selectedInstanceIds.has(card.instance.id)) {
+		if (!editor.selectedInstanceIds.has(card.instance.id)) {
 			selectOnlyInstance(card.instance.id);
 			return;
 		}
 
-		activeInstanceId = card.instance.id;
+		editor.activeInstanceId = card.instance.id;
 	}
 
 	function isInteractiveElement(element: Element | null) {
@@ -919,15 +771,6 @@
 		);
 	}
 
-	async function commitTitleEdit(card: ConceptCardView, nextTitle: string) {
-		const trimmedTitle = nextTitle.trim();
-
-		if (trimmedTitle === card.concept.title) {
-			return;
-		}
-
-		await updateConceptTitleFromInstance(card, trimmedTitle);
-	}
 
 	// Every time Enter is pressed consumeDoubleEnter is called to check if it was pressed twice
 	// i.e., within doubleEnterWindowMs of the last time.
@@ -950,225 +793,6 @@
 	}
 
 
-	function getCardByInstanceId(instanceId: string) {
-		return cardsByInstanceId.get(instanceId);
-	}
-
-	function getInstanceBreadcrumb(instanceId: string) {
-		const breadcrumb: ConceptCardView[] = [];
-		const visited = new SvelteSet<string>();
-
-		let current = getCardByInstanceId(instanceId);
-
-		while (current && !visited.has(current.instance.id)) {
-			visited.add(current.instance.id);
-			breadcrumb.unshift(current);
-
-			current = current.instance.parentInstanceId
-				? getCardByInstanceId(current.instance.parentInstanceId)
-				: undefined;
-		}
-
-		return breadcrumb;
-	}
-
-	let currentBreadcrumb = $derived.by(() => {
-		if (currentCanvasOwnerInstanceId === null) {
-			return [];
-		}
-
-		return getInstanceBreadcrumb(currentCanvasOwnerInstanceId);
-	});
-
-	let currentCanvasOwnerCard = $derived.by(() => {
-		if (currentCanvasOwnerInstanceId === null) {
-			return null;
-		}
-
-		return getCardByInstanceId(currentCanvasOwnerInstanceId) ?? null;
-	});
-
-	let currentConceptRelationships = $derived.by(() => {
-		if (!currentCanvasOwnerCard) {
-			return [];
-		}
-
-		return getRelationshipsForConcept(relationships, currentCanvasOwnerCard.concept.id);
-	});
-
-	let importChildrenOptions = $derived.by(() => {
-		if (!importChildrenMenu.visible || !importChildrenMenu.targetInstanceId) {
-			return [];
-		}
-
-		return getImportChildrenOptions(importChildrenMenu.targetInstanceId);
-	});
-
-	function setMainView(nextView: MainView) {
-		mainView = nextView;
-
-		if (nextView === 'table') {
-			sidebarTab = 'tree';
-		}
-	}
-
-	function getImportChildrenOptions(targetInstanceId: string) {
-		const targetCard = getCardByInstanceId(targetInstanceId);
-
-		if (!targetCard) {
-			return [];
-		}
-
-		return cards
-			.filter((card) => {
-				if (card.instance.id === targetInstanceId) {
-					return false;
-				}
-
-				if (card.instance.conceptId !== targetCard.instance.conceptId) {
-					return false;
-				}
-
-				const hasChildren = cards.some(
-					(child) => child.instance.parentInstanceId === card.instance.id
-				);
-
-				return hasChildren;
-			})
-			.map((card) => ({
-				instanceId: card.instance.id,
-				breadcrumb: getBreadcrumbLabel(card.instance.id)
-			}));
-	}
-
-	function openImportChildrenMenu() {
-		if (contextMenu.targetType !== 'card') {
-			return;
-		}
-
-		importChildrenMenu = {
-			visible: true,
-			x: contextMenu.x + 170,
-			y: contextMenu.y,
-			targetInstanceId: contextMenu.instanceId
-		};
-	}
-
-	function closeImportChildrenMenu() {
-		importChildrenMenu = {
-			visible: false,
-			x: 0,
-			y: 0,
-			targetInstanceId: null
-		};
-	}
-
-	function getBreadcrumbLabel(instanceId: string) {
-		const breadcrumb = getInstanceBreadcrumb(instanceId);
-
-		if (breadcrumb.length === 0) {
-			return instanceId;
-		}
-
-		return breadcrumb.map((card) => card.concept.title || card.concept.id).join(' > ');
-	}
-
-	async function createConcept(options: CreateConceptOptions = {}) {
-		const sizePreset = options.sizePreset ?? 'medium';
-		const presetSize = conceptSizePresets[sizePreset];
-
-		const result = await createConceptRecord({
-			...(options.position ?? {}),
-			...(options.title !== undefined ? { title: options.title } : {}),
-			width: options.width ?? presetSize.width,
-			height: options.height ?? presetSize.height,
-			parentInstanceId: options.parentInstanceId ?? currentCanvasOwnerInstanceId
-		});
-
-		if (options.focusAfterCreate ?? true) {
-			pendingFocusInstanceId = result.instance.id;
-			activeInstanceId = result.instance.id;
-		}
-
-		await invalidateAll();
-
-		return result;
-	}
-
-	async function deleteInstance(id: string) {
-		try {
-			await deleteConceptInstanceRecord(id);
-		} catch {
-			console.error('Failed to delete concept instance');
-			return;
-		}
-
-		await invalidateAll();
-	}
-
-	async function deleteInstanceFromMenu() {
-		if (contextMenu.targetType !== 'card') {
-			return;
-		}
-
-		await deleteInstance(contextMenu.instanceId);
-		closeContextMenu();
-	}
-
-	async function updateConcept(
-		id: string,
-		updates: Partial<Omit<Concept, 'id' | 'title'>>
-	) {
-		try {
-			await updateConceptRecord(id, updates);
-		} catch {
-			console.error('Failed to update concept');
-			return;
-		}
-
-		await invalidateAll();
-	}
-
-	async function updateInstance(
-		id: string,
-		updates: Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>
-	) {
-		try {
-			await updateConceptInstanceRecord(id, updates);
-		} catch {
-			console.error('Failed to update concept instance');
-			return;
-		}
-
-		await invalidateAll();
-	}
-
-	async function updateConceptTitleFromInstance(
-		card: ConceptCardView,
-		title: string,
-		conflictMode: TitleConflictMode = 'report-conflict'
-	) {
-		const result = await updateConceptTitleFromInstanceRecord(
-			card.concept.id,
-			card.instance.id,
-			title,
-			conflictMode
-		);
-
-		if (result.status === 'title-conflict') {
-			titleConflict = {
-				card,
-				title,
-				matchingConcepts: result.matchingConcepts
-			};
-
-			return;
-		}
-
-		titleConflict = null;
-
-		await invalidateAll();
-	}
 
 	function getCanvasPointFromPointerEvent(event: PointerEvent | MouseEvent) {
 		if (!canvasElement) {
@@ -1190,7 +814,7 @@
 	async function handleCanvasDoubleClick(event: MouseEvent) {
 		const point = getWorldPointFromEvent(event);
 
-		await createConcept({
+		await editor.createConcept({
 			position: {
 				x: point.x + Math.round(Math.random() * 200 - 100),
 				y: point.y + Math.round(Math.random() * 200 - 100)
@@ -1203,7 +827,7 @@
 
 		const point = getWorldPointFromEvent(event);
 
-		contextMenu = {
+		editor.contextMenu = {
 			visible: true,
 			x: event.clientX,
 			y: event.clientY,
@@ -1214,17 +838,6 @@
 		};
 	}
 
-	function closeContextMenu() {
-		contextMenu = {
-			visible: false,
-			x: 0,
-			y: 0,
-			targetType: null,
-			instanceId: null
-		};
-
-		closeImportChildrenMenu();
-	}
 
 	function emptyDragState(): DragState {
 		return {
@@ -1272,24 +885,6 @@
 		};
 	}
 
-	async function importChildrenFromSource(sourceInstanceId: string) {
-		if (!importChildrenMenu.targetInstanceId) {
-			return;
-		}
-
-		try {
-			await importChildrenFromConceptInstance(
-				sourceInstanceId,
-				importChildrenMenu.targetInstanceId
-			);
-		} catch {
-			console.error('Failed to import children');
-			return;
-		}
-
-		closeContextMenu();
-		await invalidateAll();
-	}
 
 	function handleCanvasWheel(event: WheelEvent) {
 		event.preventDefault();
@@ -1314,7 +909,7 @@
 
 		canvasElement?.focus();
 
-		closeContextMenu();
+		editor.closeContextMenu();
 
 		const canvasPoint = getCanvasPointFromPointerEvent(event);
 
@@ -1355,8 +950,8 @@
 
 			event.stopPropagation();
 
-			activeInstanceId = card.instance.id;
-			closeContextMenu();
+			editor.activeInstanceId = card.instance.id;
+			editor.closeContextMenu();
 
 			handleCardSelectionPointerDown(event, card);
 
@@ -1388,11 +983,11 @@
 	}
 
 	function getCardsForDragStart(card: ConceptCardView) {
-		const shouldDragSelection = selectedInstanceIds.has(card.instance.id);
+		const shouldDragSelection = editor.selectedInstanceIds.has(card.instance.id);
 
 		const cardsToDrag = shouldDragSelection
-			? cardsInCurrentCanvas.filter((visibleCard) =>
-					selectedInstanceIds.has(visibleCard.instance.id)
+			? editor.cardsInCurrentCanvas.filter((visibleCard) =>
+					editor.selectedInstanceIds.has(visibleCard.instance.id)
 				)
 			: [card];
 
@@ -1407,13 +1002,13 @@
 		event.preventDefault();
 		event.stopPropagation();
 
-		if (!selectedInstanceIds.has(card.instance.id)) {
+		if (!editor.selectedInstanceIds.has(card.instance.id)) {
 			selectOnlyInstance(card.instance.id);
 		} else {
-			activeInstanceId = card.instance.id;
+			editor.activeInstanceId = card.instance.id;
 		}
 
-		contextMenu = {
+		editor.contextMenu = {
 			visible: true,
 			x: event.clientX,
 			y: event.clientY,
@@ -1430,9 +1025,9 @@
 		event.preventDefault();
 		event.stopPropagation();
 
-		closeContextMenu();
+		editor.closeContextMenu();
 
-		activeInstanceId = card.instance.id;
+		editor.activeInstanceId = card.instance.id;
 
 		resizeState = {
 			active: true,
@@ -1493,7 +1088,7 @@
 		const dx = (event.clientX - resizeState.startMouseX) / zoom;
 		const dy = (event.clientY - resizeState.startMouseY) / zoom;
 
-		const card = cards.find((item) => item.instance.id === resizeState.instanceId);
+		const card = editor.cards.find((item) => item.instance.id === resizeState.instanceId);
 
 		if (!card) {
 			return;
@@ -1514,7 +1109,7 @@
 			const dy = (event.clientY - dragState.startMouseY) / zoom;
 
 			for (const draggedCard of dragState.draggedCards) {
-				const card = cards.find((item) => item.instance.id === draggedCard.instanceId);
+				const card = editor.cards.find((item) => item.instance.id === draggedCard.instanceId);
 
 				if (!card) {
 					continue;
@@ -1574,22 +1169,6 @@
 		}
 	}
 
-	function isDescendantInstance(
-		possibleDescendantInstanceId: string,
-		ancestorInstanceId: string
-	): boolean {
-		let current = getCardByInstanceId(possibleDescendantInstanceId);
-
-		while (current?.instance.parentInstanceId) {
-			if (current.instance.parentInstanceId === ancestorInstanceId) {
-				return true;
-			}
-
-			current = getCardByInstanceId(current.instance.parentInstanceId);
-		}
-
-		return false;
-	}
 
 	async function finishChildTileDrag(event: PointerEvent) {
 		const childCard = childTileDragState.childCard;
@@ -1605,13 +1184,13 @@
 		}
 
 		if (targetTagInstanceId) {
-			const targetCard = getCardByInstanceId(targetTagInstanceId);
+			const targetCard = editor.getCardByInstanceId(targetTagInstanceId);
 
 			if (!targetCard) {
 				return;
 			}
 
-			await tagConceptWithConcept(targetCard, childCard.concept);
+			await editor.tagConceptWithConcept(targetCard, childCard.concept);
 
 			return;
 		}
@@ -1619,12 +1198,12 @@
 		if (targetParentInstanceId) {
 			if (
 				targetParentInstanceId === childCard.instance.id ||
-				isDescendantInstance(targetParentInstanceId, childCard.instance.id)
+				editor.isDescendantInstance(targetParentInstanceId, childCard.instance.id)
 			) {
 				return;
 			}
 
-			const targetAlreadyContainsConcept = cards.some(
+			const targetAlreadyContainsConcept = editor.cards.some(
 				(item) =>
 					item.instance.parentInstanceId === targetParentInstanceId &&
 					item.instance.conceptId === childCard.instance.conceptId &&
@@ -1637,7 +1216,7 @@
 
 			childCard.instance.parentInstanceId = targetParentInstanceId;
 
-			await updateInstance(childCard.instance.id, {
+			await editor.updateInstance(childCard.instance.id, {
 				parentInstanceId: targetParentInstanceId
 			});
 
@@ -1651,19 +1230,19 @@
 		const worldPoint = getWorldPointFromEvent(event);
 
 		if (
-			currentCanvasOwnerInstanceId === childCard.instance.id ||
-			(currentCanvasOwnerInstanceId !== null &&
-				isDescendantInstance(currentCanvasOwnerInstanceId, childCard.instance.id))
+			editor.currentCanvasOwnerInstanceId === childCard.instance.id ||
+			(editor.currentCanvasOwnerInstanceId !== null &&
+				editor.isDescendantInstance(editor.currentCanvasOwnerInstanceId, childCard.instance.id))
 		) {
 			return;
 		}
 
-		childCard.instance.parentInstanceId = currentCanvasOwnerInstanceId;
+		childCard.instance.parentInstanceId = editor.currentCanvasOwnerInstanceId;
 		childCard.instance.x = worldPoint.x;
 		childCard.instance.y = worldPoint.y;
 
-		await updateInstance(childCard.instance.id, {
-			parentInstanceId: currentCanvasOwnerInstanceId,
+		await editor.updateInstance(childCard.instance.id, {
+			parentInstanceId: editor.currentCanvasOwnerInstanceId,
 			x: worldPoint.x,
 			y: worldPoint.y
 		});
@@ -1692,7 +1271,7 @@
 			return;
 		}
 
-		const card = getCardByInstanceId(resizeState.instanceId);
+		const card = editor.getCardByInstanceId(resizeState.instanceId);
 
 		resizeState = emptyResizeState();
 
@@ -1700,7 +1279,7 @@
 			return;
 		}
 
-		await updateInstance(card.instance.id, {
+		await editor.updateInstance(card.instance.id, {
 			width: card.instance.width,
 			height: card.instance.height
 		});
@@ -1710,10 +1289,10 @@
 		const draggedInstanceIds = dragState.draggedCards.map((draggedCard) => draggedCard.instanceId);
 
 		const draggedCards = draggedInstanceIds
-			.map((instanceId) => cards.find((item) => item.instance.id === instanceId))
+			.map((instanceId) => editor.cards.find((item) => item.instance.id === instanceId))
 			.filter((card): card is ConceptCardView => Boolean(card));
 
-		const primaryCard = cards.find((item) => item.instance.id === dragState.instanceId);
+		const primaryCard = editor.cards.find((item) => item.instance.id === dragState.instanceId);
 
 		const { targetTagInstanceId, targetParentInstanceId } = getDropTargetAtPoint(
 			event.clientX,
@@ -1728,13 +1307,13 @@
 		}
 
 		if (targetTagInstanceId) {
-			const targetCard = getCardByInstanceId(targetTagInstanceId);
+			const targetCard = editor.getCardByInstanceId(targetTagInstanceId);
 			if (!targetCard) {
 				return;
 			}
 
 			for (const draggedCard of draggedCards) {
-				await tagConceptWithConcept(targetCard, draggedCard.concept);
+				await editor.tagConceptWithConcept(targetCard, draggedCard.concept);
 			}
 
 			return;
@@ -1747,7 +1326,7 @@
 			}[] = [];
 
 			const conceptIdsAlreadyInTarget = new SvelteSet(
-				cards
+				editor.cards
 					.filter(
 						(item) =>
 							item.instance.parentInstanceId === targetParentInstanceId &&
@@ -1774,11 +1353,11 @@
 				});
 			}
 
-			await updateInstancesBatch(updates);
+			await editor.updateInstancesBatch(updates);
 			return;
 		}
 
-		await updateInstancesBatch(
+		await editor.updateInstancesBatch(
 			draggedCards.map((card) => ({
 				id: card.instance.id,
 				updates: {
@@ -1834,29 +1413,10 @@
 		isPanning = false;
 	}
 
-	async function updateInstancesBatch(
-		updates: {
-			id: string;
-			updates: Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>;
-		}[]
-	) {
-		if (updates.length === 0) {
-			return;
-		}
-
-		try {
-			await updateConceptInstancesBatch(updates);
-		} catch {
-			console.error('Failed to batch update concept instances');
-			return;
-		}
-
-		await invalidateAll();
-	}
 
 	async function handleWindowKeydown(event: KeyboardEvent) {
 		if (event.code === 'Escape') {
-			closeContextMenu();
+			editor.closeContextMenu();
 			return;
 		}
 
@@ -1878,7 +1438,7 @@
 			return;
 		}
 
-		const isDoubleEnter = consumeDoubleEnter(`canvas:${currentCanvasOwnerInstanceId ?? 'root'}`);
+		const isDoubleEnter = consumeDoubleEnter(`canvas:${editor.currentCanvasOwnerInstanceId ?? 'root'}`);
 
 		if (!isDoubleEnter) {
 			return;
@@ -1893,7 +1453,7 @@
 			x: center.x,
 			y: center.y
 		};
-		await createConcept({
+		await editor.createConcept({
 			position
 		});
 	}
@@ -1906,7 +1466,7 @@
 
 			const isDoubleEnter = consumeDoubleEnter(`title:${card.instance.id}`);
 
-			await commitTitleEdit(card, input.value);
+			await editor.commitTitleEdit(card, input.value);
 
 			if (isDoubleEnter) {
 				const nextconceptPositionAfterCard = getNextConceptPositionAfterCard(card);
@@ -1916,7 +1476,7 @@
 					y: nextconceptPositionAfterCard.y
 				};
 
-				await createConcept({
+				await editor.createConcept({
 					position
 				});
 			}
@@ -1933,16 +1493,9 @@
 	async function handleConceptTitleBlur(event: FocusEvent, card: ConceptCardView) {
 		const input = event.currentTarget as HTMLInputElement;
 
-		await commitTitleEdit(card, input.value);
+		await editor.commitTitleEdit(card, input.value);
 	}
 
-	async function handlePropertiesChange(card: ConceptCardView, properties: Record<string, string>) {
-		card.concept.properties = properties;
-
-		await updateConcept(card.concept.id, {
-			properties
-		});
-	}
 
 	function emptyChildTileDragState(): ChildTileDragState {
 		return {
@@ -1965,10 +1518,10 @@
 	async function prepareCanvasNavigation(nextOwnerInstanceId: string | null) {
 		clearInteractiveState();
 		clearSelection();
-		closeContextMenu();
+		editor.closeContextMenu();
 
-		currentCanvasOwnerInstanceId = nextOwnerInstanceId;
-		activeInstanceId = null;
+		editor.currentCanvasOwnerInstanceId = nextOwnerInstanceId;
+		editor.activeInstanceId = null;
 
 		await tick();
 	}
@@ -1982,7 +1535,7 @@
 
 		prepareCanvasNavigation(null);
 
-		if (cardsInCurrentCanvas.length > 0) {
+		if (editor.cardsInCurrentCanvas.length > 0) {
 			frameCardsInCurrentCanvas();
 		} else {
 			applyCamera({
@@ -1994,13 +1547,13 @@
 	}
 
 	async function openInstanceCanvas(instanceId: string) {
-		const targetCard = getCardByInstanceId(instanceId);
+		const targetCard = editor.getCardByInstanceId(instanceId);
 
 		if (!targetCard) {
 			return;
 		}
 
-		if (instanceId === currentCanvasOwnerInstanceId) {
+		if (instanceId === editor.currentCanvasOwnerInstanceId) {
 			return;
 		}
 
@@ -2008,11 +1561,11 @@
 
 		clearInteractiveState();
 
-		currentCanvasOwnerInstanceId = instanceId;
-		activeInstanceId = null;
+		editor.currentCanvasOwnerInstanceId = instanceId;
+		editor.activeInstanceId = null;
 
 		clearSelection();
-		closeContextMenu();
+		editor.closeContextMenu();
 
 		await tick();
 
@@ -2020,7 +1573,7 @@
 
 		if (savedCamera) {
 			applyCamera(savedCamera);
-		} else if (cardsInCurrentCanvas.length > 0) {
+		} else if (editor.cardsInCurrentCanvas.length > 0) {
 			frameCardsInCurrentCanvas();
 		} else {
 			applyCamera({
@@ -2034,11 +1587,11 @@
 	// Not strictly necessary except for root, but could be nice to have a back button
 	async function openInstanceParentCanvas() {
 		// Can't do this from root
-		if (currentCanvasOwnerInstanceId === null) {
+		if (editor.currentCanvasOwnerInstanceId === null) {
 			return;
 		}
 
-		const currentCard = getCardByInstanceId(currentCanvasOwnerInstanceId);
+		const currentCard = editor.getCardByInstanceId(editor.currentCanvasOwnerInstanceId);
 		const parentInstanceId = currentCard?.instance.parentInstanceId ?? null;
 
 		if (parentInstanceId === null) {
@@ -2052,7 +1605,7 @@
 </script>
 
 <svelte:window
-	onclick={closeContextMenu}
+	onclick={() => editor.closeContextMenu()}
 	onkeydown={handleWindowKeydown}
 	onpointermove={handleWindowPointerMove}
 	onpointerup={handleWindowPointerUp}
@@ -2060,36 +1613,36 @@
 
 <section class="concept-workspace">
 	<CanvasTopbar
-		{currentBreadcrumb}
-		{currentCanvasOwnerCard}
-		{currentCanvasOwnerInstanceId}
-		{mainView}
+		currentBreadcrumb={editor.currentBreadcrumb}
+		currentCanvasOwnerCard={editor.currentCanvasOwnerCard}
+		currentCanvasOwnerInstanceId={editor.currentCanvasOwnerInstanceId}
+		mainView={editor.mainView}
 		onGoToRootCanvas={openRootCanvas}
 		onGoToCanvas={openInstanceCanvas}
 		onGoUpOneLevel={openInstanceParentCanvas}
-		onMainViewChange={setMainView}
+		onMainViewChange={(view) => editor.setMainView(view)}
 		onFocus={focusSelectionOrNearestCard}
 		onFrameAll={frameCardsInCurrentCanvas}
 		onArrangeGrid={arrangeCardsInCurrentCanvasInGrid}
 	/>
 
 	<div class="concept-workspace-body">
-		{#if sidebarVisible}
+		{#if editor.sidebarVisible}
 			<div
 				bind:this={sidebarElement}
 				class="sidebar-shell"
 				style:width={sidebarWidth === null ? undefined : `${sidebarWidth}px`}
 			>
 				<ConceptSidebar
-					{sidebarTab}
-					{currentCanvasOwnerCard}
+					sidebarTab={editor.sidebarTab}
+					currentCanvasOwnerCard={editor.currentCanvasOwnerCard}
 					{sidebarNewTag}
-					{getTagConcepts}
-					{getConceptChildren}
-					{getRootConceptInstances}
+					getTagConcepts={(ids) => editor.getTagConcepts(ids)}
+					getConceptChildren={(id) => editor.getConceptChildren(id)}
+					getRootConceptInstances={() => editor.getRootConceptInstances()}
 					onGoUpOneLevel={openInstanceParentCanvas}
 					onSidebarTabChange={(tab) => {
-						sidebarTab = tab;
+						editor.sidebarTab = tab;
 					}}
 					onTitleKeydown={handleConceptTitleKeydown}
 					onTitleBlur={handleConceptTitleBlur}
@@ -2097,12 +1650,12 @@
 						sidebarNewTag = value;
 					}}
 					onSidebarTagAdd={addSidebarTag}
-					onTagOpen={openTagCanvas}
-					onTagRemove={handleTagRemove}
-					onPropertiesChange={handlePropertiesChange}
-					relationships={currentConceptRelationships}
-					relationshipDefinitions={relationshipDefinitions}
-					{getConceptById}
+					onTagOpen={(concept) => editor.openTagCanvas(concept)}
+					onTagRemove={(card, concept) => editor.handleTagRemove(card, concept)}
+					onPropertiesChange={(card, properties) => editor.handlePropertiesChange(card, properties)}
+					relationships={editor.currentConceptRelationships}
+					relationshipDefinitions={editor.relationshipDefinitions}
+					getConceptById={(id) => editor.getConceptById(id)}
 				/>
 
 				<button
@@ -2121,14 +1674,14 @@
 		<section
 			bind:this={canvasElement}
 			class="canvas"
-			class:sidebar-hidden={!sidebarVisible}
+			class:sidebar-hidden={!editor.sidebarVisible}
 			class:is-panning={isPanning}
 			role="application"
 			aria-label="Concept canvas"
 			tabindex="0"
 			onwheel={handleCanvasWheel}
 		>
-			{#if mainView === 'canvas'}
+			{#if editor.mainView === 'canvas'}
 				{#if childTileDragState.active}
 					<div
 						class="child-tile-drag-ghost"
@@ -2162,22 +1715,22 @@
 					style={`transform: translate(${panX}px, ${panY}px) scale(${zoom});`}
 					class:is-arranging-camera={arrangingCamera}
 				>
-					{#each cardsInCurrentCanvas as card (card.instance.id)}
+					{#each editor.cardsInCurrentCanvas as card (card.instance.id)}
 						<ConceptCard
 							{card}
-							isActive={activeInstanceId === card.instance.id}
+							isActive={editor.activeInstanceId === card.instance.id}
 							isDragging={(dragState.active &&
 								dragState.draggedCards.some(
 									(draggedCard) => draggedCard.instanceId === card.instance.id
 								)) ||
 								(resizeState.active && resizeState.instanceId === card.instance.id)}
-							isSelected={selectedInstanceIds.has(card.instance.id)}
+							isSelected={editor.selectedInstanceIds.has(card.instance.id)}
 							isMarqueePreviewed={marqueePreviewInstanceIds.has(card.instance.id)}
 							isArranging={arrangingCards}
-							shouldFocusTitle={pendingFocusInstanceId === card.instance.id}
+							shouldFocusTitle={editor.pendingFocusInstanceId === card.instance.id}
 							onTitleFocused={() => {
-								if (pendingFocusInstanceId === card.instance.id) {
-									pendingFocusInstanceId = null;
+								if (editor.pendingFocusInstanceId === card.instance.id) {
+									editor.pendingFocusInstanceId = null;
 								}
 							}}
 							onChildDragStart={handleChildTileDragStart}
@@ -2187,11 +1740,11 @@
 							onTitleKeydown={handleConceptTitleKeydown}
 							onResizePointerDown={handleResizePointerDown}
 							onCardOpen={openCardCanvas}
-							tagConcepts={getTagConcepts(card.concept.tagConceptIds ?? [])}
-							onManualTagAdd={handleManualTagAdd}
-							onTagOpen={openTagCanvas}
-							onTagRemove={handleTagRemove}
-							{getConceptChildren}
+							tagConcepts={editor.getTagConcepts(card.concept.tagConceptIds ?? [])}
+							onManualTagAdd={(card, title) => editor.handleManualTagAdd(card, title)}
+							onTagOpen={(concept) => editor.openTagCanvas(concept)}
+							onTagRemove={(card, concept) => editor.handleTagRemove(card, concept)}
+							getConceptChildren={(id) => editor.getConceptChildren(id)}
 						/>
 					{/each}
 				</div>
@@ -2214,15 +1767,15 @@
 				/>
 			{/if}
 			<CanvasContextMenu
-				{contextMenu}
-				{importChildrenMenu}
-				importOptions={importChildrenOptions}
-				onCreateConceptFromMenu={createConceptFromMenu}
+				contextMenu={editor.contextMenu}
+				importChildrenMenu={editor.importChildrenMenu}
+				importOptions={editor.importChildrenOptions}
+				onCreateConceptFromMenu={(size) => editor.createConceptFromMenu(size)}
 				onGoToCanvas={openInstanceCanvas}
-				onCloseContextMenu={closeContextMenu}
-				onOpenImportChildrenMenu={openImportChildrenMenu}
-				onDeleteInstanceFromMenu={deleteInstanceFromMenu}
-				onImportChildrenFromSource={importChildrenFromSource}
+				onCloseContextMenu={() => editor.closeContextMenu()}
+				onOpenImportChildrenMenu={() => editor.openImportChildrenMenu()}
+				onDeleteInstanceFromMenu={() => editor.deleteInstanceFromMenu()}
+				onImportChildrenFromSource={(id) => editor.importChildrenFromSource(id)}
 			/>
 			<div class="zoom-indicator">
 				{Math.round(zoom * 100)}%

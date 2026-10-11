@@ -213,4 +213,21 @@ svelte-check found 0 errors and 19 warnings in 8 files
 npm run build completed successfully
 ```
 
-Audit confirms keyed rendering still uses `card.instance.id`, multiple instances share one canonical Concept object, and each instance retains its own canonical geometry/camera object. Browser verification of shared metadata updates, independent instance geometry, and refresh preservation remains deferred to the final regression pass.
+An audit confirms keyed rendering still uses `card.instance.id`, multiple instances share one canonical Concept object, and each instance retains its own canonical geometry/camera object. Browser verification of shared metadata updates, independent instance geometry, and refresh preservation remains deferred to the final regression pass.
+
+## Phase 8 — editor object and context
+
+A single rune-backed `Editor` instance now owns the four loaded record collections, editor selection/navigation/sidebar/menu state, derived card views, record queries, mutation commands, and menu operations. `ConceptEditor.svelte` creates that instance once, provides it through Svelte's typed `createContext<Editor>()` API, and retains only interaction and component-local state scheduled for later phases.
+
+The incoming-data effect reads only the four page-data collections as dependencies and invokes `editor.replaceData()` inside `untrack`. Replacement normalizes and updates only canonical records; it does not reconstruct the editor or reset selection, navigation, camera, or menus. Class methods passed as callbacks remain wrapped so they retain their `this` receiver.
+
+Review restored the existing collection semantics after the initial extraction: selection remains an ordinary `Set` replaced on updates, and the derived lookup tables remain ordinary `Map` values. Reactive Svelte collection types were not introduced where replacement/derivation already provides reactivity.
+
+Phase 8 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 8 files
+npm run build completed successfully
+```
+
+Static audit confirms all listed state, derived values, queries, commands, and menu operations moved exactly once, `openTagCanvas` remains a stub, constructors contain no DOM/listener/timer setup, and existing child-component props remain until Phase 10. Browser mutation verification of creation, editing, tags, properties, deletion, menus, and refresh behavior remains deferred to the final protected-data regression pass.

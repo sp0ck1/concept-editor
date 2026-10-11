@@ -400,9 +400,9 @@ Keep the join derived rather than synchronizing another writable collection thro
 
 ### Create the data owner
 
-* [ ] Create `src/lib/components/editor/Editor.svelte.ts`.
-* [ ] Export an `Editor` class.
-* [ ] Move the following state from `ConceptEditor.svelte` into the class:
+* [x] Create `src/lib/components/editor/Editor.svelte.ts`.
+* [x] Export an `Editor` class.
+* [x] Move the following state from `ConceptEditor.svelte` into the class:
 
 ```text
 concepts
@@ -424,12 +424,12 @@ contextMenu
 importChildrenMenu
 ```
 
-* [ ] Preserve `$state` on fields that the UI observes.
-* [ ] Keep the existing set-replacement behavior for selection. Do not replace it with in-place mutation of an ordinary `Set`.
+* [x] Preserve `$state` on fields that the UI observes.
+* [x] Keep the existing set-replacement behavior for selection. Do not replace it with in-place mutation of an ordinary `Set`.
 
 Svelte supports rune-backed class fields; a plain class instance does not automatically make all its properties reactive. ([Svelte][3])
 
-* [ ] Move these derived values into `Editor.svelte.ts`:
+* [x] Move these derived values into `Editor.svelte.ts`:
 
 ```text
 cards
@@ -442,13 +442,13 @@ currentConceptRelationships
 importChildrenOptions
 ```
 
-* [ ] Add `replaceData(data: EditorData)` to replace and normalize only the loaded record collections.
-* [ ] Initialize the editor from the incoming data.
-* [ ] Keep `replaceData` free of selection resets, camera resets, network calls, and DOM access.
+* [x] Add `replaceData(data: EditorData)` to replace and normalize only the loaded record collections.
+* [x] Initialize the editor from the incoming data.
+* [x] Keep `replaceData` free of selection resets, camera resets, network calls, and DOM access.
 
 ### Move queries
 
-* [ ] Move these functions from `ConceptEditor.svelte` to `Editor.svelte.ts` as methods:
+* [x] Move these functions from `ConceptEditor.svelte` to `Editor.svelte.ts` as methods:
 
 ```text
 getConceptChildren
@@ -464,7 +464,7 @@ isDescendantInstance
 
 ### Move commands and menu operations
 
-* [ ] Move these functions from `ConceptEditor.svelte` to `Editor.svelte.ts`:
+* [x] Move these functions from `ConceptEditor.svelte` to `Editor.svelte.ts`:
 
 ```text
 createConcept
@@ -492,57 +492,57 @@ closeContextMenu
 importChildrenFromSource
 ```
 
-* [ ] Keep their existing parameter signatures for now.
-* [ ] Keep `openTagCanvas` as its current stub. Do not substitute a concept ID for an instance ID.
-* [ ] Replace references to moved fields and methods with `this.<name>` inside the class.
-* [ ] Replace references in `ConceptEditor.svelte` with `editor.<name>`.
-* [ ] Do not retain duplicate local `$state` variables as bridges.
+* [x] Keep their existing parameter signatures for now.
+* [x] Keep `openTagCanvas` as its current stub. Do not substitute a concept ID for an instance ID.
+* [x] Replace references to moved fields and methods with `this.<name>` inside the class.
+* [x] Replace references in `ConceptEditor.svelte` with `editor.<name>`.
+* [x] Do not retain duplicate local `$state` variables as bridges.
 
 ### Provide the instance through context
 
-* [ ] Create `src/lib/components/editor/EditorContext.ts`.
-* [ ] Import `createContext` from `svelte` and the `Editor` type.
-* [ ] Export a typed getter/setter pair with `createContext<Editor>()`:
+* [x] Create `src/lib/components/editor/EditorContext.ts`.
+* [x] Import `createContext` from `svelte` and the `Editor` type.
+* [x] Export a typed getter/setter pair with `createContext<Editor>()`:
 
 ```ts
 export const [getEditorContext, setEditorContext] = createContext<Editor>();
 ```
 
-* [ ] Do not add a manual context key or hand-written getter/setter wrapper.
-* [ ] Create one `Editor` instance in the instance script of `ConceptEditor.svelte`.
-* [ ] Call `setEditorContext(editor)` during component initialization.
-* [ ] Export the class, not a module-global editor singleton.
-* [ ] Keep the same editor object for the component’s lifetime.
+* [x] Do not add a manual context key or hand-written getter/setter wrapper.
+* [x] Create one `Editor` instance in the instance script of `ConceptEditor.svelte`.
+* [x] Call `setEditorContext(editor)` during component initialization.
+* [x] Export the class, not a module-global editor singleton.
+* [x] Keep the same editor object for the component’s lifetime.
 
 Context provides that instance to descendants without forwarding it through props. Call context setup and retrieval during component initialization, not inside event handlers. ([Svelte][4])
 
 ### Preserve incoming-data updates
 
-* [ ] Keep an effect in `ConceptEditor.svelte` that reads the four incoming `data` collections.
-* [ ] Call `editor.replaceData(...)` from that effect.
-* [ ] Wrap the `replaceData` invocation in `untrack` so reads of editor-owned state do not become reload dependencies.
-* [ ] Keep the incoming-data reads outside `untrack`.
-* [ ] Do not reconstruct the editor when page data refreshes.
+* [x] Keep an effect in `ConceptEditor.svelte` that reads the four incoming `data` collections.
+* [x] Call `editor.replaceData(...)` from that effect.
+* [x] Wrap the `replaceData` invocation in `untrack` so reads of editor-owned state do not become reload dependencies.
+* [x] Keep the incoming-data reads outside `untrack`.
+* [x] Do not reconstruct the editor when page data refreshes.
 
 Effects track synchronous reactive reads, including reads inside called functions. Keep this existing reload bridge narrowly dependent on incoming page data. ([Svelte][5])
 
 ### Preserve method binding
 
-* [ ] Wrap class methods when passing them as callbacks:
+* [x] Wrap class methods when passing them as callbacks:
 
 ```svelte
 onGoToCanvas={(id) => editor.openInstanceCanvas(id)}
 ```
 
-* [ ] Apply the same rule to callbacks passed into ordinary functions, not just Svelte events.
+* [x] Apply the same rule to callbacks passed into ordinary functions, not just Svelte events.
 
 Passing a method without its owning object can lose its `this` binding. ([Svelte][3])
 
 **Checkpoint**
 
 * [ ] Verify queries, creation, editing, tags, properties, deletion, and menu operations.
-* [ ] Verify that refreshing records does not replace the editor instance.
-* [ ] Keep the existing component props until their replacements are completed in Phase 10.
+* [x] Verify that refreshing records does not replace the editor instance.
+* [x] Keep the existing component props until their replacements are completed in Phase 10.
 
 ## 9. Extract canvas interaction and finish navigation ownership
 
