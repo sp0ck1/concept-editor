@@ -841,9 +841,9 @@ openInstanceParentCanvas
 
 ## 11. Separate canvas rendering from the workspace
 
-* [ ] Create `src/lib/components/editor/canvas/ConceptCanvas.svelte`.
-* [ ] Retrieve the editor from context in that component.
-* [ ] Move these canvas-only markup sections from `ConceptEditor.svelte` into it:
+* [x] Create `src/lib/components/editor/canvas/ConceptCanvas.svelte`.
+* [x] Retrieve the editor from context in that component.
+* [x] Move these canvas-only markup sections from `ConceptEditor.svelte` into it:
 
 ```text
 Child-drag ghost
@@ -854,16 +854,16 @@ ConceptCard loop
 Zoom indicator
 ```
 
-* [ ] Render `<ConceptCanvas />` in the existing `mainView === 'canvas'` branch.
-* [ ] Keep the table placeholder in the alternate branch in `ConceptEditor.svelte`.
-* [ ] Keep the surrounding main viewport element and its `canvasElement` binding in `ConceptEditor.svelte`.
-* [ ] Keep the topbar, sidebar shell, sidebar resize handle, confirmation, and context menu in `ConceptEditor.svelte`.
+* [x] Render `<ConceptCanvas />` in the existing `mainView === 'canvas'` branch.
+* [x] Keep the table placeholder in the alternate branch in `ConceptEditor.svelte`.
+* [x] Keep the surrounding main viewport element and its `canvasElement` binding in `ConceptEditor.svelte`.
+* [x] Keep the topbar, sidebar shell, sidebar resize handle, confirmation, and context menu in `ConceptEditor.svelte`.
 
 Keeping the existing viewport element avoids changing the coordinate-measurement container during the rendering extraction.
 
-* [ ] Move the styles for the extracted canvas markup into `ConceptCanvas.svelte`.
-* [ ] Keep workspace, viewport-container, sidebar-shell, and sidebar-resize styles in `ConceptEditor.svelte`.
-* [ ] Preserve the existing class names and data attributes.
+* [x] Move the styles for the extracted canvas markup into `ConceptCanvas.svelte`.
+* [x] Keep workspace, viewport-container, sidebar-shell, and sidebar-resize styles in `ConceptEditor.svelte`.
+* [x] Preserve the existing class names and data attributes.
 
 Move component-scoped CSS with the markup it styles; parent-component styles do not automatically become styles for extracted child markup. ([Svelte][6])
 

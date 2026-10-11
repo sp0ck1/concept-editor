@@ -267,3 +267,20 @@ npm run build completed successfully
 ```
 
 Static review confirms the removed shared-operation props have no remaining callers, `openCardCanvas` is deleted, tree expansion remains component-local, and the unfinished tree-row opening behavior was not enabled. Browser verification of independent component drafts/expansion and separate card/sidebar tree behavior remains deferred to the final regression pass.
+
+## Phase 11 — spatial rendering component
+
+`canvas/ConceptCanvas.svelte` now renders the child-drag ghost, canvas background, marquee selection box, transformed canvas world, keyed card loop, and zoom indicator. It retrieves the scoped editor directly and preserves the existing classes, event handlers, transform expression, and card instance keys.
+
+`ConceptEditor.svelte` remains the workspace composer. It still owns sidebar resizing and retains the measured viewport element with `bind:this={editor.canvas.canvasElement}`, plus the topbar, sidebar shell, table placeholder, paste confirmation, and context menu. This keeps coordinate measurement on the same DOM element as before extraction.
+
+Scoped styles moved with the spatial markup they target. Workspace, sidebar shell/resize handle, viewport, and table-placeholder styles remain in the parent component.
+
+Phase 11 automated validation:
+
+```text
+svelte-check found 0 errors and 19 warnings in 9 files
+npm run build completed successfully
+```
+
+The warning total matches the baseline; the warning file count increased because moved canvas accessibility/CSS diagnostics are now attributed to `ConceptCanvas.svelte` while a workspace-only unused selector remains in `ConceptEditor.svelte`. Browser verification of viewport sizing, positions, transforms, drag ghosts, selection placement, sidebar resizing, and view switching remains deferred to the final regression pass.
