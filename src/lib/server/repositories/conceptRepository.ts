@@ -18,7 +18,7 @@ export async function getAllConcepts(): Promise<Concept[]> {
 }
 
 export async function saveAllConcepts(concepts: Concept[]): Promise<void> {
-	await writeFile(conceptsPath, `${JSON.stringify(concepts, null, 2)}\n`, 'utf8');
+	await writeFile(conceptsPath, `${JSON.stringify(concepts, null, '\t')}\n`, 'utf8');
 }
 
 export function createConceptId(): string {
@@ -38,9 +38,7 @@ export async function findConceptByTitle(title: string): Promise<Concept | undef
 	}
 
 	const concepts = await getAllConcepts();
-	return concepts.find(
-		(concept) => concept.title.trim().toLowerCase() === normalizedTitle
-	);
+	return concepts.find((concept) => concept.title.trim().toLowerCase() === normalizedTitle);
 }
 
 export async function createConcept(title = ''): Promise<Concept> {
@@ -66,8 +64,7 @@ export async function ensureConceptByTitle(
 	const normalizedTitle = title.trim();
 
 	const existingConcept = concepts.find(
-		(concept) =>
-			concept.title.trim().toLowerCase() === normalizedTitle.toLowerCase()
+		(concept) => concept.title.trim().toLowerCase() === normalizedTitle.toLowerCase()
 	);
 
 	if (existingConcept) {

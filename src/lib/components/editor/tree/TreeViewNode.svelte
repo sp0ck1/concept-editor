@@ -3,12 +3,17 @@
 	import TreeViewNode from './TreeViewNode.svelte';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
-	let { card, level, onChildPointerDown, onChildPointerUp } = $props<{
+	let {
+		card,
+		level,
+		onChildPointerDown,
+		onChildPointerUp
+	}: {
 		card: ConceptCardView;
 		level: number;
 		onChildPointerDown?: (event: PointerEvent, childCard: ConceptCardView) => void;
 		onChildPointerUp?: () => void;
-	}>();
+	} = $props();
 
 	const editor = getEditorContext();
 
@@ -18,9 +23,15 @@
 
 	let hasChildren = $derived(children.length > 0);
 
-	let displayTitle = $derived(
-		card.concept.title || card.concept.id
-	);
+	let displayTitle = $derived(card.concept.title || card.concept.id);
+
+	function handleLabelDoubleClick(event: MouseEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+	
+		editor.openInstanceCanvas(card.instance.id);
+		return
+	}
 </script>
 
 <div
@@ -31,6 +42,7 @@
 	data-instance-id={card.instance.id}
 	data-concept-id={card.concept.id}
 >
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="tree-node-row"
 		onpointerdown={(event) => onChildPointerDown?.(event, card)}
@@ -41,9 +53,7 @@
 			<button
 				class="tree-toggle"
 				type="button"
-				aria-label={expanded
-					? `Collapse ${displayTitle}`
-					: `Expand ${displayTitle}`}
+				aria-label={expanded ? `Collapse ${displayTitle}` : `Expand ${displayTitle}`}
 				onclick={() => {
 					expanded = !expanded;
 				}}
@@ -51,16 +61,11 @@
 				{expanded ? '−' : '+'}
 			</button>
 		{:else}
-			<span
-				class="tree-toggle-spacer"
-				aria-hidden="true"
-			></span>
+			<span class="tree-toggle-spacer" aria-hidden="true"></span>
 		{/if}
 
-		<span
-			class="tree-node-label"
-			title={displayTitle}
-		>
+		<span class="tree-node-label" title={displayTitle}
+		ondblclick={handleLabelDoubleClick}>
 			{displayTitle}
 		</span>
 	</div>
@@ -68,12 +73,7 @@
 	{#if hasChildren && expanded}
 		<div class="tree-node-children" role="group">
 			{#each children as child (child.instance.id)}
-				<TreeViewNode
-					card={child}
-					level={level + 1}
-					{onChildPointerDown}
-					{onChildPointerUp}
-				/>
+				<TreeViewNode card={child} level={level + 1} {onChildPointerDown} {onChildPointerUp} />
 			{/each}
 		</div>
 	{/if}
@@ -143,11 +143,14 @@
 		min-width: 0;
 		overflow: hidden;
 		padding: 0.2rem 0.25rem;
-		color: var(--tree-text-color,hsl(0 0% 88%));
+		color: var(--tree-text-color, hsl(0 0% 88%));
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
+	.tree-node-label:hover {
+		background:var(--selection-box-border-color);
+	}
 	.tree-node-children {
 		min-width: 0;
 		margin-left: 7px;
@@ -155,47 +158,30 @@
 		border-left: 1px solid hsl(224 8% 32%);
 	}
 
-
-
 	.tree-view {
-	color: var(--tree-text-color, hsl(0 0% 88%));
-}
+		color: var(--tree-text-color, hsl(0 0% 88%));
+	}
 
-.tree-root-label {
-	color: var(--tree-root-text-color, hsl(0 0% 94%));
-}
+	.tree-root-label {
+		color: var(--tree-root-text-color, hsl(0 0% 94%));
+	}
 
-.tree-root-children,
-.tree-node-children {
-	border-left-color: var(
-		--tree-line-color,
-		hsl(224 8% 32%)
-	);
-}
+	.tree-root-children,
+	.tree-node-children {
+		border-left-color: var(--tree-line-color, hsl(224 8% 32%));
+	}
 
-.tree-node-row:hover {
-	background: var(
-		--tree-row-hover-background,
-		hsl(224 8% 18%)
-	);
-}
+	.tree-node-row:hover {
+		background: var(--tree-row-hover-background, hsl(224 8% 18%));
+	}
 
-.tree-toggle {
-	border-color: var(
-		--tree-toggle-border-color,
-		hsl(224 8% 42%)
-	);
-	background: var(
-		--tree-toggle-background,
-		hsl(224 8% 20%)
-	);
-	color: var(--tree-text-color, hsl(0 0% 88%));
-}
+	.tree-toggle {
+		border-color: var(--tree-toggle-border-color, hsl(224 8% 42%));
+		background: var(--tree-toggle-background, hsl(224 8% 20%));
+		color: black;
+	}
 
-.tree-toggle:hover {
-	background: var(
-		--tree-toggle-hover-background,
-		hsl(224 8% 27%)
-	);
-}
+	.tree-toggle:hover {
+		background: var(--tree-toggle-hover-background, hsl(224 8% 27%));
+	}
 </style>

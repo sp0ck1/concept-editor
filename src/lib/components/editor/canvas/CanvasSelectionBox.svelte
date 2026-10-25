@@ -6,9 +6,11 @@
 		bottom: number;
 	};
 
-	let { rect } = $props<{
+	let {
+		rect
+	}: {
 		rect: CanvasSelectionRect;
-	}>();
+	} = $props();
 
 	let width = $derived(rect.right - rect.left);
 	let height = $derived(rect.bottom - rect.top);

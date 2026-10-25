@@ -16,7 +16,7 @@
 	let newPropertyValue = $state('');
 
 	$effect(() => {
-		void currentCanvasOwnerCard?.instance.id;
+		void editor.currentCanvasOwnerInstanceId;
 
 		newPropertyKey = '';
 		newPropertyValue = '';
@@ -66,7 +66,7 @@
 		editor.setProperties(card, nextProperties);
 	}
 
-	function commitNewProperty(card: ConceptCardView) {
+	async function commitNewProperty(card: ConceptCardView) {
 		const key = newPropertyKey.trim();
 
 		if (!key) {
@@ -79,13 +79,22 @@
 			return;
 		}
 
-		editor.setProperties(card, {
+		const draftKey = newPropertyKey;
+		const draftValue = newPropertyValue;
+		const saved = await editor.setProperties(card, {
 			...properties,
-			[key]: newPropertyValue
+			[key]: draftValue
 		});
 
-		newPropertyKey = '';
-		newPropertyValue = '';
+		if (
+			saved &&
+			editor.currentCanvasOwnerInstanceId === card.instance.id &&
+			newPropertyKey === draftKey &&
+			newPropertyValue === draftValue
+		) {
+			newPropertyKey = '';
+			newPropertyValue = '';
+		}
 	}
 
 	async function addSidebarTag(card: ConceptCardView) {
@@ -132,7 +141,7 @@
 	}
 </script>
 
-<aside class="concept-sidebar" aria-label="Concept sidebar">
+<div class="concept-sidebar" role="region" aria-label="Concept sidebar">
 	<div class="sidebar-tabs" role="tablist" aria-label="Sidebar tabs">
 		<button
 			type="button"
@@ -140,8 +149,8 @@
 			aria-selected={sidebarTab === 'concept'}
 			class:active={sidebarTab === 'concept'}
 			onclick={() => {
-							editor.sidebarTab = 'concept';
-						}}
+				editor.sidebarTab = 'concept';
+			}}
 		>
 			Concept
 		</button>
@@ -152,8 +161,8 @@
 			aria-selected={sidebarTab === 'tree'}
 			class:active={sidebarTab === 'tree'}
 			onclick={() => {
-							editor.sidebarTab = 'tree';
-						}}
+				editor.sidebarTab = 'tree';
+			}}
 		>
 			Tree
 		</button>
@@ -180,7 +189,11 @@
 
 					<!-- If not at root, display up button -->
 					{#if currentCanvasOwnerCard !== null}
-						<button class="canvas-breadcrumb-up" type="button" onclick={() => editor.openParentCanvas()}>Up</button>
+						<button
+							class="canvas-breadcrumb-up"
+							type="button"
+							onclick={() => editor.openParentCanvas()}>Up</button
+						>
 					{/if}
 				</div>
 				<div class="sidebar-section">
@@ -190,12 +203,7 @@
 						<div class="sidebar-relationship-list">
 							{#each relationships as relationship (relationship.id)}
 								<div class="sidebar-relationship-row">
-									{#each getRelationshipDisplayParts(
-																			relationship,
-																			relationshipDefinitions,
-																			sidebarCard.concept.id,
-																			(conceptId) => editor.getConceptById(conceptId) ?? undefined
-																		) as part}
+									{#each getRelationshipDisplayParts(relationship, relationshipDefinitions, sidebarCard.concept.id, (conceptId) => editor.getConceptById(conceptId) ?? undefined) as part, partIndex (partIndex)}
 										{#if part.type === 'text'}
 											<span>{part.value}</span>
 										{:else}
@@ -338,7 +346,7 @@
 			</div>
 		</div>
 	{/if}
-</aside>
+</div>
 
 <style>
 	.concept-sidebar {
@@ -347,7 +355,7 @@
 		display: flex;
 		flex-direction: column;
 		border-right: 1px solid hsl(224 8% 24%);
-		background: hsl(0, 0%, 100%);
+		background: --var(--ui-panel-bg-color);
 		overflow: hidden;
 	}
 
@@ -408,7 +416,7 @@
 		border: 0;
 		border-bottom: var(--properties-divider-color);
 		background: transparent;
-		color: inherit;
+		color: hsl(224 8% 58%);
 		padding: 0.15rem 0 0.35rem;
 		outline: none;
 		font: inherit;
@@ -476,7 +484,7 @@
 		border-bottom: 1px dotted rgba(128, 128, 128, 0.299);
 	}
 
-/* .sidebar-property-row {
+	/* .sidebar-property-row {
   background: #282a2f;
   border: 1px solid #3b3d45;
   border-radius: .375rem;
@@ -503,7 +511,7 @@
 		outline: none;
 		color: inherit;
 		font: inherit;
-		font-size: clamp(.6em, 12px, 1em);
+		font-size: clamp(0.6em, 12px, 1em);
 		text-overflow: ellipsis;
 	}
 
@@ -592,4 +600,5 @@
 		background: hsl(210 45% 28%);
 		border-radius: 0.2rem;
 	}
+
 </style>

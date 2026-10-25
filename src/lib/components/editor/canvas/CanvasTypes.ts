@@ -91,9 +91,9 @@ export type SelectionBoxState =
 	  };
 
 export type DraggedCardStart = {
-			instanceId: string;
-			startX: number;
-			startY: number;
+	instanceId: string;
+	startX: number;
+	startY: number;
 };
 
 export type CanvasCamera = {
@@ -101,4 +101,3 @@ export type CanvasCamera = {
 	panY: number;
 	zoom: number;
 };
-

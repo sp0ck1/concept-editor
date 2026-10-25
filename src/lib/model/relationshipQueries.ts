@@ -12,9 +12,7 @@ export function getRelationshipsContainingConcept(
 	return relationships.filter((relationship) =>
 		relationship.participantGroups.some((group) =>
 			group.participants.some(
-				(participant) =>
-					participant.type === 'concept' &&
-					participant.id === conceptId
+				(participant) => participant.type === 'concept' && participant.id === conceptId
 			)
 		)
 	);
@@ -27,10 +25,7 @@ export function getRepresentedRelationship(
 	relationships: ConceptRelationship[],
 	conceptId: string
 ): ConceptRelationship | undefined {
-	return relationships.find(
-		(relationship) =>
-			relationship.representedByConceptId === conceptId
-	);
+	return relationships.find((relationship) => relationship.representedByConceptId === conceptId);
 }
 
 /**
@@ -41,25 +36,19 @@ export function getRelationshipsForConcept(
 	relationships: ConceptRelationship[],
 	conceptId: string
 ): ConceptRelationship[] {
-	const containingRelationships =
-		getRelationshipsContainingConcept(relationships, conceptId);
+	const containingRelationships = getRelationshipsContainingConcept(relationships, conceptId);
 
-	const representedRelationship =
-		getRepresentedRelationship(relationships, conceptId);
+	const representedRelationship = getRepresentedRelationship(relationships, conceptId);
 
 	if (
 		!representedRelationship ||
-		containingRelationships.some(
-			(relationship) =>
-				relationship.id === representedRelationship.id
-		)
+		containingRelationships.some((relationship) => relationship.id === representedRelationship.id)
 	) {
 		return containingRelationships;
 	}
 
 	return [...containingRelationships, representedRelationship];
 }
-
 
 export type RelationshipDisplayPart =
 	| {
@@ -77,9 +66,7 @@ function getCurrentParticipantGroupIndex(
 ) {
 	return relationship.participantGroups.findIndex((group) =>
 		group.participants.some(
-			(participant) =>
-				participant.type === 'concept' &&
-				participant.id === currentConceptId
+			(participant) => participant.type === 'concept' && participant.id === currentConceptId
 		)
 	);
 }
@@ -89,15 +76,11 @@ function getRelationshipDefinition(
 	relationshipConceptId: string
 ) {
 	return relationshipDefinitions.find(
-		(definition) =>
-			definition.conceptId === relationshipConceptId
+		(definition) => definition.conceptId === relationshipConceptId
 	);
 }
 
-function getRelationshipPattern(
-	definition: RelationshipDefinition,
-	currentGroupIndex: number
-) {
+function getRelationshipPattern(definition: RelationshipDefinition, currentGroupIndex: number) {
 	if (definition.isMutual || currentGroupIndex === 0) {
 		return definition.forwardPattern;
 	}
@@ -110,20 +93,13 @@ function getDisplayGroupIndexes(
 	definition: RelationshipDefinition,
 	currentGroupIndex: number
 ) {
-	const groupIndexes = relationship.participantGroups.map(
-		(_, index) => index
-	);
+	const groupIndexes = relationship.participantGroups.map((_, index) => index);
 
 	if (!definition.isMutual || currentGroupIndex === 0) {
 		return groupIndexes;
 	}
 
-	return [
-		currentGroupIndex,
-		...groupIndexes.filter(
-			(index) => index !== currentGroupIndex
-		)
-	];
+	return [currentGroupIndex, ...groupIndexes.filter((index) => index !== currentGroupIndex)];
 }
 
 export function getRelationshipDisplayParts(
@@ -141,33 +117,21 @@ export function getRelationshipDisplayParts(
 		return [];
 	}
 
-	const currentGroupIndex = getCurrentParticipantGroupIndex(
-		relationship,
-		currentConceptId
-	);
+	const currentGroupIndex = getCurrentParticipantGroupIndex(relationship, currentConceptId);
 
 	if (currentGroupIndex === -1) {
 		return [];
 	}
 
-	const pattern = getRelationshipPattern(
-		definition,
-		currentGroupIndex
-	);
+	const pattern = getRelationshipPattern(definition, currentGroupIndex);
 
 	if (!pattern) {
 		return [];
 	}
 
-	const displayGroupIndexes = getDisplayGroupIndexes(
-		relationship,
-		definition,
-		currentGroupIndex
-	);
+	const displayGroupIndexes = getDisplayGroupIndexes(relationship, definition, currentGroupIndex);
 
-	const currentDisplayGroupIndex = definition.isMutual
-		? 0
-		: currentGroupIndex;
+	const currentDisplayGroupIndex = definition.isMutual ? 0 : currentGroupIndex;
 
 	const parts: RelationshipDisplayPart[] = [];
 	const placeholderPattern = /\[(\d+)\]/g;
@@ -178,10 +142,7 @@ export function getRelationshipDisplayParts(
 		const matchIndex = match.index ?? 0;
 		const placeholderIndex = Number(match[1]);
 
-		const precedingText = pattern.slice(
-			previousEnd,
-			matchIndex
-		);
+		const precedingText = pattern.slice(previousEnd, matchIndex);
 
 		if (precedingText) {
 			parts.push({
@@ -191,11 +152,9 @@ export function getRelationshipDisplayParts(
 		}
 
 		if (placeholderIndex !== currentDisplayGroupIndex) {
-			const storedGroupIndex =
-				displayGroupIndexes[placeholderIndex];
+			const storedGroupIndex = displayGroupIndexes[placeholderIndex];
 
-			const group =
-				relationship.participantGroups[storedGroupIndex];
+			const group = relationship.participantGroups[storedGroupIndex];
 
 			for (const participant of group?.participants ?? []) {
 				if (participant.type !== 'concept') {
@@ -242,11 +201,7 @@ function cleanRelationshipDisplayParts(
 				value: part.value.replace(/\s+/g, ' ')
 			};
 		})
-		.filter(
-			(part) =>
-				part.type === 'concept' ||
-				part.value.length > 0
-		);
+		.filter((part) => part.type === 'concept' || part.value.length > 0);
 
 	const firstPart = cleanedParts[0];
 

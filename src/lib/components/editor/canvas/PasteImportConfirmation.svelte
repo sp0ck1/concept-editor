@@ -1,14 +1,15 @@
 <script lang="ts">
-	let { 
-        itemsCount, 
-        targetConceptName, 
-        onConfirm, 
-        onCancel } = $props<{
+	let {
+		itemsCount,
+		targetConceptName,
+		onConfirm,
+		onCancel
+	}: {
 		itemsCount: number;
 		targetConceptName: string;
 		onConfirm: () => void | Promise<void>;
 		onCancel: () => void;
-	}>();
+	} = $props();
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter') {

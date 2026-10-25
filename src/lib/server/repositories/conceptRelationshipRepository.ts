@@ -36,19 +36,11 @@ async function readConceptRelationshipsFile(): Promise<ConceptRelationship[]> {
 	return parsed as ConceptRelationship[];
 }
 
-async function writeConceptRelationshipsFile(
-	relationships: ConceptRelationship[]
-): Promise<void> {
-	await writeFile(
-		relationshipsFilePath,
-		`${JSON.stringify(relationships, null, '\t')}\n`,
-		'utf8'
-	);
+async function writeConceptRelationshipsFile(relationships: ConceptRelationship[]): Promise<void> {
+	await writeFile(relationshipsFilePath, `${JSON.stringify(relationships, null, '\t')}\n`, 'utf8');
 }
 
-export async function getAllConceptRelationships(): Promise<
-	ConceptRelationship[]
-> {
+export async function getAllConceptRelationships(): Promise<ConceptRelationship[]> {
 	return readConceptRelationshipsFile();
 }
 
@@ -77,9 +69,7 @@ export async function updateConceptRelationship(
 	input: UpdateConceptRelationshipInput
 ): Promise<ConceptRelationship | null> {
 	const relationships = await readConceptRelationshipsFile();
-	const relationshipIndex = relationships.findIndex(
-		(relationship) => relationship.id === input.id
-	);
+	const relationshipIndex = relationships.findIndex((relationship) => relationship.id === input.id);
 
 	if (relationshipIndex === -1) {
 		return null;
@@ -95,16 +85,13 @@ export async function updateConceptRelationship(
 		...(input.participantGroups !== undefined
 			? { participantGroups: input.participantGroups }
 			: {}),
-		...(input.properties !== undefined
-			? { properties: input.properties }
-			: {})
+		...(input.properties !== undefined ? { properties: input.properties } : {})
 	};
 
 	if (input.representedByConceptId === null) {
 		delete updatedRelationship.representedByConceptId;
 	} else if (input.representedByConceptId !== undefined) {
-		updatedRelationship.representedByConceptId =
-			input.representedByConceptId;
+		updatedRelationship.representedByConceptId = input.representedByConceptId;
 	}
 
 	relationships[relationshipIndex] = updatedRelationship;
@@ -113,9 +100,7 @@ export async function updateConceptRelationship(
 	return updatedRelationship;
 }
 
-export async function deleteConceptRelationship(
-	relationshipId: string
-): Promise<boolean> {
+export async function deleteConceptRelationship(relationshipId: string): Promise<boolean> {
 	const relationships = await readConceptRelationshipsFile();
 	const remainingRelationships = relationships.filter(
 		(relationship) => relationship.id !== relationshipId

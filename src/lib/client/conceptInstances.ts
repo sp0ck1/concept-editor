@@ -1,10 +1,7 @@
 import type { ConceptInstance } from '$lib/model/ConceptInstance';
 import { getErrorMessage } from '$lib/client/http';
 
-export type ConceptInstanceUpdates = Partial<
-	Omit<ConceptInstance, 'id' | 'conceptId'>
->;
-
+export type ConceptInstanceUpdates = Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>;
 
 export async function updateConceptInstanceRecord(
 	id: string,

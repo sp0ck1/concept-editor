@@ -1,12 +1,12 @@
 export type ConceptInstance = {
-  id: string;
-  conceptId: string;
-  parentInstanceId: string | null;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  lastCameraPanX: number;
-  lastCameraPanY: number;
-  lastCameraZoom: number;
+	id: string;
+	conceptId: string;
+	parentInstanceId: string | null;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	lastCameraPanX: number;
+	lastCameraPanY: number;
+	lastCameraZoom: number;
 };

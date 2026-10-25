@@ -10,7 +10,7 @@
 	import { Editor } from '$lib/components/editor/Editor.svelte';
 	import { setEditorContext } from '$lib/components/editor/EditorContext';
 
-	let { data } = $props<{ data: EditorData }>();
+	let { data }: { data: EditorData } = $props();
 
 	const editor = untrack(() => new Editor(data));
 	setEditorContext(editor);
@@ -73,7 +73,7 @@
 	onpointerup={(event) => void editor.canvas.handleWindowPointerUp(event)}
 />
 
-<section class="concept-workspace">
+<div class="concept-workspace">
 	<CanvasTopbar />
 
 	<div class="concept-workspace-body">
@@ -98,7 +98,7 @@
 			</div>
 		{/if}
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-		<section
+		<div
 			bind:this={editor.canvas.canvasElement}
 			class="canvas"
 			class:sidebar-hidden={!editor.sidebarVisible}
@@ -108,6 +108,13 @@
 			tabindex="0"
 			onwheel={(event) => editor.canvas.handleCanvasWheel(event)}
 		>
+			{#if editor.saveError}
+				<div class="save-error" role="alert">
+					<span>{editor.saveError}</span>
+					<button type="button" onclick={() => window.location.reload()}>Reload</button>
+				</div>
+			{/if}
+
 			{#if editor.mainView === 'canvas'}
 				<ConceptCanvas />
 			{:else}
@@ -129,11 +136,25 @@
 				/>
 			{/if}
 			<CanvasContextMenu />
-		</section>
+		</div>
 	</div>
-</section>
+</div>
 
 <style>
+	.save-error {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: var(--maximum-z-index);
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 0.75rem;
+		background: #702b2b;
+		color: white;
+	}
+
 	.concept-workspace {
 		height: 100vh;
 		width: 100vw;
@@ -196,5 +217,4 @@
 		background: var(--canvas-background-color);
 		touch-action: none;
 	}
-
 </style>

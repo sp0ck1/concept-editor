@@ -16,14 +16,10 @@ export const GET: RequestHandler = async () => {
 export const POST: RequestHandler = async ({ request }) => {
 	const input = (await request.json()) as CreateConceptRelationshipInput;
 
-	if (
-		!input.relationshipConceptId ||
-		!Array.isArray(input.participantGroups)
-	) {
+	if (!input.relationshipConceptId || !Array.isArray(input.participantGroups)) {
 		return json(
 			{
-				error:
-					'relationshipConceptId and participantGroups are required.'
+				error: 'relationshipConceptId and participantGroups are required.'
 			},
 			{ status: 400 }
 		);
@@ -44,10 +40,7 @@ export const PATCH: RequestHandler = async ({ request }) => {
 	const relationship = await updateConceptRelationship(input);
 
 	if (!relationship) {
-		return json(
-			{ error: `Relationship ${input.id} was not found.` },
-			{ status: 404 }
-		);
+		return json({ error: `Relationship ${input.id} was not found.` }, { status: 404 });
 	}
 
 	return json(relationship);
@@ -63,10 +56,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 	const deleted = await deleteConceptRelationship(input.id);
 
 	if (!deleted) {
-		return json(
-			{ error: `Relationship ${input.id} was not found.` },
-			{ status: 404 }
-		);
+		return json({ error: `Relationship ${input.id} was not found.` }, { status: 404 });
 	}
 
 	return new Response(null, { status: 204 });

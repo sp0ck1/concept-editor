@@ -7,13 +7,8 @@ const relationshipDefinitionsFilePath = path.resolve(
 	'src/lib/data/relationship_definitions.json'
 );
 
-export async function getAllRelationshipDefinitions(): Promise<
-	RelationshipDefinition[]
-> {
-	const contents = await readFile(
-		relationshipDefinitionsFilePath,
-		'utf8'
-	);
+export async function getAllRelationshipDefinitions(): Promise<RelationshipDefinition[]> {
+	const contents = await readFile(relationshipDefinitionsFilePath, 'utf8');
 
 	if (!contents.trim()) {
 		return [];
@@ -22,9 +17,7 @@ export async function getAllRelationshipDefinitions(): Promise<
 	const parsed: unknown = JSON.parse(contents);
 
 	if (!Array.isArray(parsed)) {
-		throw new Error(
-			'relationship-definitions.json must contain an array.'
-		);
+		throw new Error('relationship-definitions.json must contain an array.');
 	}
 
 	return parsed as RelationshipDefinition[];

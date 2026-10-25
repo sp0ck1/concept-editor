@@ -7,10 +7,7 @@ import {
 	normalizeConceptInstance
 } from '$lib/model/normalizeConceptInstance';
 
-const instancesPath = path.resolve(
-	process.cwd(),
-	'src/lib/data/concept_instances.json'
-);
+const instancesPath = path.resolve(process.cwd(), 'src/lib/data/concept_instances.json');
 
 export type CreateConceptInstanceInput = {
 	conceptId: string;
@@ -24,9 +21,7 @@ export type CreateConceptInstanceInput = {
 	lastCameraZoom?: number;
 };
 
-export type UpdateConceptInstanceInput = Partial<
-	Omit<ConceptInstance, 'id' | 'conceptId'>
->;
+export type UpdateConceptInstanceInput = Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>;
 
 export type ConceptInstanceBatchUpdate = {
 	id: string;
@@ -37,15 +32,11 @@ export async function getAllConceptInstances(): Promise<ConceptInstance[]> {
 	const file = await readFile(instancesPath, 'utf8');
 	const rawInstances = JSON.parse(file) as Partial<ConceptInstance>[];
 
-	return rawInstances.map((instance, index) =>
-		normalizeConceptInstance(instance, index)
-	);
+	return rawInstances.map((instance, index) => normalizeConceptInstance(instance, index));
 }
 
-export async function saveAllConceptInstances(
-	instances: ConceptInstance[]
-): Promise<void> {
-	await writeFile(instancesPath, `${JSON.stringify(instances, null, 2)}\n`, 'utf8');
+export async function saveAllConceptInstances(instances: ConceptInstance[]): Promise<void> {
+	await writeFile(instancesPath, `${JSON.stringify(instances, null, '\t')}\n`, 'utf8');
 }
 
 export function createConceptInstanceId(): string {
@@ -104,10 +95,7 @@ export async function updateConceptInstance(
 		}
 	}
 
-	if (
-		updates.parentInstanceId === null ||
-		typeof updates.parentInstanceId === 'string'
-	) {
+	if (updates.parentInstanceId === null || typeof updates.parentInstanceId === 'string') {
 		instance.parentInstanceId = updates.parentInstanceId;
 	}
 
@@ -196,9 +184,7 @@ export async function importChildrenFromConceptInstance(
 	const targetChildren = instances.filter(
 		(instance) => instance.parentInstanceId === targetInstanceId
 	);
-	const targetChildConceptIds = new Set(
-		targetChildren.map((instance) => instance.conceptId)
-	);
+	const targetChildConceptIds = new Set(targetChildren.map((instance) => instance.conceptId));
 	const newChildren: ConceptInstance[] = [];
 
 	for (const child of sourceChildren) {

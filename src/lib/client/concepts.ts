@@ -3,7 +3,6 @@ import type { ConceptInstance } from '$lib/model/ConceptInstance';
 import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
 import { getErrorMessage } from '$lib/client/http';
 
-
 export type CreateConceptRequest = {
 	title?: string;
 	x?: number;
@@ -24,9 +23,6 @@ export type UpdateConceptTitleResult =
 			matchingConcepts: Concept[];
 	  };
 
-
-
-	  
 export async function createConceptRecord(
 	body: CreateConceptRequest
 ): Promise<{ concept: Concept; instance: ConceptInstance }> {

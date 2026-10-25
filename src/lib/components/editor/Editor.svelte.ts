@@ -34,6 +34,14 @@ import { SvelteSet } from 'svelte/reactivity';
 export class Editor {
 	canvas: CanvasController;
 
+	// Keep a detached baseline so failed optimistic edits can be reverted even while offline.
+	private lastLoadedData: EditorData = {
+		concepts: [],
+		instances: [],
+		relationships: [],
+		relationshipDefinitions: []
+	};
+
 	concepts = $state<EditorData['concepts']>([]);
 	instances = $state<EditorData['instances']>([]);
 	relationships = $state<EditorData['relationships']>([]);
@@ -48,6 +56,7 @@ export class Editor {
 	sidebarTab = $state<SidebarTab>('concept');
 	mainView = $state<MainView>('canvas');
 
+	saveError = $state<string | null>(null);
 	titleConflict = $state<TitleConflictState | null>(null);
 	contextMenu = $state<ContextMenu>({
 		visible: false,
@@ -111,10 +120,7 @@ export class Editor {
 			return [];
 		}
 
-		return getRelationshipsForConcept(
-			this.relationships,
-			this.currentCanvasOwnerCard.concept.id
-		);
+		return getRelationshipsForConcept(this.relationships, this.currentCanvasOwnerCard.concept.id);
 	});
 
 	importChildrenOptions = $derived.by(() => {
@@ -164,7 +170,6 @@ export class Editor {
 
 		await tick();
 	}
-
 
 	// Root uses frame-all as its camera position until it has its own saved camera.
 	async openRootCanvas() {
@@ -216,10 +221,19 @@ export class Editor {
 	}
 
 	replaceData(data: EditorData) {
+		this.lastLoadedData = structuredClone($state.snapshot(data));
 		this.concepts = data.concepts.map(normalizeConcept);
 		this.instances = data.instances.map(normalizeConceptInstance);
 		this.relationships = data.relationships;
 		this.relationshipDefinitions = data.relationshipDefinitions;
+	}
+
+	rememberSavedInstance(instance: ConceptInstance) {
+		const index = this.lastLoadedData.instances.findIndex((item) => item.id === instance.id);
+
+		if (index !== -1) {
+			this.lastLoadedData.instances[index] = { ...instance };
+		}
 	}
 
 	getChildCards(conceptInstanceId: string): ConceptCardView[] {
@@ -301,10 +315,7 @@ export class Editor {
 		return breadcrumb.map((card) => card.concept.title || card.concept.id).join(' > ');
 	}
 
-	isDescendantInstance(
-		possibleDescendantInstanceId: string,
-		ancestorInstanceId: string
-	): boolean {
+	isDescendantInstance(possibleDescendantInstanceId: string, ancestorInstanceId: string): boolean {
 		let current = this.getCard(possibleDescendantInstanceId);
 
 		while (current?.instance.parentInstanceId) {
@@ -340,29 +351,34 @@ export class Editor {
 		return result;
 	}
 
+	private recoverFromSaveFailure(message: string, error: unknown) {
+		console.error(message, error);
+		this.replaceData(this.lastLoadedData);
+		this.saveError = `${message} The last loaded data has been restored. Reload when the server is available to check which changes were saved.`;
+		return false;
+	}
+
 	async updateConcept(id: string, updates: Partial<Omit<Concept, 'id' | 'title'>>) {
 		try {
 			await updateConceptRecord(id, updates);
-		} catch {
-			console.error('Failed to update concept');
-			return;
+			await invalidateAll();
+			return true;
+		} catch (error) {
+			return this.recoverFromSaveFailure(
+				'Could not confirm that Concept changes were saved.',
+				error
+			);
 		}
-
-		await invalidateAll();
 	}
 
-	async updateInstance(
-		id: string,
-		updates: Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>
-	) {
+	async updateInstance(id: string, updates: Partial<Omit<ConceptInstance, 'id' | 'conceptId'>>) {
 		try {
 			await updateConceptInstanceRecord(id, updates);
-		} catch {
-			console.error('Failed to update concept instance');
-			return;
+			await invalidateAll();
+			return true;
+		} catch (error) {
+			return this.recoverFromSaveFailure('Could not confirm that card changes were saved.', error);
 		}
-
-		await invalidateAll();
 	}
 
 	async updateInstancesBatch(
@@ -372,17 +388,19 @@ export class Editor {
 		}[]
 	) {
 		if (updates.length === 0) {
-			return;
+			return true;
 		}
 
 		try {
 			await updateConceptInstancesBatch(updates);
-		} catch {
-			console.error('Failed to batch update concept instances');
-			return;
+			await invalidateAll();
+			return true;
+		} catch (error) {
+			return this.recoverFromSaveFailure(
+				'Could not confirm that card positions were saved.',
+				error
+			);
 		}
-
-		await invalidateAll();
 	}
 
 	async deleteInstance(id: string) {
@@ -436,7 +454,7 @@ export class Editor {
 	async setProperties(card: ConceptCardView, properties: Record<string, string>) {
 		card.concept.properties = properties;
 
-		await this.updateConcept(card.concept.id, {
+		return this.updateConcept(card.concept.id, {
 			properties
 		});
 	}
@@ -465,8 +483,8 @@ export class Editor {
 
 		try {
 			result = await ensureConceptByTitle(title);
-		} catch {
-			console.error('Failed to ensure tag concept');
+		} catch (error) {
+			await this.recoverFromSaveFailure('Could not confirm that the tag was saved.', error);
 			return;
 		}
 
@@ -480,9 +498,7 @@ export class Editor {
 	async removeTag(card: ConceptCardView, tagConcept: Concept) {
 		await this.setConceptTagConceptIds(
 			card,
-			(card.concept.tagConceptIds ?? []).filter(
-				(conceptId) => conceptId !== tagConcept.id
-			)
+			(card.concept.tagConceptIds ?? []).filter((conceptId) => conceptId !== tagConcept.id)
 		);
 	}
 

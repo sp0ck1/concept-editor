@@ -163,14 +163,16 @@ export class CanvasController {
 			currentCard.instance.lastCameraZoom = camera.zoom;
 		}
 
-		await updateConceptInstanceRecord(this.editor.currentCanvasOwnerInstanceId, {
-			lastCameraPanX: camera.panX,
-			lastCameraPanY: camera.panY,
-			lastCameraZoom: camera.zoom
-		});
+		const savedInstance = await updateConceptInstanceRecord(
+			this.editor.currentCanvasOwnerInstanceId,
+			{
+				lastCameraPanX: camera.panX,
+				lastCameraPanY: camera.panY,
+				lastCameraZoom: camera.zoom
+			}
+		);
+		this.editor.rememberSavedInstance(savedInstance);
 	}
-
-
 
 	startChildDrag(event: PointerEvent, childCard: ConceptCardView) {
 		this.editor.closeContextMenu();
@@ -188,7 +190,6 @@ export class CanvasController {
 		this.resetDragState();
 		this.resetResizeState();
 	}
-
 
 	async handleCanvasPaste(event: ClipboardEvent) {
 		if (this.isInteractiveElement(document.activeElement)) {
@@ -211,7 +212,9 @@ export class CanvasController {
 		event.stopPropagation();
 
 		const targetConceptName =
-			this.editor.currentCanvasOwnerCard?.concept.title || this.editor.currentCanvasOwnerCard?.concept.id || 'Root';
+			this.editor.currentCanvasOwnerCard?.concept.title ||
+			this.editor.currentCanvasOwnerCard?.concept.id ||
+			'Root';
 
 		if (result.items.length > 25) {
 			this.pasteConfirmation = {
@@ -303,7 +306,6 @@ export class CanvasController {
 			requestAnimationFrame(() => resolve());
 		});
 	}
-
 
 	getBoundsForInstanceUpdates(
 		updates: {
@@ -465,7 +467,6 @@ export class CanvasController {
 		};
 	}
 
-
 	panToWorldPoint(worldPoint: { x: number; y: number }) {
 		if (!this.canvasElement) {
 			return;
@@ -513,7 +514,6 @@ export class CanvasController {
 		}
 	}
 
-
 	getCardsInsideSelectionBox() {
 		const selectionWorldRect = this.getSelectionBoxWorldRect();
 
@@ -545,7 +545,10 @@ export class CanvasController {
 		const selectedByBox = [...this.marqueePreviewInstanceIds];
 
 		if (this.selectionBoxState.active && this.selectionBoxState.additive) {
-			this.editor.selectedInstanceIds = new Set([...this.editor.selectedInstanceIds, ...selectedByBox]);
+			this.editor.selectedInstanceIds = new Set([
+				...this.editor.selectedInstanceIds,
+				...selectedByBox
+			]);
 		} else {
 			this.editor.selectedInstanceIds = new Set(selectedByBox);
 		}
@@ -599,11 +602,9 @@ export class CanvasController {
 		});
 	}
 
-
 	isSelectionModifierEvent(event: PointerEvent | MouseEvent) {
 		return event.ctrlKey || event.metaKey || event.shiftKey;
 	}
-
 
 	handleCardSelectionPointerDown(event: PointerEvent, card: ConceptCardView) {
 		if (this.isSelectionModifierEvent(event)) {
@@ -631,7 +632,6 @@ export class CanvasController {
 		);
 	}
 
-
 	// Every time Enter is pressed this.consumeDoubleEnter is called to check if it was pressed twice
 	// i.e., within doubleEnterWindowMs of the last time.
 	// This is the only function that assigns a value to this.lastEnterPress.
@@ -642,7 +642,8 @@ export class CanvasController {
 		// Confirm the user pressed Enter twice on the same click focused target
 		// and that the second Enter occurred less than doubleEnterWindowMs than the first
 		const isDoubleEnter =
-			this.lastEnterPress.targetId === targetId && now - this.lastEnterPress.time <= doubleEnterWindowMs;
+			this.lastEnterPress.targetId === targetId &&
+			now - this.lastEnterPress.time <= doubleEnterWindowMs;
 
 		this.lastEnterPress = {
 			targetId,
@@ -651,8 +652,6 @@ export class CanvasController {
 
 		return isDoubleEnter;
 	}
-
-
 
 	getCanvasPointFromPointerEvent(event: PointerEvent | MouseEvent) {
 		if (!this.canvasElement) {
@@ -697,7 +696,6 @@ export class CanvasController {
 			instanceId: null
 		};
 	}
-
 
 	emptyDragState(): DragState {
 		return {
@@ -744,7 +742,6 @@ export class CanvasController {
 			startHeight: 0
 		};
 	}
-
 
 	handleCanvasWheel(event: WheelEvent) {
 		event.preventDefault();
@@ -1029,7 +1026,6 @@ export class CanvasController {
 		}
 	}
 
-
 	async finishChildDrag(event: PointerEvent) {
 		const childCard = this.childDragState.childCard;
 		const { targetTagInstanceId, targetParentInstanceId } = this.getDropTargetAtPoint(
@@ -1092,7 +1088,10 @@ export class CanvasController {
 		if (
 			this.editor.currentCanvasOwnerInstanceId === childCard.instance.id ||
 			(this.editor.currentCanvasOwnerInstanceId !== null &&
-				this.editor.isDescendantInstance(this.editor.currentCanvasOwnerInstanceId, childCard.instance.id))
+				this.editor.isDescendantInstance(
+					this.editor.currentCanvasOwnerInstanceId,
+					childCard.instance.id
+				))
 		) {
 			return;
 		}
@@ -1146,13 +1145,17 @@ export class CanvasController {
 	}
 
 	async finishCardDrag(event: PointerEvent) {
-		const draggedInstanceIds = this.dragState.draggedCards.map((draggedCard) => draggedCard.instanceId);
+		const draggedInstanceIds = this.dragState.draggedCards.map(
+			(draggedCard) => draggedCard.instanceId
+		);
 
 		const draggedCards = draggedInstanceIds
 			.map((instanceId) => this.editor.cards.find((item) => item.instance.id === instanceId))
 			.filter((card): card is ConceptCardView => Boolean(card));
 
-		const primaryCard = this.editor.cards.find((item) => item.instance.id === this.dragState.instanceId);
+		const primaryCard = this.editor.cards.find(
+			(item) => item.instance.id === this.dragState.instanceId
+		);
 
 		const { targetTagInstanceId, targetParentInstanceId } = this.getDropTargetAtPoint(
 			event.clientX,
@@ -1273,10 +1276,13 @@ export class CanvasController {
 		this.isPanning = false;
 	}
 
-
 	async handleWindowKeydown(event: KeyboardEvent) {
 		if (event.code === 'Escape') {
 			this.editor.closeContextMenu();
+			return;
+		}
+
+		if (this.isInteractiveElement(document.activeElement)) {
 			return;
 		}
 
@@ -1294,11 +1300,9 @@ export class CanvasController {
 			return;
 		}
 
-		if (this.isInteractiveElement(document.activeElement)) {
-			return;
-		}
-
-		const isDoubleEnter = this.consumeDoubleEnter(`canvas:${this.editor.currentCanvasOwnerInstanceId ?? 'root'}`);
+		const isDoubleEnter = this.consumeDoubleEnter(
+			`canvas:${this.editor.currentCanvasOwnerInstanceId ?? 'root'}`
+		);
 
 		if (!isDoubleEnter) {
 			return;
@@ -1355,7 +1359,6 @@ export class CanvasController {
 
 		await this.editor.commitTitleEdit(card, input.value);
 	}
-
 
 	emptyChildDragState(): ChildDragState {
 		return {

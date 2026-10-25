@@ -18,12 +18,18 @@
 	</div>
 {/if}
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="canvas-background"
 	ondblclick={(event) => editor.canvas.handleCanvasDoubleClick(event)}
 	oncontextmenu={(event) => editor.canvas.handleCanvasContextMenu(event)}
 	onpointerdown={(event) => editor.canvas.handleCanvasPointerDown(event)}
 	onpaste={(event) => editor.canvas.handleCanvasPaste(event)}
+	style={`
+	background-size: ${20 *(0.5 * editor.canvas.zoom)}px ${20 * (0.5 * editor.canvas.zoom)}px;
+	background-position: ${editor.canvas.panX}px ${editor.canvas.panY}px;
+	background-image: radial-gradient(ellipse, var(--canvas-dot-color) 2px, transparent 0px); /* could depend on vars in the future */
+	`}
 ></div>
 
 {#if editor.canvas.selectionBoxState.active}
@@ -98,6 +104,8 @@
 		position: absolute;
 		inset: 0;
 		z-index: 0;
+		
+		
 	}
 
 	.canvas-world {

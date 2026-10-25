@@ -3,11 +3,15 @@
 	import TreeView from '$lib/components/editor/tree/TreeView.svelte';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
-	let { card, onChildPointerDown, onChildPointerUp } = $props<{
+	let {
+		card,
+		onChildPointerDown,
+		onChildPointerUp
+	}: {
 		card: ConceptCardView;
 		onChildPointerDown?: (event: PointerEvent, childCard: ConceptCardView) => void;
 		onChildPointerUp?: () => void;
-	}>();
+	} = $props();
 
 	const editor = getEditorContext();
 
@@ -23,10 +27,7 @@
 		 * Do not open the parent card when the user double-clicks
 		 * an actual tree row or expansion button.
 		 */
-		if (
-			target instanceof Element &&
-			target.closest('.tree-root-row, .tree-node-row')
-		) {
+		if (target instanceof Element && target.closest('.tree-root-row, .tree-node-row')) {
 			return;
 		}
 
@@ -45,15 +46,9 @@
 	ondblclick={openCardFromDropArea}
 >
 	{#if conceptChildren.length === 0}
-		<div class="concept-drop-empty">
-			Drop children here
-		</div>
+		<div class="concept-drop-empty">Drop children here</div>
 	{:else}
-		<TreeView
-			rootCard={card}
-			{onChildPointerDown}
-			{onChildPointerUp}
-		/>
+		<TreeView rootCard={card} {onChildPointerDown} {onChildPointerUp} />
 	{/if}
 </div>
 
@@ -97,32 +92,31 @@
 	}
 
 	.concept-drop-area :global(.tree-view) {
-	color: #202124;
-	font-size: 0.75rem;
-}
+		color: #202124;
+		font-size: 0.75rem;
+	}
 
-.concept-drop-area :global(.tree-root-label),
-.concept-drop-area :global(.tree-node-label) {
-	color: #202124;
-}
+	.concept-drop-area :global(.tree-root-label),
+	.concept-drop-area :global(.tree-node-label) {
+		color: #202124;
+	}
 
-.concept-drop-area :global(.tree-toggle) {
-	border-color: rgba(0, 0, 0, 0.35);
-	background: rgba(255, 255, 255, 0.65);
-	color: #202124;
-}
+	.concept-drop-area :global(.tree-toggle) {
+		border-color: rgba(0, 0, 0, 0.35);
+		background: rgba(255, 255, 255, 0.65);
+		color: #202124;
+	}
 
-.concept-drop-area :global(.tree-toggle:hover) {
-	background: rgba(255, 255, 255, 0.95);
-}
+	.concept-drop-area :global(.tree-toggle:hover) {
+		background: rgba(255, 255, 255, 0.95);
+	}
 
-.concept-drop-area :global(.tree-root-children),
-.concept-drop-area :global(.tree-node-children) {
-	border-left-color: rgba(0, 0, 0, 0.2);
-}
+	.concept-drop-area :global(.tree-root-children),
+	.concept-drop-area :global(.tree-node-children) {
+		border-left-color: rgba(0, 0, 0, 0.2);
+	}
 
-.concept-drop-area :global(.tree-node-row:hover) {
-	background: rgba(0, 0, 0, 0.07);
-}
-
+	.concept-drop-area :global(.tree-node-row:hover) {
+		background: rgba(0, 0, 0, 0.07);
+	}
 </style>

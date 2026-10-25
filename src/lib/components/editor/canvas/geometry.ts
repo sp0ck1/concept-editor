@@ -70,9 +70,14 @@ export function getRectangleOverlapRatio(targetRect: Rectangle, selectionRect: R
 	return targetArea === 0 ? 0 : overlapArea / targetArea;
 }
 
-export	function canvasPointToWorldPoint(point: { x: number; y: number }, panX: number, panY: number, zoom: number) {
-		return {
-			x: (point.x - panX) / zoom,
-			y: (point.y - panY) / zoom
-		};
-	}
+export function canvasPointToWorldPoint(
+	point: { x: number; y: number },
+	panX: number,
+	panY: number,
+	zoom: number
+) {
+	return {
+		x: (point.x - panX) / zoom,
+		y: (point.y - panY) / zoom
+	};
+}

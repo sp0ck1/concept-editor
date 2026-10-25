@@ -1,8 +1,5 @@
 import type { ConceptCardView } from '$lib/model/ConceptCardView';
-import {
-	defaultConceptWidth,
-	defaultConceptHeight
-} from '$lib/model/normalizeConceptInstance';
+import { defaultConceptWidth, defaultConceptHeight } from '$lib/model/normalizeConceptInstance';
 
 export type PackedCardPlacement = {
 	card: ConceptCardView;

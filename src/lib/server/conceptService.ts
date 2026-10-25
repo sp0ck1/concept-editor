@@ -11,12 +11,7 @@ import {
 	getAllConceptInstances,
 	saveAllConceptInstances
 } from '$lib/server/repositories/conceptInstanceRepository';
-import {
-	defaultConceptHeight,
-	defaultConceptWidth
-} from '$lib/model/normalizeConceptInstance';
-
-
+import { defaultConceptHeight, defaultConceptWidth } from '$lib/model/normalizeConceptInstance';
 
 export type CreateConceptWithInstanceInput = {
 	title?: string;
@@ -29,8 +24,6 @@ export type CreateConceptWithInstanceInput = {
 	lastCameraPanY?: number;
 	lastCameraZoom?: number;
 };
-
-
 
 export async function createConceptWithInstance(
 	input: CreateConceptWithInstanceInput
@@ -78,8 +71,6 @@ export async function updateConceptTitleFromInstance(
 	| { status: 'concept-not-found' }
 	| { status: 'instance-not-found' }
 > {
-
-	
 	const concepts = await getAllConcepts();
 	const instances = await getAllConceptInstances();
 	const concept = concepts.find((item) => item.id === conceptId);
@@ -96,39 +87,32 @@ export async function updateConceptTitleFromInstance(
 
 	const nextTitle = title.trim();
 	const matchingConcepts = nextTitle
-	? concepts.filter(
-			(item) =>
-				item.id !== concept.id &&
-				item.title.trim().toLowerCase() === nextTitle.toLowerCase()
-		)
-	: [];
+		? concepts.filter(
+				(item) =>
+					item.id !== concept.id && item.title.trim().toLowerCase() === nextTitle.toLowerCase()
+			)
+		: [];
 
-	if (
-	matchingConcepts.length > 0 &&
-	conflictMode === 'report-conflict'
-) {
-	return {
-		status: 'title-conflict',
-		matchingConcepts
-	};
-}
+	if (matchingConcepts.length > 0 && conflictMode === 'report-conflict') {
+		return {
+			status: 'title-conflict',
+			matchingConcepts
+		};
+	}
 
-if (
-	matchingConcepts.length > 0 &&
-	conflictMode === 'use-existing'
-) {
-	const matchingConcept = matchingConcepts[0];
+	if (matchingConcepts.length > 0 && conflictMode === 'use-existing') {
+		const matchingConcept = matchingConcepts[0];
 
-	instance.conceptId = matchingConcept.id;
+		instance.conceptId = matchingConcept.id;
 
-	await saveAllConceptInstances(instances);
+		await saveAllConceptInstances(instances);
 
-	return {
-		status: 'ok',
-		concept: matchingConcept,
-		instance
-	};
-}
+		return {
+			status: 'ok',
+			concept: matchingConcept,
+			instance
+		};
+	}
 
 	const usageCount = instances.filter((item) => item.conceptId === concept.id).length;
 	const canRenameInPlace = concept.title.trim() === '' && usageCount === 1;

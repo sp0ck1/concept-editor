@@ -13,17 +13,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		typeof body.targetInstanceId === 'string' ? body.targetInstanceId : undefined;
 
 	if (!sourceInstanceId || !targetInstanceId) {
-		return json(
-			{ error: 'sourceInstanceId and targetInstanceId are required.' },
-			{ status: 400 }
-		);
+		return json({ error: 'sourceInstanceId and targetInstanceId are required.' }, { status: 400 });
 	}
 
 	if (sourceInstanceId === targetInstanceId) {
-		return json(
-			{ error: 'Cannot import children from the same instance.' },
-			{ status: 400 }
-		);
+		return json({ error: 'Cannot import children from the same instance.' }, { status: 400 });
 	}
 
 	const instances = await getAllConceptInstances();
@@ -41,10 +35,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		);
 	}
 
-	const result = await importChildrenFromConceptInstance(
-		sourceInstanceId,
-		targetInstanceId
-	);
+	const result = await importChildrenFromConceptInstance(sourceInstanceId, targetInstanceId);
 
 	return json(result);
 };

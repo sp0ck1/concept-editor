@@ -12,10 +12,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const relationships = await getAllConceptRelationships();
 
-	const results = getRelationshipsForConcept(
-		relationships,
-		conceptId
-	);
+	const results = getRelationshipsForConcept(relationships, conceptId);
 
 	return json(results);
 };

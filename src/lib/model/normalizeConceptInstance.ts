@@ -4,19 +4,19 @@ export const defaultConceptWidth = 350;
 export const defaultConceptHeight = 250;
 
 export function normalizeConceptInstance(
-  instance: Partial<ConceptInstance>,
-  index = 0
+	instance: Partial<ConceptInstance>,
+	index = 0
 ): ConceptInstance {
-  return {
-    id: instance.id ?? `missing-instance-id-${index}`,
-    conceptId: instance.conceptId ?? `missing-concept-id-${index}`,
-    parentInstanceId: instance.parentInstanceId ?? null,
-    x: instance.x ?? 32 + index * 248,
-    y: instance.y ?? 32,
-    width: instance.width ?? defaultConceptWidth,
-    height: instance.height ?? defaultConceptHeight,
-    lastCameraPanX: instance.lastCameraPanX ?? 0,
-    lastCameraPanY: instance.lastCameraPanY ?? 0,
-    lastCameraZoom: instance.lastCameraZoom ?? 0
-  };
+	return {
+		id: instance.id ?? `missing-instance-id-${index}`,
+		conceptId: instance.conceptId ?? `missing-concept-id-${index}`,
+		parentInstanceId: instance.parentInstanceId ?? null,
+		x: instance.x ?? 32 + index * 248,
+		y: instance.y ?? 32,
+		width: instance.width ?? defaultConceptWidth,
+		height: instance.height ?? defaultConceptHeight,
+		lastCameraPanX: instance.lastCameraPanX ?? 0,
+		lastCameraPanY: instance.lastCameraPanY ?? 0,
+		lastCameraZoom: instance.lastCameraZoom ?? 0
+	};
 }

@@ -14,10 +14,7 @@ export type UpdateConceptRelationshipInput = {
 	properties?: Record<string, string>;
 };
 
-
-export async function fetchConceptRelationships(): Promise<
-	ConceptRelationship[]
-> {
+export async function fetchConceptRelationships(): Promise<ConceptRelationship[]> {
 	const response = await fetch('/api/relationships');
 
 	if (!response.ok) {
@@ -63,9 +60,7 @@ export async function updateConceptRelationship(
 	return (await response.json()) as ConceptRelationship;
 }
 
-export async function deleteConceptRelationship(
-	id: string
-): Promise<void> {
+export async function deleteConceptRelationship(id: string): Promise<void> {
 	const response = await fetch('/api/relationships', {
 		method: 'DELETE',
 		headers: {

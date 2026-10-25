@@ -5,7 +5,7 @@
 	import { getEditorContext } from '$lib/components/editor/EditorContext';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
-	let { card } = $props<{ card: ConceptCardView }>();
+	let { card }: { card: ConceptCardView } = $props();
 
 	const editor = getEditorContext();
 
@@ -60,6 +60,7 @@
 		}, childTileHoldDelayMs);
 	}
 
+	//TODO: Escape key also triggers this if isDragging is active. Add in CanvasController keyboard handling
 	function cancelChildTileHold() {
 		if (childTileHoldTimer) {
 			clearTimeout(childTileHoldTimer);
@@ -99,7 +100,6 @@
 		width: ${instance.width}px;
 		height: ${instance.height}px;
 	`}
-	
 	aria-label={concept.title || 'Untitled concept'}
 	onpointerdown={(event) => editor.canvas.handleCardPointerDown(event, card)}
 	oncontextmenu={(event) => editor.canvas.handleCardContextMenu(event, card)}
@@ -116,11 +116,9 @@
 
 	{#if !isCollapsed}
 		<div class="concept-body">
-		<!-- {#if !isSidebarCollapsed Add to toggle sidebar off and on--> 
-			
-		
+			<!-- {#if !isSidebarCollapsed Add to toggle sidebar off and on-->
+
 			<div class="card-sidebar">
-	
 				<ConceptTagsPreview
 					tags={tagConcepts}
 					onManualTagAdd={(title) => editor.addTag(card, title)}
@@ -128,15 +126,17 @@
 					onTagRemove={(tagConcept) => editor.removeTag(card, tagConcept)}
 				/>
 
-				<div class="card-sidebar-overlay" style="width:30px; height:max-content; background-color: red;">
+				<div
+					class="card-sidebar-overlay"
+					style="width:30px; height:max-content; background-color: red;"
+				></div>
 			</div>
-</div>
 
-<ConceptDropArea
-	{card}
-	onChildPointerDown={handleChildTilePointerDown}
-	onChildPointerUp={cancelChildTileHold}
-/>
+			<ConceptDropArea
+				{card}
+				onChildPointerDown={handleChildTilePointerDown}
+				onChildPointerUp={cancelChildTileHold}
+			/>
 		</div>
 	{/if}
 
@@ -149,8 +149,6 @@
 </article>
 
 <style>
-	
-
 	/* Card Related */
 
 	.concept-card {
@@ -158,12 +156,14 @@
 		container-type: size;
 		display: flex;
 		flex-direction: column;
-		
+
 		min-height: 48px;
 		background: white;
 		border: 1px solid #d0d0d0;
 		border-radius: 2.5px;
-	transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease;
+		transition:
+			transform 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+			opacity 0.2s ease;
 		box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.314);
 		overflow: hidden;
 		pointer-events: auto;
@@ -172,11 +172,8 @@
 		z-index: 1;
 		border-bottom-right-radius: 0px;
 		border-top-left-radius: 0px;
-
 	}
 
-	
-	
 	.concept-title-input {
 		width: 100%;
 		min-width: 0;
@@ -186,7 +183,7 @@
 		box-sizing: border-box;
 		flex: 0 0 auto;
 		border: 0;
-		
+
 		background: transparent;
 		font: inherit;
 		font-weight: 600;
@@ -201,7 +198,7 @@
 	}
 
 	.concept-card.is-collapsed:hover {
-		background:var(--is-collapsed-bg-hover);
+		background: var(--is-collapsed-bg-hover);
 	}
 
 	.concept-card.is-collapsed .concept-title-input {
@@ -217,17 +214,17 @@
 
 	.concept-resize-handle {
 		position: absolute;
-  		right: 1px;
-  		bottom: 1px;
-  		width: 14px;
-  		height: 14px;
-  		border: 0;
-		background: #D4E2EF;
-  		cursor: nwse-resize;
-  box-shadow: 
+		right: 1px;
+		bottom: 1px;
+		width: 14px;
+		height: 14px;
+		border: 0;
+		background: #d4e2ef;
+		cursor: nwse-resize;
+		box-shadow: 
    /* 1px 1px 0px 0px #000,     /* Outer black outline */
-    inset 1px 1px 0px 0px #fff, /* Top/Left highlight */
-    inset -0.5px -0.5px 0px 0px #808080; /* Bottom/Right inner shadow */
+			inset 1px 1px 0px 0px #fff,
+			/* Top/Left highlight */ inset -0.5px -0.5px 0px 0px #808080; /* Bottom/Right inner shadow */
 	}
 
 	.concept-body {
@@ -241,27 +238,22 @@
 		overflow: hidden;
 	}
 
-
 	.concept-card.is-marquee-previewed {
 		border-color: var(--marquee-preview-border-color);
 		box-shadow: var(--marquee-preview-box-shadow);
-			
 	}
 
 	.concept-card.is-selected.is-marquee-previewed {
 		border-color: var(--selection-box-border-color);
-
 	}
-
-
 
 	.concept-card.is-active {
 		z-index: 10;
 	}
 
 	.concept-card.is-selected {
-		transition: all 100ms ease;
-		/* SHOULD SCALE WITH ZOOM, WITH A MAXIMUM */
+		/*transition: all 100ms ease;
+		 SHOULD SCALE WITH ZOOM, WITH A MAXIMUM */
 		box-shadow: var(--selection-box-box-shadow);
 	}
 
@@ -276,15 +268,10 @@
 		box-shadow: var(--is-dragging-box-shadow);
 		border-color: hsla(210, 90%, 50%, 0);
 		transition: all cubic-bezier(0.55, 0.055) 100ms;
-		
-
 	}
 
 	/* will not affect dragging cards */
 	.concept-card.is-arranging:not(.is-dragging) {
-	transition: transform 4000ms ease-in 1.5s;
-	
-}
-
-
+		transition: transform 4000ms ease-in 1.5s;
+	}
 </style>

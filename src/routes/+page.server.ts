@@ -4,16 +4,16 @@ import { getAllConceptRelationships } from '$lib/server/repositories/conceptRela
 import { getAllRelationshipDefinitions } from '$lib/server/repositories/relationshipDefinitionRepository';
 
 export async function load() {
-  const concepts = await getAllConcepts();
-  const instances = await getAllConceptInstances();
-  const relationships = await getAllConceptRelationships();
-  const relationshipDefinitions = await getAllRelationshipDefinitions();
+	const concepts = await getAllConcepts();
+	const instances = await getAllConceptInstances();
+	const relationships = await getAllConceptRelationships();
+	const relationshipDefinitions = await getAllRelationshipDefinitions();
 
-  // Corresponding to the items in $lib/data
-  return {
-    concepts,
-    instances,
-    relationships,
-    relationshipDefinitions
-  };
+	// Corresponding to the items in $lib/data
+	return {
+		concepts,
+		instances,
+		relationships,
+		relationshipDefinitions
+	};
 }
