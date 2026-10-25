@@ -1,0 +1,3 @@
+idea,reason for rejection,supporting notes,tags,properties,source path,concept id,instance id
+Disallow duplicate Concept titles,Distinct Concepts may legitimately share a title; Concept identity is determined by ID.,,,{},Updates > High Priority Updates,concept-ce7fce35-2e6b-4a4e-8878-1055ed09ff4f,instance-be63df58-1cae-4bfb-8644-79b4b735c204
+Require differentiating properties for same-title Concepts,Concept identity is determined by ID; differentiating properties must not be required.,,,{},Updates > Crippling Issues,concept-e90c0c87-679a-48f8-83b5-c001406e303f,instance-62e32ecb-1302-46f0-bb04-9bf4f91e0d2e

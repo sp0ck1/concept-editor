@@ -304,18 +304,18 @@ A source-wide search found no remaining references to any renamed symbol. No unl
 
 ### Ownership map
 
-| Area | Authoritative location |
-| --- | --- |
-| Loaded records, derived cards, hierarchy queries, selection, navigation, editor commands, and menus | `src/lib/components/editor/Editor.svelte.ts` |
+| Area                                                                                                                 | Authoritative location                                        |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Loaded records, derived cards, hierarchy queries, selection, navigation, editor commands, and menus                  | `src/lib/components/editor/Editor.svelte.ts`                  |
 | Camera, pointer/drag/resize/marquee interaction, canvas keyboard behavior, paste placement, framing, and arrangement | `src/lib/components/editor/canvas/CanvasController.svelte.ts` |
-| Workspace composition, incoming-data bridge, viewport binding, and sidebar resizing | `src/lib/components/editor/ConceptEditor.svelte` |
-| Spatial canvas markup and its scoped styles | `src/lib/components/editor/canvas/ConceptCanvas.svelte` |
-| Card-local title focus and child-hold timer | `src/lib/components/editor/card/ConceptCard.svelte` |
-| Tree expansion and sidebar property/tag drafts | Tree/sidebar components under `src/lib/components/editor/` |
-| Canonical persisted model types and normalizers | `src/lib/model/` |
-| Browser endpoint calls and response parsing | `src/lib/client/` |
-| Persistence repositories and coordinated server rules | `src/lib/server/` |
-| HTTP handlers and page loading | `src/routes/` |
+| Workspace composition, incoming-data bridge, viewport binding, and sidebar resizing                                  | `src/lib/components/editor/ConceptEditor.svelte`              |
+| Spatial canvas markup and its scoped styles                                                                          | `src/lib/components/editor/canvas/ConceptCanvas.svelte`       |
+| Card-local title focus and child-hold timer                                                                          | `src/lib/components/editor/card/ConceptCard.svelte`           |
+| Tree expansion and sidebar property/tag drafts                                                                       | Tree/sidebar components under `src/lib/components/editor/`    |
+| Canonical persisted model types and normalizers                                                                      | `src/lib/model/`                                              |
+| Browser endpoint calls and response parsing                                                                          | `src/lib/client/`                                             |
+| Persistence repositories and coordinated server rules                                                                | `src/lib/server/`                                             |
+| HTTP handlers and page loading                                                                                       | `src/routes/`                                                 |
 
 ### Audit results
 
