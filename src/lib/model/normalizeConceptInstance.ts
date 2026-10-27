@@ -1,3 +1,4 @@
+import { normalizeConceptNotes, isStringRecord } from './metadata';
 import type { ConceptInstance } from '$lib/model/ConceptInstance';
 
 export const defaultConceptWidth = 350;
@@ -17,6 +18,10 @@ export function normalizeConceptInstance(
 		height: instance.height ?? defaultConceptHeight,
 		lastCameraPanX: instance.lastCameraPanX ?? 0,
 		lastCameraPanY: instance.lastCameraPanY ?? 0,
-		lastCameraZoom: instance.lastCameraZoom ?? 0
+		lastCameraZoom: instance.lastCameraZoom ?? 0,
+		notes: normalizeConceptNotes(instance.notes),
+		properties: isStringRecord(instance.properties) ? { ...instance.properties } : {},
+		view: instance.view === 'notes' || instance.view === 'metadata' ? instance.view : 'tree',
+		isPinned: typeof instance.isPinned === 'boolean' ? instance.isPinned : false
 	};
 }

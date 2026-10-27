@@ -1,3 +1,6 @@
+import type { ConceptNotes } from './ConceptNotes';
+import type { ConceptInstanceView } from './ConceptInstanceView';
+
 export type ConceptInstance = {
 	id: string;
 	conceptId: string;
@@ -9,4 +12,8 @@ export type ConceptInstance = {
 	lastCameraPanX: number;
 	lastCameraPanY: number;
 	lastCameraZoom: number;
+	notes: ConceptNotes;
+	properties: Record<string, string>;
+	view: ConceptInstanceView;
+	isPinned: boolean;
 };

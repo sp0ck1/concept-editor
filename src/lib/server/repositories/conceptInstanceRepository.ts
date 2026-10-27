@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ConceptInstance } from '$lib/model/ConceptInstance';
+import { isConceptNotes, isStringRecord, normalizeConceptNotes } from '$lib/model/metadata';
 import {
 	defaultConceptHeight,
 	defaultConceptWidth,
@@ -11,6 +12,10 @@ const instancesPath = path.resolve(process.cwd(), 'src/lib/data/concept_instance
 
 export type CreateConceptInstanceInput = {
 	conceptId: string;
+	notes?: ConceptInstance['notes'];
+	properties?: ConceptInstance['properties'];
+	view?: ConceptInstance['view'];
+	isPinned?: boolean;
 	parentInstanceId?: string | null;
 	x?: number;
 	y?: number;
@@ -58,7 +63,11 @@ export async function createConceptInstance(
 		height: input.height ?? defaultConceptHeight,
 		lastCameraPanX: input.lastCameraPanX ?? 0,
 		lastCameraPanY: input.lastCameraPanY ?? 0,
-		lastCameraZoom: input.lastCameraZoom ?? 1
+		lastCameraZoom: input.lastCameraZoom ?? 1,
+		notes: normalizeConceptNotes(input.notes),
+		properties: isStringRecord(input.properties) ? { ...input.properties } : {},
+		view: input.view === 'notes' || input.view === 'metadata' ? input.view : 'tree',
+		isPinned: typeof input.isPinned === 'boolean' ? input.isPinned : false
 	};
 
 	instances.push(instance);
@@ -78,26 +87,7 @@ export async function updateConceptInstance(
 		return null;
 	}
 
-	const numberFields = [
-		'x',
-		'y',
-		'width',
-		'height',
-		'lastCameraPanX',
-		'lastCameraPanY',
-		'lastCameraZoom'
-	] as const;
-
-	for (const field of numberFields) {
-		const value = updates[field];
-		if (typeof value === 'number' && Number.isFinite(value)) {
-			instance[field] = value;
-		}
-	}
-
-	if (updates.parentInstanceId === null || typeof updates.parentInstanceId === 'string') {
-		instance.parentInstanceId = updates.parentInstanceId;
-	}
+	applyConceptInstanceUpdates(instance, updates);
 
 	await saveAllConceptInstances(instances);
 	return instance;
@@ -117,7 +107,7 @@ export async function updateConceptInstancesBatch(
 			continue;
 		}
 
-		const next = await applyConceptInstanceUpdates(instance, item.updates);
+		const next = applyConceptInstanceUpdates(instance, item.updates);
 		if (next) {
 			updated += 1;
 		}
@@ -130,13 +120,21 @@ export async function updateConceptInstancesBatch(
 	return updated;
 }
 
-async function applyConceptInstanceUpdates(
+function applyConceptInstanceUpdates(
 	instance: ConceptInstance,
 	updates: UpdateConceptInstanceInput
-): Promise<boolean> {
+): boolean {
 	let changed = false;
 
-	const numberFields = ['x', 'y', 'width', 'height'] as const;
+	const numberFields = [
+		'x',
+		'y',
+		'width',
+		'height',
+		'lastCameraPanX',
+		'lastCameraPanY',
+		'lastCameraZoom'
+	] as const;
 
 	for (const field of numberFields) {
 		const value = updates[field];
@@ -146,11 +144,27 @@ async function applyConceptInstanceUpdates(
 		}
 	}
 
-	if ('parentInstanceId' in updates) {
-		instance.parentInstanceId = updates.parentInstanceId ?? null;
+	if (updates.parentInstanceId === null || typeof updates.parentInstanceId === 'string') {
+		instance.parentInstanceId = updates.parentInstanceId;
 		changed = true;
 	}
 
+	if (isConceptNotes(updates.notes)) {
+		instance.notes = normalizeConceptNotes(updates.notes);
+		changed = true;
+	}
+	if (isStringRecord(updates.properties)) {
+		instance.properties = { ...updates.properties };
+		changed = true;
+	}
+	if (updates.view === 'tree' || updates.view === 'notes' || updates.view === 'metadata') {
+		instance.view = updates.view;
+		changed = true;
+	}
+	if (typeof updates.isPinned === 'boolean') {
+		instance.isPinned = updates.isPinned;
+		changed = true;
+	}
 	return changed;
 }
 
@@ -195,7 +209,7 @@ export async function importChildrenFromConceptInstance(
 		const childIndex = targetChildren.length + newChildren.length;
 
 		newChildren.push({
-			...child,
+			...structuredClone(child),
 			id: createConceptInstanceId(),
 			parentInstanceId: targetInstanceId,
 			x: 32 + childIndex * 24,

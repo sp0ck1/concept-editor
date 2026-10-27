@@ -1,3 +1,5 @@
+import { normalizeConcept } from '$lib/model/normalizeConcept';
+import { normalizeConceptInstance } from '$lib/model/normalizeConceptInstance';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { invalidateAll } from '$app/navigation';
 import {
@@ -38,8 +40,13 @@ function fixture(): EditorData {
 				properties: { status: 'saved', keep: 'original' },
 				tagConceptIds: ['test-tag']
 			},
-			{ id: 'test-tag', title: 'Test tag', properties: {}, tagConceptIds: [] }
-		],
+			{
+				id: 'test-tag',
+				title: 'Test tag',
+				properties: {} as Record<string, string>,
+				tagConceptIds: []
+			}
+		].map((concept) => normalizeConcept(concept)),
 		instances: [
 			{
 				id: 'test-instance-a',
@@ -65,7 +72,7 @@ function fixture(): EditorData {
 				lastCameraPanY: 0,
 				lastCameraZoom: 1
 			}
-		],
+		].map((instance) => normalizeConceptInstance(instance)),
 		relationships: [],
 		relationshipDefinitions: []
 	};

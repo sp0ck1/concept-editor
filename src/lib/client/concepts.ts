@@ -5,6 +5,10 @@ import { getErrorMessage } from '$lib/client/http';
 
 export type CreateConceptRequest = {
 	title?: string;
+	notes?: ConceptInstance['notes'];
+	properties?: ConceptInstance['properties'];
+	view?: ConceptInstance['view'];
+	isPinned?: boolean;
 	x?: number;
 	y?: number;
 	width?: number;

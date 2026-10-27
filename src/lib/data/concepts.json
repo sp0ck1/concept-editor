@@ -14,7 +14,9 @@
 			"kind": "Person",
 			"purpose": "Mutual relationship test participant"
 		},
-		"tagConceptIds": ["concept-tag-person"]
+		"tagConceptIds": [
+			"concept-tag-person"
+		]
 	},
 	{
 		"id": "concept-ashley",
@@ -23,7 +25,9 @@
 			"kind": "Person",
 			"purpose": "Directional relationship source participant"
 		},
-		"tagConceptIds": ["concept-tag-person"]
+		"tagConceptIds": [
+			"concept-tag-person"
+		]
 	},
 	{
 		"id": "concept-family-video",
@@ -32,7 +36,9 @@
 			"kind": "Organization",
 			"purpose": "Directional relationship target participant"
 		},
-		"tagConceptIds": ["concept-tag-organization"]
+		"tagConceptIds": [
+			"concept-tag-organization"
+		]
 	},
 	{
 		"id": "concept-married-to",
@@ -41,7 +47,9 @@
 			"kind": "Relationship Type",
 			"direction": "Mutual"
 		},
-		"tagConceptIds": ["concept-tag-relationship-type"]
+		"tagConceptIds": [
+			"concept-tag-relationship-type"
+		]
 	},
 	{
 		"id": "concept-employee-of",
@@ -50,7 +58,9 @@
 			"kind": "Relationship Type",
 			"direction": "Forward"
 		},
-		"tagConceptIds": ["concept-tag-relationship-type"]
+		"tagConceptIds": [
+			"concept-tag-relationship-type"
+		]
 	},
 	{
 		"id": "concept-employs",
@@ -59,7 +69,9 @@
 			"kind": "Relationship Type",
 			"direction": "Inverse"
 		},
-		"tagConceptIds": ["concept-tag-relationship-type"]
+		"tagConceptIds": [
+			"concept-tag-relationship-type"
+		]
 	},
 	{
 		"id": "concept-tag-person",
@@ -194,7 +206,9 @@
 			"kind": "Person",
 			"purpose": "Mutual relationship test participant"
 		},
-		"tagConceptIds": ["concept-tag-person"]
+		"tagConceptIds": [
+			"concept-tag-person"
+		]
 	},
 	{
 		"id": "concept-331252bf-2388-48d0-afce-1ae44d493745",
@@ -203,7 +217,9 @@
 			"kind": "Person",
 			"purpose": "Mutual relationship test participant"
 		},
-		"tagConceptIds": ["concept-tag-person"]
+		"tagConceptIds": [
+			"concept-tag-person"
+		]
 	},
 	{
 		"id": "concept-4bed11ed-26f6-44b2-91ff-06f5b8583db4",
@@ -328,7 +344,9 @@
 		"id": "concept-b4c43635-60d0-4dc0-96cf-af13a2c39ef9",
 		"title": "",
 		"properties": {},
-		"tagConceptIds": ["concept-36dd7faa-0650-4947-a975-30e7d8f5eb7c"]
+		"tagConceptIds": [
+			"concept-36dd7faa-0650-4947-a975-30e7d8f5eb7c"
+		]
 	},
 	{
 		"id": "concept-1d602c14-b723-4c72-a437-ed696d057968",
@@ -552,7 +570,9 @@
 		"id": "concept-59460a5e-dbdf-4028-a363-4753f64b65b8",
 		"title": "Considerations",
 		"properties": {},
-		"tagConceptIds": ["concept-467e9a69-04e7-4a36-a0b8-cad9e5f4e679"]
+		"tagConceptIds": [
+			"concept-467e9a69-04e7-4a36-a0b8-cad9e5f4e679"
+		]
 	},
 	{
 		"id": "concept-467e9a69-04e7-4a36-a0b8-cad9e5f4e679",
@@ -630,7 +650,9 @@
 		"id": "concept-ed1f945c-aa40-473b-a025-4dd7af7270a0",
 		"title": "Card Size Controls Visible Detail",
 		"properties": {},
-		"tagConceptIds": ["concept-e0f5759a-6f3d-4b88-818d-63076324da36"]
+		"tagConceptIds": [
+			"concept-e0f5759a-6f3d-4b88-818d-63076324da36"
+		]
 	},
 	{
 		"id": "concept-e0f5759a-6f3d-4b88-818d-63076324da36",
@@ -660,7 +682,9 @@
 		"id": "concept-83acb4d8-be80-41ae-874f-ccd3cbc59b4e",
 		"title": "Stack / Cascade Button",
 		"properties": {},
-		"tagConceptIds": ["concept-61f804a5-70e5-4c43-8c3b-04507efe6b84"]
+		"tagConceptIds": [
+			"concept-61f804a5-70e5-4c43-8c3b-04507efe6b84"
+		]
 	},
 	{
 		"id": "concept-8e5aa01c-25a6-4d11-9da8-c54b92e4386d",
@@ -678,7 +702,9 @@
 		"id": "concept-50fb825f-810c-4375-b136-3e120d444515",
 		"title": "Arrange Selected Items",
 		"properties": {},
-		"tagConceptIds": ["concept-db226e0d-7b9d-4dfa-be44-8ddd69261009"]
+		"tagConceptIds": [
+			"concept-db226e0d-7b9d-4dfa-be44-8ddd69261009"
+		]
 	},
 	{
 		"id": "concept-db226e0d-7b9d-4dfa-be44-8ddd69261009",
@@ -690,19 +716,25 @@
 		"id": "concept-f6fa31d5-f069-4f3a-81f0-66707733eba9",
 		"title": "Right Mouse Should Pan Even When Over Card",
 		"properties": {},
-		"tagConceptIds": ["concept-e0f5759a-6f3d-4b88-818d-63076324da36"]
+		"tagConceptIds": [
+			"concept-e0f5759a-6f3d-4b88-818d-63076324da36"
+		]
 	},
 	{
 		"id": "concept-3ca78e88-9d1f-4773-848b-82c38b92eb2f",
 		"title": "Zoom Slider to allow more granularity",
 		"properties": {},
-		"tagConceptIds": ["concept-61f804a5-70e5-4c43-8c3b-04507efe6b84"]
+		"tagConceptIds": [
+			"concept-61f804a5-70e5-4c43-8c3b-04507efe6b84"
+		]
 	},
 	{
 		"id": "concept-7c1f3bb8-e8ba-4086-8b12-5a438c8aeee0",
 		"title": "Indicator: Concept Drop Area Hover",
 		"properties": {},
-		"tagConceptIds": ["concept-e0f5759a-6f3d-4b88-818d-63076324da36"]
+		"tagConceptIds": [
+			"concept-e0f5759a-6f3d-4b88-818d-63076324da36"
+		]
 	},
 	{
 		"id": "concept-f97b9b15-eb5f-44d9-9a81-4b710fb43609",
@@ -1017,7 +1049,9 @@
 		"id": "concept-18e854b1-7e18-4be2-a729-81a8c4d9af2e",
 		"title": "Clickable Panner for those who are into it",
 		"properties": {},
-		"tagConceptIds": ["concept-47c1f907-b2d6-42ab-9ed5-6c329ac0615a"]
+		"tagConceptIds": [
+			"concept-47c1f907-b2d6-42ab-9ed5-6c329ac0615a"
+		]
 	},
 	{
 		"id": "concept-47c1f907-b2d6-42ab-9ed5-6c329ac0615a",
@@ -1053,7 +1087,9 @@
 		"id": "concept-6e643e48-8a49-47dc-b607-11fc1694da78",
 		"title": "A simple view of all recently added concepts, including deleted, along with timestamps",
 		"properties": {},
-		"tagConceptIds": ["concept-9d036aa4-ad6c-4698-aac2-8f448156c661"]
+		"tagConceptIds": [
+			"concept-9d036aa4-ad6c-4698-aac2-8f448156c661"
+		]
 	},
 	{
 		"id": "concept-9d036aa4-ad6c-4698-aac2-8f448156c661",
@@ -1397,7 +1433,9 @@
 		"id": "concept-df011240-3cdb-4dda-8c0f-f282c4c71e2e",
 		"title": "User UI Customizations - Long Term Updates",
 		"properties": {},
-		"tagConceptIds": ["concept-9bdb97f5-1b0a-445d-9ef4-f7ee349a471f"]
+		"tagConceptIds": [
+			"concept-9bdb97f5-1b0a-445d-9ef4-f7ee349a471f"
+		]
 	},
 	{
 		"id": "concept-9bdb97f5-1b0a-445d-9ef4-f7ee349a471f",
@@ -1409,13 +1447,17 @@
 		"id": "concept-9da32fb7-8067-4c7f-b4f3-3b4b0956a4a4",
 		"title": "Images for Left Sidebar",
 		"properties": {},
-		"tagConceptIds": ["concept-9bdb97f5-1b0a-445d-9ef4-f7ee349a471f"]
+		"tagConceptIds": [
+			"concept-9bdb97f5-1b0a-445d-9ef4-f7ee349a471f"
+		]
 	},
 	{
 		"id": "concept-b940ecf0-cf9f-45d5-8851-7c8315923864",
 		"title": "Images for concept-drop-area",
 		"properties": {},
-		"tagConceptIds": ["concept-9bdb97f5-1b0a-445d-9ef4-f7ee349a471f"]
+		"tagConceptIds": [
+			"concept-9bdb97f5-1b0a-445d-9ef4-f7ee349a471f"
+		]
 	},
 	{
 		"id": "concept-324bce55-0473-479d-89c4-b5579dec0032",
@@ -1439,7 +1481,9 @@
 		"id": "concept-84a1274f-54f0-4a61-8266-78530312b56c",
 		"title": "Tiling background for canvas",
 		"properties": {},
-		"tagConceptIds": ["concept-9bdb97f5-1b0a-445d-9ef4-f7ee349a471f"]
+		"tagConceptIds": [
+			"concept-9bdb97f5-1b0a-445d-9ef4-f7ee349a471f"
+		]
 	},
 	{
 		"id": "concept-e248fd7d-a011-4e6e-ae72-f17e51e1af44",
@@ -1469,7 +1513,9 @@
 		"id": "concept-c4282dbc-ee99-40a8-955d-2d07e5f2d066",
 		"title": "View Orphaned Concepts",
 		"properties": {},
-		"tagConceptIds": ["concept-9d036aa4-ad6c-4698-aac2-8f448156c661"]
+		"tagConceptIds": [
+			"concept-9d036aa4-ad6c-4698-aac2-8f448156c661"
+		]
 	},
 	{
 		"id": "concept-363f8a09-d898-48b5-ad5c-0873fdc9f8f8",
@@ -1493,7 +1539,9 @@
 		"id": "concept-87925873-78b5-4de3-9481-d85a81654497",
 		"title": "Timeline",
 		"properties": {},
-		"tagConceptIds": ["concept-8992a0d3-b79d-439b-98cf-99f9be388bc7"]
+		"tagConceptIds": [
+			"concept-8992a0d3-b79d-439b-98cf-99f9be388bc7"
+		]
 	},
 	{
 		"id": "concept-8992a0d3-b79d-439b-98cf-99f9be388bc7",
@@ -1810,6 +1858,30 @@
 	{
 		"id": "concept-3a3d4030-7cf0-49ea-8237-311b3a31ec1a",
 		"title": "Bullet points are note content, not automatically Concepts",
+		"properties": {},
+		"tagConceptIds": []
+	},
+	{
+		"id": "concept-51d2e2c7-d3f6-4e37-bc31-b19bae3decbc",
+		"title": "Define root/context semantics so multiple contexts can be open in the Editor and each has a meaningful designated root",
+		"properties": {},
+		"tagConceptIds": []
+	},
+	{
+		"id": "concept-aec3c3c1-aa00-4a93-b87b-325c541002f4",
+		"title": "View Tree should be a button on the card",
+		"properties": {},
+		"tagConceptIds": []
+	},
+	{
+		"id": "concept-e9664988-ddc4-4e08-a2da-a1905148f335",
+		"title": "Sidebar left side chooses main view | right side affects that view",
+		"properties": {},
+		"tagConceptIds": []
+	},
+	{
+		"id": "concept-25dd7590-cbc4-4270-8027-119a3da56cb8",
+		"title": "Updates",
 		"properties": {},
 		"tagConceptIds": []
 	}

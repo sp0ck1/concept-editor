@@ -1,3 +1,5 @@
+import { isStringRecord, normalizeConceptNotes, normalizeConceptDates } from '$lib/model/metadata';
+import type { CreateConceptInstanceInput } from '$lib/server/repositories/conceptInstanceRepository';
 import type { Concept } from '$lib/model/Concept';
 import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
 import type { ConceptInstance } from '$lib/model/ConceptInstance';
@@ -13,16 +15,8 @@ import {
 } from '$lib/server/repositories/conceptInstanceRepository';
 import { defaultConceptHeight, defaultConceptWidth } from '$lib/model/normalizeConceptInstance';
 
-export type CreateConceptWithInstanceInput = {
+export type CreateConceptWithInstanceInput = Omit<CreateConceptInstanceInput, 'conceptId'> & {
 	title?: string;
-	x?: number;
-	y?: number;
-	width?: number;
-	height?: number;
-	parentInstanceId?: string | null;
-	lastCameraPanX?: number;
-	lastCameraPanY?: number;
-	lastCameraZoom?: number;
 };
 
 export async function createConceptWithInstance(
@@ -35,7 +29,9 @@ export async function createConceptWithInstance(
 		id: createConceptId(),
 		title: input.title?.trim() ?? '',
 		properties: {},
-		tagConceptIds: []
+		tagConceptIds: [],
+		notes: normalizeConceptNotes(undefined),
+		dates: normalizeConceptDates(undefined)
 	};
 
 	const instance: ConceptInstance = {
@@ -48,7 +44,11 @@ export async function createConceptWithInstance(
 		height: input.height ?? defaultConceptHeight,
 		lastCameraPanX: input.lastCameraPanX ?? 0,
 		lastCameraPanY: input.lastCameraPanY ?? 0,
-		lastCameraZoom: input.lastCameraZoom ?? 1
+		lastCameraZoom: input.lastCameraZoom ?? 1,
+		notes: normalizeConceptNotes(input.notes),
+		properties: isStringRecord(input.properties) ? { ...input.properties } : {},
+		view: input.view === 'notes' || input.view === 'metadata' ? input.view : 'tree',
+		isPinned: typeof input.isPinned === 'boolean' ? input.isPinned : false
 	};
 
 	concepts.push(concept);
@@ -124,10 +124,9 @@ export async function updateConceptTitleFromInstance(
 	}
 
 	const newConcept: Concept = {
+		...structuredClone(concept),
 		id: createConceptId(),
-		title: nextTitle,
-		properties: { ...concept.properties },
-		tagConceptIds: [...concept.tagConceptIds]
+		title: nextTitle
 	};
 
 	concepts.push(newConcept);
