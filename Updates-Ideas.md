@@ -13,6 +13,12 @@ therefore, an omitted metadata line means both properties and tags were empty un
 
 Original Updates tags: geronimo, action packaed
 
+## Data-model implementation status
+
+Concepts now support plain-text ConceptNotes, labeled individual dates, and optional layered background appearance. Instances now support their own notes, additive contextual properties, a saved tree/notes/metadata view value, and isPinned; tags remain Concept-only. Context.ts defines the singleton project record, now loaded from context.json alongside the four existing record files. The Editor supplies its title to project labels and supports validated metadata saves through PATCH /api/context. The root sidebar now edits Context title, properties, and tags; title saves on blur/Enter. Context notes/date/appearance controls and portable project files are not implemented. Legacy records receive defaults when loaded, without a bulk migration.
+
+This is model and persistence support only: no toolbar, notes/property/date/appearance UI, pin enforcement, deletion workflow, context import/export, asset packaging, or SQLite migration has been implemented by this change. Earlier bullets below remain planning/history, not proof of those UI features.
+
 ## Current Priorities
 
 These are the owner's top two priorities, in order. This records direction, not an instruction to implement both at once.
@@ -21,10 +27,10 @@ The Electron window-launch milestone is complete for the owner's current purpose
 
 ### 1. Complete the data model for saving, loading, and root contexts
 
-- Define root/context semantics so multiple contexts can be open in the Editor and each has a meaningful designated root, not merely whichever node is currently being viewed.
-- Contexts should have Concept identity and support root-level title, properties, tags, and dates through their Concept representation. How their root occurrences and boundaries are recorded still needs definition.
-- Concepts remain shared by identity across loaded contexts, not private copies owned by each context. Different IDs describing the same thing require user-directed merging, not automatic identity matching by title or metadata.
-- Establish project/session saving and loading for multiple roots, with individual contexts exportable as portable `.context` documents. The extension, archive format, embedded-versus-referenced storage details, and import/conflict rules remain to be finalized.
+- One Context is the open project, with its own name and metadata and any number of root ConceptInstances. Roots are inferred from parentInstanceId being null; a synthetic tree Root row is not a persisted Concept.
+- The intended Context record stores project identity/title and metadata. Associated Concepts, instances, relationships, and definitions can remain in their separate stores; a complete project export gathers them together. The Context record, repository, loader, Editor refresh bridge, project labels, and metadata save path are connected to this arrangement; portable project loading/export remains future work.
+- Preserve Concept identity within the open project. Importing records with matching names or conflicting IDs requires user choices, not automatic identity matching or cross-project synchronization.
+- Establish project saving/loading and portable .context documents. Physical packaging remains undecided. File-menu and broader-context import/export workflows are recorded under Imports and are deferred, not part of the immediate Context-record connection.
 - Higher-priority export needs include exporting an individual card's data to CSV or a table representation. Multi-sheet Excel or zipped multi-table exports are exploratory, not a chosen format.
 - Preserve existing data while planning this work. No persisted schema or storage migration is authorized merely by documenting these priorities.
 
@@ -42,10 +48,11 @@ The Electron window-launch milestone is complete for the owner's current purpose
 
 ### Interactive ConceptCard Previews
 
-- Hover a ConceptInstance in a tree or another view to preview its ConceptCard
-- Preview can show the child tree and notes when available
-- Preview should eventually be interactive
-- Exact placement, delay, size, and interaction behavior can be decided later
+- Hover a ConceptInstance representation, including a tree node, for approximately 3 seconds to open a ConceptCardPreview popup.
+- Preview can show the child tree and instance notes when available; instance notes should be accessible through this popup as later work.
+- Preview should eventually be interactive. The owner cites Luck Be a Landlord as a UI reference; exact behavior beyond these requirements is not specified.
+- Exact placement, size, and interaction behavior can be decided later.
+- Planned card view is stored on ConceptInstance as view: tree, notes, or metadata. Notes view edits the instance notes, not the shared Concept notes. This is a model/UI decision, not an implemented feature.
 
 ### Notes on Concepts
 
@@ -63,8 +70,18 @@ The Electron window-launch milestone is complete for the owner's current purpose
 
 ### Title Conflicts
 
-- When a title matches existing Concepts, ask whether to create a new Concept or use an existing one
-- Show enough context to choose among same-title Concepts
+- Wizard visual direction: blend older desktop/spreadsheet styling with modern usability, using the supplied Excel example as a reference. Favor compact grid/table layouts, cream fills, thin dark borders, and square edges rather than rounded floating-card styling. Cream fills and square edges are confirmed direction; the blue in the reference sheet is incidental, not a required accent color. Exact CSS values remain to be chosen.
+- This old/new blend is also the intended broader application direction, not authorization for an application-wide styling rewrite as part of the wizard.
+- Conflict prompt: One or more Concepts titled [title] already exist. Create a new Concept, or use an existing Concept for this card. The new-identity action is labeled Create new Concept.
+- Show one existing-occurrence row per category path. Rows display Category Path | properties: [count] | children: [count]. The properties count is for that instance; omit tags from these rows because tags belong to Concepts. Shorten long ancestor paths with ellipses while retaining the final title, with the full path available on hover. Unplaced Concepts need a Not placed entry.
+- Hovering an occurrence row in the chooser for approximately 3 seconds should show the same planned ConceptCardPreview used elsewhere. Preview that exact source instance, including its children and instance notes when available, to help distinguish same-title occurrences under the same parent. Reuse the shared preview feature, not a separate chooser-only popup; preview implementation remains pending.
+- The wizard must allow duplicate occurrences in the same category, including multiple instances of the same Concept. Do not skip or merge copies merely because a title or Concept ID is already present at the destination. Instance IDs distinguish occurrences; separate Concepts may also share titles. This does not change the existing immediate-child import action unless separately requested.
+- Selecting an existing occurrence chooses its shared Concept and optionally copies source-instance metadata. Shared Concept properties, tags, dates, notes, and appearance apply by reference, not optional per-instance copies. Dates and appearance remain Concept-owned; date-display filtering is deferred.
+- Instance-property choices start selected, with Select All, Select None, and individual checkboxes. Notes copying is a separate yes/no choice.
+- If children are copied, copy their entire descendant trees, not just immediate children. Do not offer an immediate-only/depth checkbox. All copied instances receive new IDs and retain their Concept references.
+- One Retain child metadata choice controls the whole copied tree: preserve instance metadata or initialize default instance metadata, without repeating the wizard for each descendant. This is separate from the existing immediate-child import action, whose behavior must not change silently.
+- Escape/Cancel exits the flow, restores the previous saved title in the edited input, and leaves records unchanged. Only final confirmation applies reassignment/copying.
+- A newly created card starts with empty/default instance metadata, but the current title-edit flow can also rename an already-populated card while retaining its instance ID and children. Do not assume every destination is absent; existing contextual data must not be silently overwritten. Exact populated-target handling remains to be settled before implementation.
 
 - Typeahead Search
 
@@ -187,6 +204,14 @@ The Electron window-launch milestone is complete for the owner's current purpose
 
 - Resize all selected cards as a selection-wide capability. The owner lowered this from High to **Medium or Low**; the exact tier remains to be chosen.
 
+### Deletion safeguards and keyboard behavior
+
+- Deferred: add Delete-key deletion for selected instances. Right-click deletion is available now; no Delete/Backspace shortcut is added by that implementation.
+- Deferred: show a confirmation before deleting instances containing notes, with a choice to proceed or cancel. Concepts and their shared notes remain separate from the instance records being removed.
+- Deferred: offer saving the threatened notes text outside the application as a .md file before deletion. This export is optional, not an automatic backup or current feature.
+- Deferred: pressing Delete again while the confirmation is pending accepts deletion; rapid Delete-Delete should provide the deletion counterpart to Enter-Enter creation. Timing, focus handling, and exact confirmation/export UI remain to be implemented.
+- Current deletion still removes only the targeted instance records. Moving children up or deleting descendant instances remains a separate unimplemented workflow.
+
 ## Planned Relationships Work
 
 Priority has not yet been assigned. These are future UI requirements, not implemented features or authorization to start work now. The existing relationship model and partial sidebar display remain separate from this work.
@@ -224,6 +249,14 @@ Priority has not yet been assigned. These are future UI requirements, not implem
 
 ## Done
 
+### Right-click group instance deletion
+
+- Stale-target handling checks current records rather than active/selected flags alone. Missing local targets are skipped; both single and group UI deletion use the batch endpoint so already-removed server records refresh without a 404.
+- Right-click a selected card and choose Delete Selected (N) to remove the selected instances visible on the current canvas. A group uses one batch DELETE and one instance-file write.
+- Right-clicking an unselected card keeps the existing single-target behavior. Concepts remain stored; unselected children are not automatically deleted or reparented.
+- Successful deletion clears affected selection/focus and stale drag state, then refreshes records. Failed requests show the existing error banner without navigating or removing loaded records.
+- Verified using isolated unit/API/repository tests and disposable synthetic browser data, including reload, single-target isolation, preserved Concepts/children, and failed requests. Notes confirmation, export, and keyboard shortcuts remain future work.
+
 ### Electron window launch
 
 - The existing SvelteKit application can be opened in an Electron window. The owner considers this launch milestone complete and is moving on to data-model work.
@@ -255,6 +288,20 @@ Priority has not yet been assigned. These are future UI requirements, not implem
 
 ### Items paste in as small concepts at their width
 
+## Icons and portable media assets
+
+Planned work; priority has not been assigned. No icon fields, rendering, asset storage, or packaging changes are authorized by this note.
+
+- Provide a built-in set of icons and allow users to import their own icons.
+- At sufficiently distant zoom levels, a ConceptInstance should switch from its normal card to an icon representation smaller than the small-card form.
+- In icon form, keep a fixed on-screen size instead of scaling the icon with canvas zoom. Its placement still represents the instance location.
+- Hovering the icon should open the same planned ConceptCardPreview used by tree nodes and other instance representations, exposing the card details without zooming back in. Reuse that preview rather than introducing a separate icon tooltip/card implementation.
+- Zooming back in restores the card at its stored instance dimensions. Icon display must not overwrite its saved width/height.
+- Exact zoom thresholds, icon dimensions, and whether icon choice belongs to the Concept, instance, or permits overrides remain to be designed.
+- Proposed default asset behavior is linking images/icons to files on disk and expecting those files to remain available at their referenced locations.
+- Offer packaging of images/icons within the project save file for portability. This increases file size but avoids relying on the original external files; simply copying linked references is not a self-contained export.
+- Video packaging is a possibility, not a settled requirement. File-reference format, portable path handling, packaging choices, and missing-file behavior remain to be designed.
+
 ## User UI Customizations - Long Term Updates
 
 - Tags: Optional
@@ -273,6 +320,11 @@ Priority has not yet been assigned. These are future UI requirements, not implem
 - Active theme per context, choose from any theme
 
 ## Long-Term (Any Priority)
+
+### Compare to…
+
+- Add a module for comparing a few things side by side.
+- Exact comparison content, selection, and layout remain to be designed.
 
 ### View Orphaned Concepts
 
@@ -294,6 +346,13 @@ Priority has not yet been assigned. These are future UI requirements, not implem
 - Grab and drag the middle area horizontally to slide the year strip beneath the mask, moving the visible range earlier or later. This interaction changes only the horizontal offset.
 - Clip the years outside the visible container. Absolute positioning is a possible implementation detail, not a settled requirement.
 - How Concepts/instances connect to the ruler and how dates are positioned on it remain unspecified. Date ownership and entry behavior are described below; exact persisted field names and structure are not yet defined.
+
+#### Causality mapping
+
+- Planned as part of the same module as timelines, not merely a relationship label.
+- Existing relationships can express or allude to causation, but the application has no dedicated structure or workflow for mapping causality.
+- Add dedicated support for representing and exploring causal connections. The model, interactions, and presentation remain to be designed; no causation schema or implementation is approved by this note.
+- Chronological order alone does not establish a causal connection.
 
 ### Dates on Concepts
 
@@ -325,6 +384,13 @@ Priority has not yet been assigned. These are future UI requirements, not implem
   - Move divider all the way down for Table only
   - Leave divider in the middle to see the same Concepts both ways
 
+### Blank-canvas right-click radial menu
+
+- Intended behavior: holding the right mouse button on blank canvas for 1.5 seconds opens a radial menu immediately when the threshold is reached, without waiting for release.
+- Releasing before the threshold opens the regular context menu on pointerup instead. Releasing after the radial menu activates must not also open the regular menu.
+- Current implementation only schedules a TODO callback at the threshold; the radial menu itself is not implemented, so a long hold currently shows nothing. Short-release context-menu behavior and timer cancellation are implemented.
+- This gesture currently applies only to blank canvas; card context menus are unchanged. Radial-menu actions, layout, selection, and dismissal behavior remain to be designed; priority has not been assigned.
+
 ### Card Layout
 
 - Mini sidebar on left, scales with width and height
@@ -333,6 +399,17 @@ Priority has not yet been assigned. These are future UI requirements, not implem
 - notes come from top
 
 ## Imports
+
+### Creating a broader Context from the current project
+
+- Planned workflow; File-menu, new-window behavior, and these import/export operations are deferred. Recording this design is not authorization to implement them now.
+- A Context is one open project. Its instances can express nested contextual information; this does not require nesting live Context documents or synchronizing several projects inside one Editor. Multiple roots remain allowed within each project.
+- With Context A open, File -> Create New Context... should ask whether to import the current Context along with its Concepts and relationships into the new Context.
+- If accepted, represent A as a Concept with a new root ConceptInstance in the destination. Carry its project metadata into that representation, and place its former root instances beneath it while preserving deeper containment. Include its Concepts, including unplaced Concepts, relationships, and definitions.
+- The new root contains the imported material rather than creating another live project boundary. The broader project can subsequently include B, C, D, and E in the same manner. This describes a portable copy/import, not an automatic edit to or synchronization with the source project.
+- If declined, create an empty Context without importing the current project records. Opening it in another window is a possible workflow, not a settled window-management implementation.
+- A selective alternative is to create an empty Context, right-click a Concept representation in the original tree, choose Export Concept, and import only that selected Concept into the destination instead of importing the whole project. Exact export options and dependency handling remain to be specified.
+- This complements card-to-Context export: exporting a card as a project uses its metadata for the new Context and promotes its children to root instances, rather than leaving that card visible as a containing root. Metadata-selection choices between Concept and selected instance remain part of the planned export UI.
 
 ### Requirements
 
@@ -353,7 +430,16 @@ Priority has not yet been assigned. These are future UI requirements, not implem
 - Exact lifecycle can be decided later
 
 - Maybe Tree can be Scrollable by holding a key or clicking a button or right clicking in the area
-- Sequencing View where Dragging Cards Resequences
+
+### Sequencing view
+
+- Future functionality assigns a numeric sequence to ConceptInstances, not Concepts. The same Concept can have different sequences in different occurrences.
+- Optional sequence is now supported in the instance model, loading, creation, and single/batch updates. Unassigned values are omitted from JSON, not defaulted to zero. No sequencing UI or sorting behavior is implemented.
+- Sequence is not a tree sorting rule; the tree remains alphabetical. No existing view or feature should begin sorting by sequence merely because the field is added.
+- The illustrated workspace shows instance rectangles with overlaid sequence numbers, arranged across rows; dragging cards will eventually assign or change sequence values.
+- Users can add an unrestricted number of rows and rename each row with an arbitrary text rowLabel, such as 1 or A. Row identity, membership, and persistence are separate future model work; do not add them now.
+- Other future features may consume sequence, possibly timelines; their behavior is not yet specified.
+- Sequencing UI and row-model implementation are deferred.
 
 ### Notes and Bullet Points
 

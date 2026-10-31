@@ -1,12 +1,12 @@
 <script lang="ts">
 	let {
 		itemsCount,
-		targetConceptName,
+		targetConceptTitle,
 		onConfirm,
 		onCancel
 	}: {
 		itemsCount: number;
-		targetConceptName: string;
+		targetConceptTitle: string;
 		onConfirm: () => void | Promise<void>;
 		onCancel: () => void;
 	} = $props();
@@ -34,7 +34,7 @@
 	onkeydown={handleKeydown}
 >
 	<div class="paste-confirmation-message">
-		Please confirm you intended to add {itemsCount} concepts to {targetConceptName}.
+		Please confirm you intended to add {itemsCount} concepts to {targetConceptTitle}.
 	</div>
 
 	<div class="paste-confirmation-actions">

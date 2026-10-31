@@ -59,7 +59,7 @@ This solution adds no title-editing code. Keep these boundaries intact:
 - The default title request reports matching Concepts without writing data; conflict state exists, but no complete resolving chooser is rendered.
 - `use-existing` reconnects the instance to the first matching Concept and its shared metadata.
 - A nonempty title can name a blank Concept in place only when exactly one instance uses it and no earlier conflict/reuse branch returned.
-- Otherwise a new Concept copies the previous properties/tags and the instance is reassigned; its ID, parentage, children, geometry, and camera remain stable.
+- Otherwise a new Concept copies the previous properties, tags, notes, dates, and optional appearance and the instance is reassigned; its ID, parentage, children, geometry, and camera remain stable.
 - `create-duplicate` bypasses matching reuse/reporting, but does not bypass the blank-Concept exception.
 - Title-input double Enter commits, then creates nearby even if the commit returned after reporting a conflict. Canvas double Enter remains a separate viewport-center path.
 

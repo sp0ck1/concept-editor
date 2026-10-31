@@ -1,3 +1,4 @@
+import type { Context } from '$lib/model/Context';
 import type { Concept } from '$lib/model/Concept';
 import type { ConceptCardView } from '$lib/model/ConceptCardView';
 import type { ConceptInstance } from '$lib/model/ConceptInstance';
@@ -6,6 +7,7 @@ import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
 import type { ConceptSizePreset } from '$lib/components/editor/canvas/layout';
 
 export type EditorData = {
+	context: Context;
 	concepts: Concept[];
 	instances: ConceptInstance[];
 	relationships: ConceptRelationship[];

@@ -137,7 +137,7 @@ For example, suppose instance A in Garage and instance B in Transport both refer
 
 1. If Scooter already exists, the default request reports a conflict without writing either file. The Editor stores it, but no complete chooser appears.
 2. A deliberate caller retry with `use-existing` connects A to the first matching Scooter Concept, including its properties/tags. B still represents Bicycle.
-3. If there is no match, the service creates a new Scooter Concept with Bicycle's copied properties/tags, then reconnects A. Bicycle remains unchanged for B.
+3. If there is no match, the service creates a new Scooter Concept with Bicycle's copied properties, tags, notes, dates, and optional appearance, then reconnects A. Bicycle remains unchanged for B.
 4. A's children, parent, geometry, camera, and instance ID remain unchanged in either reassignment.
 
 These are service traces, not instructions to test against personal records.

@@ -9,6 +9,7 @@ export type CreateConceptRequest = {
 	properties?: ConceptInstance['properties'];
 	view?: ConceptInstance['view'];
 	isPinned?: boolean;
+	sequence?: number;
 	x?: number;
 	y?: number;
 	width?: number;

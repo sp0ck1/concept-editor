@@ -16,4 +16,5 @@ export type ConceptInstance = {
 	properties: Record<string, string>;
 	view: ConceptInstanceView;
 	isPinned: boolean;
+	sequence?: number;
 };

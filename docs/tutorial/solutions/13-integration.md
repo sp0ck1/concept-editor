@@ -110,7 +110,7 @@ Leave `handleConceptTitleKeydown` and `handleConceptTitleBlur` unchanged:
 
 Leave `handleCanvasDoubleClick` unchanged too. It uses pointer-to-world conversion plus the existing random offset, not the new command.
 
-All service title semantics remain unchanged: case-insensitive matching, first-match reuse, the singly used blank-Concept naming exception, and otherwise a new Concept with copied properties/tags. Reassignment preserves instance identity, parentage, children, geometry, and camera.
+All service title semantics remain unchanged: case-insensitive matching, first-match reuse, the singly used blank-Concept naming exception, and otherwise a new Concept with copied properties, tags, notes, dates, and optional appearance. Reassignment preserves instance identity, parentage, children, geometry, and camera.
 
 ## Resulting path
 

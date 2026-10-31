@@ -17,7 +17,7 @@
 
 	let rootExpanded = $state(true);
 
-	let rootLabel = $derived(rootCard ? rootCard.concept.title || rootCard.concept.id : 'Root');
+	let rootLabel = $derived(rootCard ? rootCard.concept.title || rootCard.concept.id : editor.context.title || 'Untitled Context');
 
 	let rootConceptInstances = $derived.by(() => {
 		if (rootCard) {

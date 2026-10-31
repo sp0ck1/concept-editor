@@ -24,6 +24,9 @@ export type Concept = {
 	title: string;
 	properties: Record<string, string>;
 	tagConceptIds: string[];
+	notes: ConceptNotes;
+	dates: ConceptDate[];
+	appearance?: ConceptAppearance;
 };
 ```
 
@@ -52,6 +55,11 @@ export type ConceptInstance = {
 	lastCameraPanX: number;
 	lastCameraPanY: number;
 	lastCameraZoom: number;
+	notes: ConceptNotes;
+	properties: Record<string, string>;
+	view: ConceptInstanceView;
+	isPinned: boolean;
+	sequence?: number;
 };
 ```
 
@@ -59,7 +67,9 @@ export type ConceptInstance = {
 
 `parentInstanceId` identifies one parent instance; `null` means root placement. Geometry belongs to the placement, not the shared Concept. The camera fields remember the view of this instance's child canvas, rather than its card's position in the parent canvas.
 
-There is no local title, notes field, or child-ID array in this type.
+There is no local title or child-ID array. Instance notes and properties belong to this occurrence; properties supplement, rather than override, the Concept properties. Tags remain Concept-only. The stored view selects tree, notes, or metadata; isPinned records pinning intent. Neither new view controls nor pin enforcement is implemented by these model fields.
+
+The optional instance sequence is reserved for future sequencing functionality. Unassigned values are omitted from JSON; finite numeric values, including zero, are preserved. It does not change alphabetical tree ordering or current canvas behavior.
 
 ### Independent occurrences
 
@@ -79,6 +89,16 @@ A and B share the Bicycle title, properties, and tags. They have different IDs a
 Children refer to a **parent instance ID**. Consequently, adding a child under A does not automatically add it under B. Displaying A in another view also does not give it another containment parent.
 
 [Trees and containment](08-trees-and-containment.md) develops this hierarchy in detail. Semantic connections between Concepts are a separate model, described in [Relationships](03-relationships.md).
+
+## Notes, dates, appearance, and Context
+
+ConceptNotes contains format: plain and text: string. Concepts and instances each own independent notes. ConceptDate contains a date-only value (YYYY-MM-DD or an empty entry) and dateLabel, defaulting to Date. An empty dates array means no dates.
+
+ConceptAppearance is optional. It contains an optional backgroundColor and optional backgroundLayers. Each layer identifies an asset reference or gradient and may supply position, size, repeat, origin, clip, attachment, and blendMode. Omitted settings stay absent; these types do not implement asset storage or appearance rendering.
+
+Context.ts defines the singleton project record: identity/title and Concept-like metadata. contextRepository reads and writes context.json, while the other four repositories retain their record collections. The page loader supplies all five parts to the stable Editor. Root instances are still inferred from null parentInstanceId. Portable Context import/export is not implemented.
+
+Normalizers default legacy records to empty notes/dates, empty contextual properties, tree view, and unpinned state without rewriting the files. They detach nested metadata so copies do not share editable objects.
 
 ## ConceptCardView
 

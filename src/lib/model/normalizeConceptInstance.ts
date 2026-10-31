@@ -9,6 +9,9 @@ export function normalizeConceptInstance(
 	index = 0
 ): ConceptInstance {
 	return {
+		...(typeof instance.sequence === 'number' && Number.isFinite(instance.sequence)
+			? { sequence: instance.sequence }
+			: {}),
 		id: instance.id ?? `missing-instance-id-${index}`,
 		conceptId: instance.conceptId ?? `missing-concept-id-${index}`,
 		parentInstanceId: instance.parentInstanceId ?? null,

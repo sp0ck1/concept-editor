@@ -41,6 +41,18 @@ export async function updateConceptInstancesBatch(
 	return body.updated;
 }
 
+export async function deleteConceptInstancesBatch(ids: string[]): Promise<number> {
+	if (ids.length === 0) return 0;
+	const response = await fetch('/api/concept-instances/batch', {
+		method: 'DELETE',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ ids })
+	});
+	if (!response.ok) throw new Error(await getErrorMessage(response));
+	const body = (await response.json()) as { deleted: number };
+	return body.deleted;
+}
+
 export async function deleteConceptInstanceRecord(id: string): Promise<void> {
 	const response = await fetch('/api/concept-instances', {
 		method: 'DELETE',

@@ -1,3 +1,5 @@
+import { normalizeContext } from '$lib/model/normalizeContext';
+import { updateContextRecord } from '$lib/client/context';
 import { normalizeConcept } from '$lib/model/normalizeConcept';
 import { normalizeConceptInstance } from '$lib/model/normalizeConceptInstance';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +12,7 @@ import {
 } from '$lib/client/concepts';
 import {
 	deleteConceptInstanceRecord,
+	deleteConceptInstancesBatch,
 	importChildrenFromConceptInstance,
 	updateConceptInstanceRecord,
 	updateConceptInstancesBatch
@@ -18,6 +21,7 @@ import { Editor } from './Editor.svelte';
 import type { EditorData } from './EditorTypes';
 
 vi.mock('$app/navigation', () => ({ invalidateAll: vi.fn() }));
+vi.mock('$lib/client/context', () => ({ updateContextRecord: vi.fn() }));
 vi.mock('$lib/client/concepts', () => ({
 	createConceptRecord: vi.fn(),
 	ensureConceptByTitle: vi.fn(),
@@ -26,6 +30,7 @@ vi.mock('$lib/client/concepts', () => ({
 }));
 vi.mock('$lib/client/conceptInstances', () => ({
 	deleteConceptInstanceRecord: vi.fn(),
+	deleteConceptInstancesBatch: vi.fn(),
 	importChildrenFromConceptInstance: vi.fn(),
 	updateConceptInstanceRecord: vi.fn(),
 	updateConceptInstancesBatch: vi.fn()
@@ -33,6 +38,7 @@ vi.mock('$lib/client/conceptInstances', () => ({
 
 function fixture(): EditorData {
 	return {
+		context: normalizeContext({ id: 'test-context', title: 'Test project' }),
 		concepts: [
 			{
 				id: 'test-concept',
@@ -96,19 +102,25 @@ const batchUpdates = [
 ];
 const saveCases = [
 	{
-		name: 'Concept',
+		title: 'Context',
+		client: vi.mocked(updateContextRecord),
+		args: [{ title: 'Changed project' }],
+		save: (editor: Editor) => editor.updateContext({ title: 'Changed project' })
+	},
+	{
+		title: 'Concept',
 		client: vi.mocked(updateConceptRecord),
 		args: ['test-concept', conceptUpdates],
 		save: (editor: Editor) => editor.updateConcept('test-concept', conceptUpdates)
 	},
 	{
-		name: 'instance',
+		title: 'instance',
 		client: vi.mocked(updateConceptInstanceRecord),
 		args: ['test-instance-a', geometry],
 		save: (editor: Editor) => editor.updateInstance('test-instance-a', geometry)
 	},
 	{
-		name: 'batch',
+		title: 'batch',
 		client: vi.mocked(updateConceptInstancesBatch),
 		args: [batchUpdates],
 		save: (editor: Editor) => editor.updateInstancesBatch(batchUpdates)
@@ -126,6 +138,7 @@ beforeEach(() => {
 	vi.stubGlobal('fetch', fetchGuard);
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 	loadedData = fixture();
+	vi.mocked(updateContextRecord).mockResolvedValue(fixture().context);
 	editor = new Editor(loadedData);
 	vi.mocked(invalidateAll).mockRejectedValue(new Error('Navigation must not run during recovery'));
 	vi.mocked(updateConceptRecord).mockResolvedValue(fixture().concepts[0]);
@@ -136,6 +149,7 @@ beforeEach(() => {
 		ensureConceptByTitle,
 		updateConceptTitleFromInstanceRecord,
 		deleteConceptInstanceRecord,
+		deleteConceptInstancesBatch,
 		importChildrenFromConceptInstance
 	]) {
 		vi.mocked(client).mockRejectedValue(new Error('Unexpected client call'));
@@ -556,4 +570,451 @@ describe('CanvasController keyboard regression', () => {
 			expect(editor.importChildrenMenu.targetInstanceId).toBeNull();
 		}
 	);
+});
+
+describe('Editor creation parent selection', () => {
+	it.each([
+		{ title: 'omitted parent', options: {}, expected: 'test-instance-a' },
+		{
+			title: 'undefined parent',
+			options: { parentInstanceId: undefined },
+			expected: 'test-instance-a'
+		},
+		{ title: 'explicit root', options: { parentInstanceId: null }, expected: null },
+		{
+			title: 'explicit parent',
+			options: { parentInstanceId: 'test-instance-b' },
+			expected: 'test-instance-b'
+		}
+	])('uses the correct parent for: $name', async ({ options, expected }) => {
+		editor.currentCanvasOwnerInstanceId = 'test-instance-a';
+		vi.mocked(createConceptRecord).mockResolvedValueOnce({
+			concept: loadedData.concepts[0],
+			instance: loadedData.instances[0]
+		});
+		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
+
+		await editor.createConcept({ ...options, focusAfterCreate: false });
+
+		expect(createConceptRecord).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({ parentInstanceId: expected })
+		);
+	});
+});
+
+describe('Editor Context data', () => {
+	it('loads and refreshes project metadata without replacing the Editor', () => {
+		expect(editor.context.title).toBe('Test project');
+		const refreshed = fixture();
+		refreshed.context.title = 'Renamed project';
+		refreshed.context.properties = { status: 'updated' };
+		editor.replaceData(refreshed);
+		expect(editor.context.title).toBe('Renamed project');
+		expect(editor.context.properties).toEqual({ status: 'updated' });
+		expect(editor.getRootCards()).toHaveLength(2);
+	});
+	it('refreshes loaded Context metadata after a successful save', async () => {
+		const refreshed = fixture();
+		refreshed.context.title = 'Saved project';
+		vi.mocked(invalidateAll).mockImplementationOnce(async () => editor.replaceData(refreshed));
+		await expect(editor.updateContext({ title: 'Saved project' })).resolves.toBe(true);
+		expect(editor.context.title).toBe('Saved project');
+	});
+	it('restores detached Context metadata on failed saves without navigation', async () => {
+		loadedData.context.title = 'Mutated input';
+		editor.context.title = 'Unsaved name';
+		editor.context.properties.status = 'Unsaved property';
+		editor.context.notes.text = 'Unsaved notes';
+		vi.mocked(updateContextRecord).mockRejectedValueOnce(new Error('Offline'));
+		await expect(editor.updateContext({ title: 'Unsaved name' })).resolves.toBe(false);
+		expect(editor.context).toEqual(fixture().context);
+		expect(invalidateAll).not.toHaveBeenCalled();
+	});
+});
+
+describe('Context sidebar commands', () => {
+	it('saves Context properties without updating a Concept', async () => {
+		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
+		await expect(editor.setContextProperties({ status: 'project' })).resolves.toBe(true);
+		expect(editor.context.properties).toEqual({ status: 'project' });
+		expect(updateContextRecord).toHaveBeenCalledExactlyOnceWith({
+			properties: { status: 'project' }
+		});
+		expect(updateConceptRecord).not.toHaveBeenCalled();
+	});
+	it('restores saved Context properties after a failed property edit', async () => {
+		vi.mocked(updateContextRecord).mockRejectedValueOnce(new Error('Offline'));
+		await expect(editor.setContextProperties({ status: 'unsaved' })).resolves.toBe(false);
+		expect(editor.context.properties).toEqual(fixture().context.properties);
+		expect(invalidateAll).not.toHaveBeenCalled();
+	});
+	it('adds a tag Concept reference to the Context and removes duplicates', async () => {
+		const tag = fixture().concepts[1];
+		editor.context.tagConceptIds = [tag.id];
+		vi.mocked(ensureConceptByTitle).mockResolvedValueOnce({ concept: tag, created: false });
+		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
+		await expect(editor.addContextTag(tag.title)).resolves.toBe(true);
+		expect(ensureConceptByTitle).toHaveBeenCalledExactlyOnceWith(tag.title);
+		expect(updateContextRecord).toHaveBeenCalledExactlyOnceWith({ tagConceptIds: [tag.id] });
+		expect(updateConceptRecord).not.toHaveBeenCalled();
+	});
+	it('makes a newly created tag available without modifying a Concept sidebar owner', async () => {
+		const tag = { ...fixture().concepts[1], id: 'new-tag', title: 'New tag' };
+		vi.mocked(ensureConceptByTitle).mockResolvedValueOnce({ concept: tag, created: true });
+		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
+		await expect(editor.addContextTag(tag.title)).resolves.toBe(true);
+		expect(editor.getConceptById(tag.id)).toEqual(tag);
+		expect(editor.context.tagConceptIds).toEqual([tag.id]);
+		expect(editor.concepts[0].tagConceptIds).toEqual(fixture().concepts[0].tagConceptIds);
+	});
+	it('removes only the selected Context tag reference', async () => {
+		const tag = fixture().concepts[1];
+		editor.context.tagConceptIds = [tag.id, 'other-tag'];
+		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
+		await expect(editor.removeContextTag(tag)).resolves.toBe(true);
+		expect(updateContextRecord).toHaveBeenCalledExactlyOnceWith({ tagConceptIds: ['other-tag'] });
+		expect(editor.getConceptById(tag.id)).toEqual(tag);
+		expect(updateConceptRecord).not.toHaveBeenCalled();
+	});
+	it('recovers when ensuring a Context tag fails before the metadata save', async () => {
+		vi.mocked(ensureConceptByTitle).mockRejectedValueOnce(new Error('Offline'));
+		await expect(editor.addContextTag('New tag')).resolves.toBe(false);
+		expect(editor.context).toEqual(fixture().context);
+		expect(updateContextRecord).not.toHaveBeenCalled();
+		expect(invalidateAll).not.toHaveBeenCalled();
+	});
+});
+
+describe('context-menu instance deletion', () => {
+	function menu(instanceId: string) {
+		editor.contextMenu = { visible: true, x: 10, y: 10, targetType: 'card', instanceId };
+	}
+	it('deletes the selected visible group in one request and clears stale selection/drag state', async () => {
+		const ids = fixture().instances.map((instance) => instance.id);
+		editor.selectedInstanceIds = new Set(ids);
+		editor.activeInstanceId = ids[0];
+		editor.pendingFocusInstanceId = ids[1];
+		editor.canvas.pendingDragState = {
+			...editor.canvas.pendingDragState,
+			active: true,
+			instanceId: ids[0]
+		};
+		menu(ids[0]);
+		const refreshed = fixture();
+		refreshed.instances = [];
+		vi.mocked(deleteConceptInstancesBatch).mockResolvedValueOnce(2);
+		vi.mocked(invalidateAll).mockImplementationOnce(async () => editor.replaceData(refreshed));
+		await expect(editor.deleteInstanceFromMenu()).resolves.toBe(true);
+		expect(deleteConceptInstancesBatch).toHaveBeenCalledExactlyOnceWith(ids);
+		expect(deleteConceptInstanceRecord).not.toHaveBeenCalled();
+		expect(invalidateAll).toHaveBeenCalledTimes(1);
+		expect(editor.instances).toEqual([]);
+		expect(editor.concepts).toEqual(fixture().concepts);
+		expect(editor.selectedInstanceIds.size).toBe(0);
+		expect(editor.activeInstanceId).toBeNull();
+		expect(editor.pendingFocusInstanceId).toBeNull();
+		expect(editor.canvas.pendingDragState.active).toBe(false);
+		expect(editor.contextMenu.visible).toBe(false);
+	});
+	it('does not expand a single unselected menu target into another selection', async () => {
+		editor.selectOnlyInstance('test-instance-a');
+		menu('test-instance-b');
+		vi.mocked(deleteConceptInstancesBatch).mockResolvedValueOnce(1);
+		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
+		await expect(editor.deleteInstanceFromMenu()).resolves.toBe(true);
+		expect(deleteConceptInstancesBatch).toHaveBeenCalledExactlyOnceWith(['test-instance-b']);
+		expect(deleteConceptInstanceRecord).not.toHaveBeenCalled();
+		expect([...editor.selectedInstanceIds]).toEqual(['test-instance-a']);
+	});
+	it('ignores selected IDs that are not visible on the current canvas', () => {
+		editor.instances = [
+			...editor.instances,
+			{ ...fixture().instances[0], id: 'child', parentInstanceId: 'test-instance-a' }
+		];
+		editor.selectedInstanceIds = new Set(['test-instance-a', 'test-instance-b', 'child', 'stale']);
+		menu('test-instance-a');
+		expect(editor.getContextMenuDeleteInstanceIds()).toEqual([
+			'test-instance-a',
+			'test-instance-b'
+		]);
+	});
+	it('deduplicates batch IDs', async () => {
+		vi.mocked(deleteConceptInstancesBatch).mockResolvedValueOnce(2);
+		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
+		await expect(
+			editor.deleteInstances(['test-instance-a', 'test-instance-a', 'test-instance-b'])
+		).resolves.toBe(true);
+		expect(deleteConceptInstancesBatch).toHaveBeenCalledExactlyOnceWith([
+			'test-instance-a',
+			'test-instance-b'
+		]);
+	});
+	it('does nothing without a card target or instances', async () => {
+		await expect(editor.deleteInstanceFromMenu()).resolves.toBe(true);
+		expect(deleteConceptInstancesBatch).not.toHaveBeenCalled();
+		expect(deleteConceptInstanceRecord).not.toHaveBeenCalled();
+		expect(invalidateAll).not.toHaveBeenCalled();
+	});
+	it('keeps loaded records and reports a failed group deletion without navigating', async () => {
+		editor.selectedInstanceIds = new Set(['test-instance-a', 'test-instance-b']);
+		menu('test-instance-a');
+		vi.mocked(deleteConceptInstancesBatch).mockRejectedValueOnce(new Error('Offline'));
+		await expect(editor.deleteInstanceFromMenu()).resolves.toBe(false);
+		expect(editor.instances).toEqual(fixture().instances);
+		expect(editor.selectedInstanceIds.size).toBe(2);
+		expect(editor.saveError).toContain('Could not confirm that instances were deleted');
+		expect(invalidateAll).not.toHaveBeenCalled();
+	});
+	it('keeps a selected group when right-clicking one of its cards', () => {
+		editor.selectedInstanceIds = new Set(['test-instance-a', 'test-instance-b']);
+		const event = {
+			preventDefault: vi.fn(),
+			stopPropagation: vi.fn(),
+			clientX: 10,
+			clientY: 10
+		} as unknown as MouseEvent;
+		editor.canvas.handleCardContextMenu(event, editor.getCard('test-instance-a')!);
+		expect(editor.getContextMenuDeleteInstanceIds()).toEqual([
+			'test-instance-a',
+			'test-instance-b'
+		]);
+	});
+	it('right-clicking an unselected card targets only that card', () => {
+		editor.selectOnlyInstance('test-instance-a');
+		const event = {
+			preventDefault: vi.fn(),
+			stopPropagation: vi.fn(),
+			clientX: 10,
+			clientY: 10
+		} as unknown as MouseEvent;
+		editor.canvas.handleCardContextMenu(event, editor.getCard('test-instance-b')!);
+		expect(editor.getContextMenuDeleteInstanceIds()).toEqual(['test-instance-b']);
+	});
+});
+
+describe('stale deletion targets', () => {
+	function menu(instanceId: string) {
+		editor.contextMenu = { visible: true, x: 0, y: 0, targetType: 'card', instanceId };
+	}
+	it('does not send an absent unselected menu target and clears stale active references', async () => {
+		editor.activeInstanceId = 'missing';
+		editor.pendingFocusInstanceId = 'missing';
+		menu('missing');
+		expect(editor.getContextMenuDeleteInstanceIds()).toEqual([]);
+		await expect(editor.deleteInstanceFromMenu()).resolves.toBe(true);
+		expect(deleteConceptInstancesBatch).not.toHaveBeenCalled();
+		expect(deleteConceptInstanceRecord).not.toHaveBeenCalled();
+		expect(editor.activeInstanceId).toBeNull();
+		expect(editor.pendingFocusInstanceId).toBeNull();
+	});
+	it('keeps an unrelated valid selection when the unselected menu target is stale', async () => {
+		editor.selectOnlyInstance('test-instance-a');
+		menu('missing');
+		await expect(editor.deleteInstanceFromMenu()).resolves.toBe(true);
+		expect(deleteConceptInstancesBatch).not.toHaveBeenCalled();
+		expect([...editor.selectedInstanceIds]).toEqual(['test-instance-a']);
+	});
+	it('uses surviving selected records after the menu target disappears on refresh', async () => {
+		editor.selectedInstanceIds = new Set(['test-instance-a', 'test-instance-b']);
+		menu('test-instance-a');
+		const refreshed = fixture();
+		refreshed.instances = [refreshed.instances[1]];
+		editor.replaceData(refreshed);
+		expect(editor.getContextMenuDeleteInstanceIds()).toEqual(['test-instance-b']);
+		vi.mocked(deleteConceptInstancesBatch).mockResolvedValueOnce(1);
+		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
+		await expect(editor.deleteInstanceFromMenu()).resolves.toBe(true);
+		expect(deleteConceptInstancesBatch).toHaveBeenCalledExactlyOnceWith(['test-instance-b']);
+		expect(editor.selectedInstanceIds.size).toBe(0);
+	});
+	it('does not use a menu target that has moved off the current canvas', async () => {
+		editor.instances[0].parentInstanceId = 'test-instance-b';
+		menu('test-instance-a');
+		await expect(editor.deleteInstanceFromMenu()).resolves.toBe(true);
+		expect(deleteConceptInstancesBatch).not.toHaveBeenCalled();
+	});
+	it('filters missing IDs from direct deletion requests and prunes stale selection', async () => {
+		editor.selectedInstanceIds = new Set(['missing', 'test-instance-a']);
+		vi.mocked(deleteConceptInstancesBatch).mockResolvedValueOnce(1);
+		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
+		await expect(editor.deleteInstances(['missing', 'test-instance-a', 'missing'])).resolves.toBe(
+			true
+		);
+		expect(deleteConceptInstancesBatch).toHaveBeenCalledExactlyOnceWith(['test-instance-a']);
+		expect(deleteConceptInstanceRecord).not.toHaveBeenCalled();
+		expect(editor.selectedInstanceIds.size).toBe(0);
+	});
+	it('refreshes rather than failing when the server already removed the single target', async () => {
+		editor.selectOnlyInstance('test-instance-a');
+		const refreshed = fixture();
+		refreshed.instances = [refreshed.instances[1]];
+		vi.mocked(deleteConceptInstancesBatch).mockResolvedValueOnce(0);
+		vi.mocked(invalidateAll).mockImplementationOnce(async () => editor.replaceData(refreshed));
+		await expect(editor.deleteInstance('test-instance-a')).resolves.toBe(true);
+		expect(deleteConceptInstancesBatch).toHaveBeenCalledExactlyOnceWith(['test-instance-a']);
+		expect(deleteConceptInstanceRecord).not.toHaveBeenCalled();
+		expect(editor.getCard('test-instance-a')).toBeUndefined();
+		expect(editor.saveError).toBeNull();
+		expect(editor.activeInstanceId).toBeNull();
+	});
+});
+
+describe('blank-canvas right-click hold', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.stubGlobal('window', { setTimeout: vi.fn(setTimeout), clearTimeout: vi.fn(clearTimeout) });
+	});
+	afterEach(() => vi.useRealTimers());
+	function pointer(button: number) {
+		return { button, clientX: 100, clientY: 200 } as PointerEvent;
+	}
+	it('schedules the TODO callback for 1500ms without changing selection or opening a menu', () => {
+		editor.selectOnlyInstance('test-instance-a');
+		editor.canvas.handleCanvasPointerDown(pointer(2));
+		expect(window.setTimeout).toHaveBeenCalledExactlyOnceWith(expect.any(Function), 1500);
+		expect(vi.getTimerCount()).toBe(1);
+		vi.advanceTimersByTime(1499);
+		expect(vi.getTimerCount()).toBe(1);
+		vi.advanceTimersByTime(1);
+		expect(vi.getTimerCount()).toBe(0);
+		expect([...editor.selectedInstanceIds]).toEqual(['test-instance-a']);
+		expect(editor.contextMenu.visible).toBe(false);
+		expect(editor.canvas.selectionBoxState.active).toBe(false);
+		expect(editor.canvas.isPanning).toBe(false);
+		editor.canvas.cancelRightClickHold();
+		expect(window.clearTimeout).not.toHaveBeenCalled();
+	});
+	it('opens the regular menu only on a short right-button release', async () => {
+		vi.spyOn(editor.canvas, 'getWorldPointFromEvent').mockReturnValue({ x: 25, y: 50 });
+		editor.canvas.handleCanvasPointerDown(pointer(2));
+		vi.advanceTimersByTime(1499);
+		expect(editor.contextMenu.visible).toBe(false);
+		await editor.canvas.handleWindowPointerUp(pointer(2));
+		expect(window.clearTimeout).toHaveBeenCalledTimes(1);
+		expect(vi.getTimerCount()).toBe(0);
+		expect(editor.contextMenu).toMatchObject({
+			visible: true,
+			targetType: 'canvas',
+			x: 100,
+			y: 200,
+			worldX: 25,
+			worldY: 50
+		});
+		vi.advanceTimersByTime(1500);
+		expect(editor.contextMenu.visible).toBe(true);
+	});
+	it('replaces a pending hold rather than scheduling two callbacks', () => {
+		editor.canvas.handleCanvasPointerDown(pointer(2));
+		vi.advanceTimersByTime(1000);
+		editor.canvas.handleCanvasPointerDown(pointer(2));
+		expect(window.setTimeout).toHaveBeenCalledTimes(2);
+		expect(window.clearTimeout).toHaveBeenCalledTimes(1);
+		vi.advanceTimersByTime(500);
+		expect(vi.getTimerCount()).toBe(1);
+		vi.advanceTimersByTime(1000);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+	it('cancels through interaction reset and tolerates repeated cancellation', () => {
+		editor.canvas.handleCanvasPointerDown(pointer(2));
+		editor.canvas.clearInteractiveState();
+		editor.canvas.cancelRightClickHold();
+		expect(window.clearTimeout).toHaveBeenCalledTimes(1);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+	it('does not cancel a held right button when another button is released', async () => {
+		editor.canvas.handleCanvasPointerDown(pointer(2));
+		await editor.canvas.handleWindowPointerUp(pointer(0));
+		expect(vi.getTimerCount()).toBe(1);
+		editor.canvas.cancelRightClickHold();
+		expect(vi.getTimerCount()).toBe(0);
+	});
+	it('does not schedule a hold for an unrelated pointer button', () => {
+		editor.canvas.handleCanvasPointerDown(pointer(3));
+		expect(window.setTimeout).not.toHaveBeenCalled();
+	});
+	it('suppresses the regular menu on release after a long hold', async () => {
+		editor.canvas.handleCanvasPointerDown(pointer(2));
+		vi.advanceTimersByTime(1500);
+		await editor.canvas.handleWindowPointerUp(pointer(2));
+		expect(editor.contextMenu.visible).toBe(false);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+	it('prevents the native context menu without opening or reopening ours', async () => {
+		const event = { preventDefault: vi.fn() } as unknown as MouseEvent;
+		const open = vi.spyOn(editor.canvas, 'openCanvasContextMenu');
+		editor.canvas.handleCanvasPointerDown(pointer(2));
+		editor.canvas.handleCanvasContextMenu(event);
+		expect(event.preventDefault).toHaveBeenCalledTimes(1);
+		expect(open).not.toHaveBeenCalled();
+		await editor.canvas.handleWindowPointerUp(pointer(2));
+		expect(open).toHaveBeenCalledTimes(1);
+		editor.canvas.handleCanvasContextMenu(event);
+		expect(open).toHaveBeenCalledTimes(1);
+	});
+	it('does not open a menu on release after cancellation', async () => {
+		editor.canvas.handleCanvasPointerDown(pointer(2));
+		editor.canvas.cancelRightClickHold();
+		await editor.canvas.handleWindowPointerUp(pointer(2));
+		expect(editor.contextMenu.visible).toBe(false);
+	});
+	it('leaves card context-menu handling unchanged', async () => {
+		const event = {
+			preventDefault: vi.fn(),
+			stopPropagation: vi.fn(),
+			clientX: 100,
+			clientY: 200
+		} as unknown as MouseEvent;
+		editor.canvas.handleCardContextMenu(event, editor.getCard('test-instance-a')!);
+		await editor.canvas.handleWindowPointerUp(pointer(2));
+		expect(editor.contextMenu).toMatchObject({
+			visible: true,
+			targetType: 'card',
+			instanceId: 'test-instance-a'
+		});
+	});
+});
+
+describe('middle-button panning defaults', () => {
+	it.each(['canvas', 'card'])(
+		'prevents native press and release actions when panning from a %s',
+		async (surface) => {
+			const down = {
+				button: 1,
+				clientX: 100,
+				clientY: 200,
+				preventDefault: vi.fn()
+			} as unknown as PointerEvent;
+			const up = { button: 1, preventDefault: vi.fn() } as unknown as PointerEvent;
+			if (surface === 'canvas') {
+				editor.canvas.handleCanvasPointerDown(down);
+			} else {
+				editor.canvas.handleCardPointerDown(down, editor.getCard('test-instance-a')!);
+			}
+			expect(down.preventDefault).toHaveBeenCalledTimes(1);
+			expect(editor.canvas.isPanning).toBe(true);
+			await editor.canvas.handleWindowPointerUp(up);
+			expect(up.preventDefault).toHaveBeenCalledTimes(1);
+			expect(editor.canvas.isPanning).toBe(false);
+			expect(createConceptRecord).not.toHaveBeenCalled();
+		}
+	);
+	it('does not suppress a middle release outside a panning interaction', async () => {
+		const event = { button: 1, preventDefault: vi.fn() } as unknown as PointerEvent;
+		await editor.canvas.handleWindowPointerUp(event);
+		expect(event.preventDefault).not.toHaveBeenCalled();
+	});
+	it('keeps explicit paste import available', async () => {
+		activeElement(null);
+		const importItems = vi
+			.spyOn(editor.canvas, 'createConceptsFromParsedItems')
+			.mockResolvedValue(undefined);
+		const event = {
+			clipboardData: { getData: vi.fn(() => 'Explicit paste') },
+			preventDefault: vi.fn(),
+			stopPropagation: vi.fn()
+		} as unknown as ClipboardEvent;
+		await editor.canvas.handleCanvasPaste(event);
+		expect(importItems).toHaveBeenCalledTimes(1);
+		expect(event.preventDefault).toHaveBeenCalledTimes(1);
+	});
 });

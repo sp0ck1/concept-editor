@@ -38,7 +38,8 @@ const localMetadata = {
 	notes,
 	properties: { local: 'saved' },
 	view: 'notes' as const,
-	isPinned: true
+	isPinned: true,
+	sequence: 4
 };
 async function writeRecords(file: string, records: unknown[]) {
 	await writeFile(path.join(directory, 'src/lib/data', file), JSON.stringify(records));
@@ -298,4 +299,126 @@ describe('expanded model persistence', () => {
 			(await instances.importChildrenFromConceptInstance(source.id, target.id))?.importedCount
 		).toBe(0);
 	});
+});
+
+describe('instance sequence persistence', () => {
+	it('omits unassigned sequence and preserves it through both creation paths', async () => {
+		const unassigned = await instances.createConceptInstance({ conceptId: 'concept' });
+		const defaultPair = await service.createConceptWithInstance({ title: 'Default' });
+		const assigned = await instances.createConceptInstance({ conceptId: 'concept', sequence: 0 });
+		const assignedPair = await service.createConceptWithInstance({
+			title: 'Assigned',
+			sequence: 3
+		});
+		expect(unassigned).not.toHaveProperty('sequence');
+		expect(defaultPair.instance).not.toHaveProperty('sequence');
+		expect(assigned.sequence).toBe(0);
+		expect(assignedPair.instance.sequence).toBe(3);
+		const records = JSON.parse(
+			await readFile(path.join(directory, 'src/lib/data/concept_instances.json'), 'utf8')
+		);
+		expect(records.find((item: { id: string }) => item.id === unassigned.id)).not.toHaveProperty(
+			'sequence'
+		);
+		expect(
+			(await instances.getAllConceptInstances()).find((item) => item.id === assigned.id)?.sequence
+		).toBe(0);
+	});
+	it('ignores invalid sequence inputs during creation', async () => {
+		for (const sequence of [null, '2', NaN, Infinity]) {
+			expect(
+				await instances.createConceptInstance({
+					conceptId: 'concept',
+					sequence: sequence as number
+				})
+			).not.toHaveProperty('sequence');
+			expect(
+				(await service.createConceptWithInstance({ sequence: sequence as number })).instance
+			).not.toHaveProperty('sequence');
+		}
+	});
+	it.each([false, true])(
+		'updates sequence and preserves it for omitted or invalid fields (batch=%s)',
+		async (batch) => {
+			const instance = await instances.createConceptInstance({ conceptId: 'concept', sequence: 5 });
+			const update = (updates: UpdateConceptInstanceInput) =>
+				batch
+					? instances.updateConceptInstancesBatch([{ id: instance.id, updates }])
+					: instances.updateConceptInstance(instance.id, updates);
+			await update({ x: 25 });
+			for (const sequence of [undefined, null, '1', NaN, Infinity]) {
+				await update({ sequence: sequence as number });
+			}
+			expect((await instances.getAllConceptInstances())[0].sequence).toBe(5);
+			await update({ sequence: 0 });
+			expect((await instances.getAllConceptInstances())[0]).toMatchObject({ sequence: 0, x: 25 });
+		}
+	);
+});
+
+describe('instance batch deletion persistence', () => {
+	it('deletes only unique requested instances, preserving descendants and other files', async () => {
+		const concept = await concepts.createConcept('Shared', structuredClone(metadata));
+		const parent = await instances.createConceptInstance({ conceptId: concept.id });
+		const other = await instances.createConceptInstance({ conceptId: concept.id });
+		const child = await instances.createConceptInstance({
+			conceptId: concept.id,
+			parentInstanceId: parent.id,
+			...structuredClone(localMetadata),
+			sequence: 0,
+			x: -12.5,
+			y: 8.25,
+			width: 412.5,
+			height: 275.25,
+			lastCameraPanX: -32.5,
+			lastCameraPanY: 14.25,
+			lastCameraZoom: 1.75
+		});
+		const grandchild = await instances.createConceptInstance({
+			conceptId: concept.id,
+			parentInstanceId: child.id,
+			...structuredClone(localMetadata)
+		});
+		const survivor = await instances.createConceptInstance({ conceptId: concept.id });
+		await writeRecords('context.json', [{ id: 'context', title: 'Untouched' }]);
+		await writeRecords('concept_relationships.json', [{ id: 'relationship' }]);
+		await writeRecords('relationship_definitions.json', [{ id: 'definition' }]);
+		const protectedFiles = [
+			'concepts.json',
+			'context.json',
+			'concept_relationships.json',
+			'relationship_definitions.json'
+		];
+		const before = await Promise.all(
+			protectedFiles.map((file) => readFile(path.join(directory, 'src/lib/data', file)))
+		);
+
+		expect(
+			await instances.deleteConceptInstancesBatch([parent.id, parent.id, other.id, 'missing'])
+		).toBe(2);
+		expect(await instances.getAllConceptInstances()).toEqual([child, grandchild, survivor]);
+		expect(
+			JSON.parse(
+				await readFile(path.join(directory, 'src/lib/data/concept_instances.json'), 'utf8')
+			)
+		).toEqual([child, grandchild, survivor]);
+		for (const [index, file] of protectedFiles.entries()) {
+			expect(await readFile(path.join(directory, 'src/lib/data', file))).toEqual(before[index]);
+		}
+	});
+
+	it.each([{ ids: ['missing', 'missing'] }, { ids: [] }])(
+		'does not write for unmatched or empty IDs: %j',
+		async ({ ids }) => {
+			// Unformatted legacy bytes would change if the repository saved them.
+			const file = path.join(directory, 'src/lib/data/concept_instances.json');
+			await writeFile(
+				file,
+				'  ' + JSON.stringify([{ id: 'survivor', conceptId: 'concept' }]) + '  '
+			);
+			const before = await readFile(file);
+			expect(await instances.deleteConceptInstancesBatch(ids)).toBe(0);
+			expect(await readFile(file)).toEqual(before);
+		}
+	);
 });

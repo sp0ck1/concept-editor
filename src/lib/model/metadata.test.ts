@@ -77,7 +77,7 @@ describe('model metadata normalization', () => {
 		const concept = normalizeConcept({
 			notes: { format: 'plain', text: 'Shared' },
 			dates: [{ date: '', dateLabel: 'Date' }],
-			properties: { name: 'value' },
+			properties: { title: 'value' },
 			tagConceptIds: ['tag'],
 			appearance: {
 				backgroundLayers: [{ source: { type: 'asset', reference: 'paper' }, repeat: 'repeat' }]
@@ -86,12 +86,12 @@ describe('model metadata normalization', () => {
 		const copy = normalizeConcept(concept);
 		copy.notes.text = 'Changed';
 		copy.dates[0].dateLabel = 'Changed';
-		copy.properties.name = 'Changed';
+		copy.properties.title = 'Changed';
 		copy.tagConceptIds.push('another');
 		copy.appearance!.backgroundLayers![0].repeat = 'no-repeat';
 		expect(concept.notes.text).toBe('Shared');
 		expect(concept.dates[0].dateLabel).toBe('Date');
-		expect(concept.properties.name).toBe('value');
+		expect(concept.properties.title).toBe('value');
 		expect(concept.tagConceptIds).toEqual(['tag']);
 		expect(concept.appearance!.backgroundLayers![0].repeat).toBe('repeat');
 		const instance = normalizeConceptInstance({
@@ -111,4 +111,18 @@ describe('model metadata normalization', () => {
 			text: ''
 		});
 	});
+});
+
+describe('optional instance sequence', () => {
+	it.each([0, 1, 2.5])('preserves a finite sequence of %s', (sequence) => {
+		expect(normalizeConceptInstance({ sequence }).sequence).toBe(sequence);
+	});
+	it.each([undefined, null, '1', NaN, Infinity, -Infinity])(
+		'omits an unassigned or invalid sequence: %s',
+		(sequence) => {
+			const normalized = normalizeConceptInstance({ sequence: sequence as number });
+			expect(normalized).not.toHaveProperty('sequence');
+			expect(JSON.parse(JSON.stringify(normalized))).not.toHaveProperty('sequence');
+		}
+	);
 });

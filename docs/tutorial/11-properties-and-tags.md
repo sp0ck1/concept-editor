@@ -1,6 +1,6 @@
 # 11. Properties and tags
 
-Properties and tags are shared Concept metadata. They describe the reusable thing, not one placement of it. Two instances of the same Concept therefore share metadata while retaining independent geometry, parents, children, and cameras.
+Inside a Concept canvas, the property and tag controls described in this chapter edit shared Concept metadata. At the root workspace, the same controls edit the Context record through Context-specific commands and PATCH /api/context. Instances also support their own additive contextual properties in the model, but separate instance-property controls are not implemented. Tags remain Concept-only. Two instances share Concept metadata while retaining independent notes, contextual properties, geometry, parents, children, and cameras.
 
 This chapter covers metadata ownership, editing commands, local input drafts, and tag identity. Its display-only exercise does not require changes from earlier exercises; the relationship count from [Relationships](03-relationships.md) may remain if you added it.
 

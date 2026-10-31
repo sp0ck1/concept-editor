@@ -1,3 +1,6 @@
+import type { Context } from '$lib/model/Context';
+import { normalizeContext } from '$lib/model/normalizeContext';
+import { updateContextRecord } from '$lib/client/context';
 import { invalidateAll } from '$app/navigation';
 import { tick } from 'svelte';
 import {
@@ -7,7 +10,7 @@ import {
 	updateConceptTitleFromInstanceRecord
 } from '$lib/client/concepts';
 import {
-	deleteConceptInstanceRecord,
+	deleteConceptInstancesBatch,
 	importChildrenFromConceptInstance,
 	updateConceptInstanceRecord,
 	updateConceptInstancesBatch
@@ -36,12 +39,14 @@ export class Editor {
 
 	// Keep a detached baseline so failed optimistic edits can be reverted even while offline.
 	private lastLoadedData: EditorData = {
+		context: normalizeContext({}),
 		concepts: [],
 		instances: [],
 		relationships: [],
 		relationshipDefinitions: []
 	};
 
+	context = $state<Context>(normalizeContext({}));
 	concepts = $state<EditorData['concepts']>([]);
 	instances = $state<EditorData['instances']>([]);
 	relationships = $state<EditorData['relationships']>([]);
@@ -222,6 +227,7 @@ export class Editor {
 
 	replaceData(data: EditorData) {
 		this.lastLoadedData = structuredClone($state.snapshot(data));
+		this.context = normalizeContext(data.context);
 		this.concepts = data.concepts.map(normalizeConcept);
 		this.instances = data.instances.map(normalizeConceptInstance);
 		this.relationships = data.relationships;
@@ -332,13 +338,17 @@ export class Editor {
 	async createConcept(options: CreateConceptOptions = {}) {
 		const sizePreset = options.sizePreset ?? 'medium';
 		const presetSize = conceptSizePresets[sizePreset];
+		const parentInstanceId =
+			options.parentInstanceId === undefined
+				? this.currentCanvasOwnerInstanceId
+				: options.parentInstanceId;
 
 		const result = await createConceptRecord({
 			...(options.position ?? {}),
 			...(options.title !== undefined ? { title: options.title } : {}),
 			width: options.width ?? presetSize.width,
 			height: options.height ?? presetSize.height,
-			parentInstanceId: options.parentInstanceId ?? this.currentCanvasOwnerInstanceId
+			parentInstanceId
 		});
 
 		if (options.focusAfterCreate ?? true) {
@@ -356,6 +366,19 @@ export class Editor {
 		this.replaceData(this.lastLoadedData);
 		this.saveError = `${message} The last loaded data has been restored. Reload when the server is available to check which changes were saved.`;
 		return false;
+	}
+
+	async updateContext(updates: Partial<Omit<Context, 'id'>>) {
+		try {
+			await updateContextRecord(updates);
+			await invalidateAll();
+			return true;
+		} catch (error) {
+			return this.recoverFromSaveFailure(
+				'Could not confirm that Context changes were saved.',
+				error
+			);
+		}
 	}
 
 	async updateConcept(id: string, updates: Partial<Omit<Concept, 'id' | 'title'>>) {
@@ -404,14 +427,42 @@ export class Editor {
 	}
 
 	async deleteInstance(id: string) {
-		try {
-			await deleteConceptInstanceRecord(id);
-		} catch {
-			console.error('Failed to delete concept instance');
-			return;
-		}
+		return this.deleteInstances([id]);
+	}
 
-		await invalidateAll();
+	async deleteInstances(instanceIds: string[]) {
+		const existingIds = new Set(this.instances.map((instance) => instance.id));
+		this.selectedInstanceIds = new Set(
+			[...this.selectedInstanceIds].filter((id) => existingIds.has(id))
+		);
+		if (this.activeInstanceId && !existingIds.has(this.activeInstanceId))
+			this.activeInstanceId = null;
+		if (this.pendingFocusInstanceId && !existingIds.has(this.pendingFocusInstanceId))
+			this.pendingFocusInstanceId = null;
+		const ids = [...new Set(instanceIds)].filter((id) => existingIds.has(id));
+		if (ids.length === 0) return true;
+		const deletedIds = new Set(ids);
+		this.canvas.clearInteractiveState();
+		this.canvas.clearMarqueePreviewSelection();
+		try {
+			await deleteConceptInstancesBatch(ids);
+			this.selectedInstanceIds = new Set(
+				[...this.selectedInstanceIds].filter((id) => !deletedIds.has(id))
+			);
+			if (this.activeInstanceId && deletedIds.has(this.activeInstanceId))
+				this.activeInstanceId = null;
+			if (this.pendingFocusInstanceId && deletedIds.has(this.pendingFocusInstanceId))
+				this.pendingFocusInstanceId = null;
+			if (
+				this.importChildrenMenu.targetInstanceId &&
+				deletedIds.has(this.importChildrenMenu.targetInstanceId)
+			)
+				this.closeImportChildrenMenu();
+			await invalidateAll();
+			return true;
+		} catch (error) {
+			return this.recoverFromSaveFailure('Could not confirm that instances were deleted.', error);
+		}
 	}
 
 	async commitTitleEdit(card: ConceptCardView, nextTitle: string) {
@@ -449,6 +500,39 @@ export class Editor {
 		this.titleConflict = null;
 
 		await invalidateAll();
+	}
+
+	async setContextProperties(properties: Record<string, string>) {
+		this.context.properties = properties;
+		return this.updateContext({ properties });
+	}
+
+	async setContextTagConceptIds(tagConceptIds: string[]) {
+		const uniqueTagConceptIds = [...new Set(tagConceptIds)];
+		this.context.tagConceptIds = uniqueTagConceptIds;
+		return this.updateContext({ tagConceptIds: uniqueTagConceptIds });
+	}
+
+	async addContextTag(title: string) {
+		let result: Awaited<ReturnType<typeof ensureConceptByTitle>>;
+		try {
+			result = await ensureConceptByTitle(title);
+		} catch (error) {
+			return this.recoverFromSaveFailure(
+				'Could not confirm that the Context tag was saved.',
+				error
+			);
+		}
+		if (!this.concepts.some((concept) => concept.id === result.concept.id)) {
+			this.concepts = [...this.concepts, normalizeConcept(result.concept)];
+		}
+		return this.setContextTagConceptIds([...this.context.tagConceptIds, result.concept.id]);
+	}
+
+	async removeContextTag(tagConcept: Concept) {
+		return this.setContextTagConceptIds(
+			this.context.tagConceptIds.filter((conceptId) => conceptId !== tagConcept.id)
+		);
 	}
 
 	async setProperties(card: ConceptCardView, properties: Record<string, string>) {
@@ -530,13 +614,22 @@ export class Editor {
 		this.closeContextMenu();
 	}
 
-	async deleteInstanceFromMenu() {
-		if (this.contextMenu.targetType !== 'card') {
-			return;
-		}
+	getContextMenuDeleteInstanceIds(): string[] {
+		if (this.contextMenu.targetType !== 'card') return [];
+		const targetId = this.contextMenu.instanceId;
+		return this.selectedInstanceIds.has(targetId)
+			? this.cardsInCurrentCanvas
+					.filter((card) => this.selectedInstanceIds.has(card.instance.id))
+					.map((card) => card.instance.id)
+			: this.cardsInCurrentCanvas.some((card) => card.instance.id === targetId)
+				? [targetId]
+				: [];
+	}
 
-		await this.deleteInstance(this.contextMenu.instanceId);
+	async deleteInstanceFromMenu() {
+		const ids = this.getContextMenuDeleteInstanceIds();
 		this.closeContextMenu();
+		return this.deleteInstances(ids);
 	}
 
 	openImportChildrenMenu() {

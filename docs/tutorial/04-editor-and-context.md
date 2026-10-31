@@ -4,6 +4,8 @@ The `Editor` is the shared state object for one workspace. Components use it to 
 
 The Editor is separate from `ConceptEditor.svelte`: the class coordinates state and commands; the component composes the workspace and connects it to page data and DOM events.
 
+The project Context record and Svelte context have different jobs. The project record is loaded from context.json into editor.context; it supplies project metadata and the displayed workspace name. Svelte context supplies the stable Editor instance to descendant components.
+
 ## Source files and main operations
 
 | File                                                   | Responsibility and main operations                                                          |
@@ -20,11 +22,11 @@ The Editor constructor creates one `CanvasController` and calls `replaceData(dat
 
 The class contains three different kinds of state:
 
-| Kind           | Examples                                                                  | Purpose                                                       |
-| -------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Loaded records | `concepts`, `instances`, `relationships`, `relationshipDefinitions`       | Client-side working data supplied by the server               |
-| Derived values | `cards`, `cardsByInstanceId`, `cardsInCurrentCanvas`, `currentBreadcrumb` | Indexes and views calculated from records and current context |
-| UI state       | `selectedInstanceIds`, `activeInstanceId`, `sidebarVisible`, `mainView`   | Current interaction and presentation choices                  |
+| Kind           | Examples                                                                       | Purpose                                                       |
+| -------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| Loaded records | `context`, `concepts`, `instances`, `relationships`, `relationshipDefinitions` | Client-side working data supplied by the server               |
+| Derived values | `cards`, `cardsByInstanceId`, `cardsInCurrentCanvas`, `currentBreadcrumb`      | Indexes and views calculated from records and current context |
+| UI state       | `selectedInstanceIds`, `activeInstanceId`, `sidebarVisible`, `mainView`        | Current interaction and presentation choices                  |
 
 Fields declared with `$state` are reactive. Fields declared with `$derived` or `$derived.by` are calculated from reactive dependencies.
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import CanvasContextMenu from '$lib/components/editor/canvas/CanvasContextMenu.svelte';
 	import ConceptCanvas from '$lib/components/editor/canvas/ConceptCanvas.svelte';
 	import CanvasTopbar from '$lib/components/editor/canvas/CanvasTopbar.svelte';
@@ -14,15 +14,17 @@
 
 	const editor = untrack(() => new Editor(data));
 	setEditorContext(editor);
+	onDestroy(() => editor.canvas.cancelRightClickHold());
 
 	$effect(() => {
+		const context = data.context;
 		const concepts = data.concepts;
 		const instances = data.instances;
 		const relationships = data.relationships;
 		const relationshipDefinitions = data.relationshipDefinitions;
 
 		untrack(() => {
-			editor.replaceData({ concepts, instances, relationships, relationshipDefinitions });
+			editor.replaceData({ context, concepts, instances, relationships, relationshipDefinitions });
 		});
 	});
 
@@ -71,6 +73,8 @@
 	onkeydown={(event) => editor.canvas.handleWindowKeydown(event)}
 	onpointermove={(event) => editor.canvas.handleWindowPointerMove(event)}
 	onpointerup={(event) => void editor.canvas.handleWindowPointerUp(event)}
+	onpointercancel={() => editor.canvas.cancelRightClickHold()}
+	onblur={() => editor.canvas.cancelRightClickHold()}
 />
 
 <div class="concept-workspace">
@@ -130,7 +134,7 @@
 			{#if editor.canvas.pasteConfirmation.visible}
 				<PasteImportConfirmation
 					itemsCount={editor.canvas.pasteConfirmation.items.length}
-					targetConceptName={editor.canvas.pasteConfirmation.targetConceptName}
+					targetConceptTitle={editor.canvas.pasteConfirmation.targetConceptTitle}
 					onConfirm={() => editor.canvas.confirmPasteImport()}
 					onCancel={() => editor.canvas.cancelPasteImport()}
 				/>

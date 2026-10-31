@@ -7,7 +7,7 @@
 <header class="concept-topbar">
 	<nav class="canvas-breadcrumb" aria-label="Canvas breadcrumb">
 		<button class="canvas-breadcrumb-item" type="button" onclick={() => editor.openRootCanvas()}
-			>Context Name (Root)</button
+			>{editor.context.title || 'Untitled Context'}</button
 		>
 
 		{#each editor.currentBreadcrumb as breadcrumbCard (breadcrumbCard.instance.id)}
@@ -27,7 +27,7 @@
 		{#if editor.currentCanvasOwnerCard}
 			{editor.currentCanvasOwnerCard.concept.title || editor.currentCanvasOwnerCard.concept.id}
 		{:else}
-			Context Name (Placeholder)
+			{editor.context.title || 'Untitled Context'}
 		{/if}
 	</div>
 
@@ -72,7 +72,7 @@
 		gap: 1rem;
 		padding: 0 0.75rem;
 		border-bottom: 1px solid hsl(224 8% 24%);
-		background: var(--ui-panel-bg-color);
+		background: var(--canvas-background-contrast-color);
 		box-sizing: border-box;
 	}
 
@@ -101,12 +101,13 @@
 	}
 
 	.topbar-button-group button {
-		border: 1px solid hsl(224 8% 32%);
-		border-radius: 0.3rem;
-		background: hsl(224 8% 20%);
-		color: hsl(0 0% 88%);
+		border: 1px solid #6E5757;
+		border-radius: 0.2rem;
+		background: hsl(61, 52%, 75%);
+		color: hsl(0, 100%, 3%);
 		padding: 0.18rem 0.42rem;
 		font: inherit;
+		font-weight: bold;
 		font-size: 0.7rem;
 		line-height: 1.2;
 		cursor: pointer;

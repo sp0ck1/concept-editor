@@ -9,6 +9,7 @@
 
 	let sidebarTab = $derived(editor.sidebarTab);
 	let currentCanvasOwnerCard = $derived(editor.currentCanvasOwnerCard);
+	let sidebarMetadata = $derived(currentCanvasOwnerCard?.concept ?? editor.context);
 	let relationships = $derived(editor.currentConceptRelationships);
 	let relationshipDefinitions = $derived(editor.relationshipDefinitions);
 	let sidebarNewTag = $state('');
@@ -22,8 +23,23 @@
 		newPropertyValue = '';
 	});
 
+	function saveProperties(card: ConceptCardView | null, properties: Record<string, string>) {
+		return card ? editor.setProperties(card, properties) : editor.setContextProperties(properties);
+	}
+
+	async function commitContextTitle(input: HTMLInputElement) {
+		const draft = input.value;
+		const title = draft.trim();
+		if (title === editor.context.title) {
+			input.value = title;
+			return;
+		}
+		const saved = await editor.updateContext({ title });
+		if (saved && input.value === draft) input.value = title;
+	}
+
 	function updatePropertyKey(
-		card: ConceptCardView,
+		card: ConceptCardView | null,
 		oldKey: string,
 		nextKey: string,
 		input: HTMLInputElement
@@ -35,7 +51,7 @@
 			return;
 		}
 
-		const properties = card.concept.properties ?? {};
+		const properties = card?.concept.properties ?? editor.context.properties;
 
 		if (trimmedKey in properties) {
 			input.value = oldKey;
@@ -48,32 +64,34 @@
 			)
 		);
 
-		editor.setProperties(card, nextProperties);
+		saveProperties(card, nextProperties);
 	}
 
-	function updatePropertyValue(card: ConceptCardView, key: string, value: string) {
-		editor.setProperties(card, {
-			...(card.concept.properties ?? {}),
+	function updatePropertyValue(card: ConceptCardView | null, key: string, value: string) {
+		saveProperties(card, {
+			...(card?.concept.properties ?? editor.context.properties),
 			[key]: value
 		});
 	}
 
-	function removeProperty(card: ConceptCardView, keyToRemove: string) {
+	function removeProperty(card: ConceptCardView | null, keyToRemove: string) {
 		const nextProperties = Object.fromEntries(
-			Object.entries(card.concept.properties ?? {}).filter(([key]) => key !== keyToRemove)
+			Object.entries(card?.concept.properties ?? editor.context.properties).filter(
+				([key]) => key !== keyToRemove
+			)
 		);
 
-		editor.setProperties(card, nextProperties);
+		saveProperties(card, nextProperties);
 	}
 
-	async function commitNewProperty(card: ConceptCardView) {
+	async function commitNewProperty(card: ConceptCardView | null) {
 		const key = newPropertyKey.trim();
 
 		if (!key) {
 			return;
 		}
 
-		const properties = card.concept.properties ?? {};
+		const properties = card?.concept.properties ?? editor.context.properties;
 
 		if (key in properties) {
 			return;
@@ -81,14 +99,14 @@
 
 		const draftKey = newPropertyKey;
 		const draftValue = newPropertyValue;
-		const saved = await editor.setProperties(card, {
+		const saved = await saveProperties(card, {
 			...properties,
 			[key]: draftValue
 		});
 
 		if (
 			saved &&
-			editor.currentCanvasOwnerInstanceId === card.instance.id &&
+			editor.currentCanvasOwnerInstanceId === (card?.instance.id ?? null) &&
 			newPropertyKey === draftKey &&
 			newPropertyValue === draftValue
 		) {
@@ -97,7 +115,7 @@
 		}
 	}
 
-	async function addSidebarTag(card: ConceptCardView) {
+	async function addSidebarTag(card: ConceptCardView | null) {
 		const title = sidebarNewTag.trim();
 
 		if (!title) {
@@ -107,7 +125,11 @@
 
 		sidebarNewTag = '';
 
-		await editor.addTag(card, title);
+		if (card) {
+			await editor.addTag(card, title);
+		} else {
+			await editor.addContextTag(title);
+		}
 	}
 
 	function handleNewPropertyKeydown(event: KeyboardEvent) {
@@ -124,7 +146,7 @@
 		valueInput?.focus();
 	}
 
-	function handleNewPropertyValueKeydown(event: KeyboardEvent, card: ConceptCardView) {
+	function handleNewPropertyValueKeydown(event: KeyboardEvent, card: ConceptCardView | null) {
 		if (event.key !== 'Enter') {
 			return;
 		}
@@ -222,122 +244,129 @@
 						<div class="sidebar-empty">No relationships yet.</div>
 					{/if}
 				</div>
-				<div class="sidebar-section sidebar-tags-section">
-					<div class="tag-label-row">
-						<div class="sidebar-label">Tags</div>
+			{:else}
+				<div class="sidebar-section">
+					<input
+						class="sidebar-title-input"
+						value={editor.context.title}
+						placeholder="Untitled Context"
+						aria-label="Context Title"
+						onkeydown={(event) => {
+							if (event.key === 'Enter') event.stopPropagation();
+							blurOnEnter(event);
+						}}
+						onblur={(event) => commitContextTitle(event.currentTarget)}
+					/>
+						{editor.context.title}
+					<div class="sidebar-id">{editor.context.id}</div>
+				</div>
+			{/if}
+			<div class="sidebar-section sidebar-tags-section">
+				<div class="tag-label-row">
+					<div class="sidebar-label">Tags</div>
 
-						<input
-							class="concept-tag-input sidebar-tag-input"
-							bind:value={sidebarNewTag}
-							placeholder="+ tag"
-							aria-label="Add tag"
-							onkeydown={(event) => {
-								if (event.key === 'Enter') {
-									event.preventDefault();
-									event.stopPropagation();
-									addSidebarTag(sidebarCard);
-								}
-							}}
-							onblur={() => addSidebarTag(sidebarCard)}
-						/>
-					</div>
-
-					<ConceptTagsPreview
-						tags={editor.getTagConcepts(sidebarCard.concept.tagConceptIds ?? [])}
-						showInput={false}
-						onTagOpen={(tagConcept) => editor.openTagCanvas(tagConcept)}
-						onTagRemove={(tagConcept) => editor.removeTag(sidebarCard, tagConcept)}
+					<input
+						class="concept-tag-input sidebar-tag-input"
+						bind:value={sidebarNewTag}
+						placeholder="+ tag"
+						aria-label="Add tag"
+						onkeydown={(event) => {
+							if (event.key === 'Enter') {
+								event.preventDefault();
+								event.stopPropagation();
+								addSidebarTag(currentCanvasOwnerCard);
+							}
+						}}
+						onblur={() => addSidebarTag(currentCanvasOwnerCard)}
 					/>
 				</div>
 
-				<div class="sidebar-section sidebar-properties-section">
-					<div class="sidebar-properties-heading">
-						<div class="sidebar-label">Properties</div>
-					</div>
+				<ConceptTagsPreview
+					tags={editor.getTagConcepts(sidebarMetadata.tagConceptIds)}
+					showInput={false}
+					onTagOpen={(tagConcept) => editor.openTagCanvas(tagConcept)}
+					onTagRemove={(tagConcept) =>
+						currentCanvasOwnerCard
+							? editor.removeTag(currentCanvasOwnerCard, tagConcept)
+							: editor.removeContextTag(tagConcept)}
+				/>
+			</div>
 
-					<div class="sidebar-property-list">
-						{#each Object.entries(sidebarCard.concept.properties ?? {}) as [key, value] (key)}
-							<div class="sidebar-property-row">
-								<input
-									class="sidebar-property-key"
-									value={key}
-									aria-label="Property name"
-									onkeydown={blurOnEnter}
-									onblur={(event) =>
-										updatePropertyKey(
-											sidebarCard,
-											key,
-											event.currentTarget.value,
-											event.currentTarget
-										)}
-								/>
+			<div class="sidebar-section sidebar-properties-section">
+				<div class="sidebar-properties-heading">
+					<div class="sidebar-label">Properties</div>
+				</div>
 
-								<div class="sidebar-property-divider" aria-hidden="true">:</div>
-
-								<input
-									class="sidebar-property-value"
-									{value}
-									aria-label={`Value for ${key}`}
-									onkeydown={blurOnEnter}
-									onblur={(event) =>
-										updatePropertyValue(sidebarCard, key, event.currentTarget.value)}
-								/>
-
-								<button
-									class="sidebar-remove-property"
-									type="button"
-									aria-label={`Remove ${key}`}
-									onclick={() => removeProperty(sidebarCard, key)}
-								>
-									×
-								</button>
-							</div>
-						{/each}
-
-						<div class="sidebar-property-row sidebar-property-row-new">
+				<div class="sidebar-property-list">
+					{#each Object.entries(sidebarMetadata.properties) as [key, value] (key)}
+						<div class="sidebar-property-row">
 							<input
 								class="sidebar-property-key"
-								bind:value={newPropertyKey}
-								placeholder="property"
-								aria-label="New property name"
-								onkeydown={handleNewPropertyKeydown}
-								onblur={(event) => {
-									const nextTarget = event.relatedTarget as Element | null;
-
-									if (!nextTarget?.closest('.sidebar-property-row-new')) {
-										commitNewProperty(sidebarCard);
-									}
-								}}
+								value={key}
+								aria-label="Property title"
+								onkeydown={blurOnEnter}
+								onblur={(event) =>
+									updatePropertyKey(
+										currentCanvasOwnerCard,
+										key,
+										event.currentTarget.value,
+										event.currentTarget
+									)}
 							/>
 
 							<div class="sidebar-property-divider" aria-hidden="true">:</div>
 
 							<input
 								class="sidebar-property-value"
-								bind:value={newPropertyValue}
-								placeholder="value"
-								aria-label="New property value"
-								onkeydown={(event) => handleNewPropertyValueKeydown(event, sidebarCard)}
-								onblur={() => commitNewProperty(sidebarCard)}
+								{value}
+								aria-label={`Value for ${key}`}
+								onkeydown={blurOnEnter}
+								onblur={(event) =>
+									updatePropertyValue(currentCanvasOwnerCard, key, event.currentTarget.value)}
 							/>
 
-							<div class="sidebar-property-row-spacer" aria-hidden="true"></div>
+							<button
+								class="sidebar-remove-property"
+								type="button"
+								aria-label={`Remove ${key}`}
+								onclick={() => removeProperty(currentCanvasOwnerCard, key)}
+							>
+								×
+							</button>
 						</div>
+					{/each}
+
+					<div class="sidebar-property-row sidebar-property-row-new">
+						<input
+							class="sidebar-property-key"
+							bind:value={newPropertyKey}
+							placeholder="property"
+							aria-label="New property title"
+							onkeydown={handleNewPropertyKeydown}
+							onblur={(event) => {
+								const nextTarget = event.relatedTarget as Element | null;
+
+								if (!nextTarget?.closest('.sidebar-property-row-new')) {
+									commitNewProperty(currentCanvasOwnerCard);
+								}
+							}}
+						/>
+
+						<div class="sidebar-property-divider" aria-hidden="true">:</div>
+
+						<input
+							class="sidebar-property-value"
+							bind:value={newPropertyValue}
+							placeholder="value"
+							aria-label="New property value"
+							onkeydown={(event) => handleNewPropertyValueKeydown(event, currentCanvasOwnerCard)}
+							onblur={() => commitNewProperty(currentCanvasOwnerCard)}
+						/>
+
+						<div class="sidebar-property-row-spacer" aria-hidden="true"></div>
 					</div>
 				</div>
-			{:else}
-				<div class="sidebar-section">
-					<input
-						class="sidebar-title-input"
-						value="Untitled Context"
-						placeholder="Untitled Context"
-						aria-label="Context Title"
-						readonly
-					/>
-
-					<div class="sidebar-empty">Open a concept to inspect it.</div>
-				</div>
-			{/if}
+			</div>
 		</div>
 	{:else}
 		<div class="sidebar-panel sidebar-tree-panel">

@@ -40,6 +40,8 @@ const arrangeAnimationMs = 4000;
 const cardDragThresholdPx = 4;
 
 export class CanvasController {
+	private rightClickHoldTimer: number | undefined;
+
 	canvasElement = $state<HTMLElement | null>(null);
 	marqueePreviewInstanceIds = $state<Set<string>>(new Set());
 	arrangingCards = $state(false);
@@ -64,11 +66,11 @@ export class CanvasController {
 	pasteConfirmation = $state<{
 		visible: boolean;
 		items: ParsedConceptInput[];
-		targetConceptName: string;
+		targetConceptTitle: string;
 	}>({
 		visible: false,
 		items: [],
-		targetConceptName: ''
+		targetConceptTitle: ''
 	});
 	lastEnterPress = $state<{ targetId: string | null; time: number }>({
 		targetId: null,
@@ -211,7 +213,7 @@ export class CanvasController {
 		event.preventDefault();
 		event.stopPropagation();
 
-		const targetConceptName =
+		const targetConceptTitle =
 			this.editor.currentCanvasOwnerCard?.concept.title ||
 			this.editor.currentCanvasOwnerCard?.concept.id ||
 			'Root';
@@ -220,7 +222,7 @@ export class CanvasController {
 			this.pasteConfirmation = {
 				visible: true,
 				items: result.items,
-				targetConceptName
+				targetConceptTitle
 			};
 
 			return;
@@ -235,7 +237,7 @@ export class CanvasController {
 		this.pasteConfirmation = {
 			visible: false,
 			items: [],
-			targetConceptName: ''
+			targetConceptTitle: ''
 		};
 
 		await this.createConceptsFromParsedItems(items);
@@ -245,7 +247,7 @@ export class CanvasController {
 		this.pasteConfirmation = {
 			visible: false,
 			items: [],
-			targetConceptName: ''
+			targetConceptTitle: ''
 		};
 	}
 
@@ -683,7 +685,9 @@ export class CanvasController {
 
 	handleCanvasContextMenu(event: MouseEvent) {
 		event.preventDefault();
+	}
 
+	openCanvasContextMenu(event: MouseEvent) {
 		const point = this.getWorldPointFromEvent(event);
 
 		this.editor.contextMenu = {
@@ -759,7 +763,22 @@ export class CanvasController {
 		this.panY = canvasPoint.y - worldPoint.y * this.zoom;
 	}
 
+	cancelRightClickHold() {
+		if (this.rightClickHoldTimer === undefined) return;
+		window.clearTimeout(this.rightClickHoldTimer);
+		this.rightClickHoldTimer = undefined;
+	}
+
 	handleCanvasPointerDown(event: PointerEvent) {
+		if (event.button === 2) {
+			this.cancelRightClickHold();
+			this.rightClickHoldTimer = window.setTimeout(() => {
+				this.rightClickHoldTimer = undefined;
+				// TODO: Open the radial menu after holding right-click for 1.5 seconds.
+			}, 1500);
+			return;
+		}
+
 		if (event.button !== 0 && event.button !== 1) {
 			return;
 		}
@@ -774,6 +793,7 @@ export class CanvasController {
 		const shouldPan = event.button === 1 || this.panToggleOnSpace;
 
 		if (shouldPan) {
+			if (event.button === 1) event.preventDefault();
 			this.isPanning = true;
 			this.panStartMouseX = event.clientX;
 			this.panStartMouseY = event.clientY;
@@ -827,6 +847,7 @@ export class CanvasController {
 				const shouldPan = event.button === 1 || this.panToggleOnSpace;
 
 				if (shouldPan) {
+					event.preventDefault();
 					this.isPanning = true;
 					this.panStartMouseX = event.clientX;
 					this.panStartMouseY = event.clientY;
@@ -1248,6 +1269,16 @@ export class CanvasController {
 		};
 	}
 	async handleWindowPointerUp(event: PointerEvent) {
+		if (event.button === 2) {
+			if (this.rightClickHoldTimer !== undefined) {
+				this.openCanvasContextMenu(event);
+			}
+			this.cancelRightClickHold();
+			return;
+		}
+
+		if (event.button === 1 && this.isPanning) event.preventDefault();
+
 		if (this.childDragState.active) {
 			await this.finishChildDrag(event);
 			return;
@@ -1370,6 +1401,7 @@ export class CanvasController {
 	}
 
 	clearInteractiveState() {
+		this.cancelRightClickHold();
 		this.isPanning = false;
 		this.dragState = this.emptyDragState();
 		this.pendingDragState = this.emptyPendingDragState();

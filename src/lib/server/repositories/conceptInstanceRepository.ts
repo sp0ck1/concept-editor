@@ -16,6 +16,7 @@ export type CreateConceptInstanceInput = {
 	properties?: ConceptInstance['properties'];
 	view?: ConceptInstance['view'];
 	isPinned?: boolean;
+	sequence?: number;
 	parentInstanceId?: string | null;
 	x?: number;
 	y?: number;
@@ -54,6 +55,9 @@ export async function createConceptInstance(
 	const instances = await getAllConceptInstances();
 
 	const instance: ConceptInstance = {
+		...(typeof input.sequence === 'number' && Number.isFinite(input.sequence)
+			? { sequence: input.sequence }
+			: {}),
 		id: createConceptInstanceId(),
 		conceptId: input.conceptId,
 		parentInstanceId: input.parentInstanceId ?? null,
@@ -133,7 +137,8 @@ function applyConceptInstanceUpdates(
 		'height',
 		'lastCameraPanX',
 		'lastCameraPanY',
-		'lastCameraZoom'
+		'lastCameraZoom',
+		'sequence'
 	] as const;
 
 	for (const field of numberFields) {
@@ -166,6 +171,19 @@ function applyConceptInstanceUpdates(
 		changed = true;
 	}
 	return changed;
+}
+
+export async function deleteConceptInstancesBatch(ids: string[]): Promise<number> {
+	const requestedIds = new Set(ids);
+	const instances = await getAllConceptInstances();
+	const nextInstances = instances.filter((instance) => !requestedIds.has(instance.id));
+	const deleted = instances.length - nextInstances.length;
+
+	if (deleted > 0) {
+		await saveAllConceptInstances(nextInstances);
+	}
+
+	return deleted;
 }
 
 export async function deleteConceptInstance(id: string): Promise<boolean> {

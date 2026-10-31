@@ -35,6 +35,9 @@ export async function createConceptWithInstance(
 	};
 
 	const instance: ConceptInstance = {
+		...(typeof input.sequence === 'number' && Number.isFinite(input.sequence)
+			? { sequence: input.sequence }
+			: {}),
 		id: createConceptInstanceId(),
 		conceptId: concept.id,
 		parentInstanceId: input.parentInstanceId ?? null,

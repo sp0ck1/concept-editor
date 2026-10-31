@@ -1,3 +1,4 @@
+import { isConceptNotes, isConceptDates, isConceptAppearance } from '$lib/model/metadata';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -86,6 +87,10 @@ export const PATCH: RequestHandler = async ({ request }) => {
 			(value): value is string => typeof value === 'string'
 		);
 	}
+
+	if (isConceptNotes(body.notes)) updates.notes = body.notes;
+	if (isConceptDates(body.dates)) updates.dates = body.dates;
+	if (isConceptAppearance(body.appearance)) updates.appearance = body.appearance;
 
 	const concept = await updateConcept(id, updates);
 

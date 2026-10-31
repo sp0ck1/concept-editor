@@ -2,6 +2,7 @@
 	import { getEditorContext } from '$lib/components/editor/EditorContext';
 
 	const editor = getEditorContext();
+	let deleteCount = $derived(editor.getContextMenuDeleteInstanceIds().length);
 </script>
 
 {#if editor.contextMenu.visible}
@@ -82,7 +83,7 @@
 					editor.deleteInstanceFromMenu();
 				}}
 			>
-				Delete
+				{#if deleteCount > 1}Delete Selected ({deleteCount}){:else}Delete{/if}
 			</button>
 		{/if}
 	</div>

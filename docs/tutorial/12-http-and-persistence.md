@@ -13,7 +13,7 @@ This chapter traces an existing property update and adds a temporary `reviewed` 
 | `lib/client/concepts.ts`                              | `updateConceptRecord` sends a typed `PATCH /api/concepts` request.                                                |
 | `routes/api/concepts/+server.ts`                      | `PATCH` selects the title or metadata path and constructs repository input.                                       |
 | `lib/server/repositories/conceptRepository.ts`        | `updateConcept` finds the record, replaces supplied metadata fields, and saves the collection.                    |
-| `routes/+page.server.ts`                              | `load` reads all four canonical collections.                                                                      |
+| `routes/+page.server.ts`                              | `load` reads the Context record and four canonical collections.                                                   |
 | `lib/components/editor/ConceptEditor.svelte`          | Bridges incoming page data into the existing editor with `replaceData`.                                           |
 
 `src/lib/server/conceptService.ts` coordinates operations such as creating a Concept with an instance and reassigning an instance after a title edit. Ordinary property/tag updates go directly from the Concept route to repository `updateConcept`; they do not pass through that service.
@@ -47,13 +47,13 @@ flowchart TD
     D --> E[Repository writes concepts.json]
     E --> F[Successful response]
     F --> G[Editor calls invalidateAll]
-    G --> H[Page loader reads four collections]
+    G --> H[Page loader reads Context and four collections]
     H --> I[ConceptEditor incoming-data effect]
     I --> J[Stable Editor.replaceData]
     J --> K[Derived cards and sidebar]
 ```
 
-`+page.server.ts` reads Concepts, instances, relationships, and relationship definitions. `ConceptEditor.svelte` tracks the incoming collections and calls `editor.replaceData(...)` inside `untrack`. It does not construct a new editor for each refresh.
+`+page.server.ts` reads the Context, Concepts, instances, relationships, and relationship definitions. `ConceptEditor.svelte` tracks the incoming collections and calls `editor.replaceData(...)` inside `untrack`. It does not construct a new editor for each refresh.
 
 `replaceData` normalizes Concepts and instances, assigns relationships and definitions, and lets indexes, card views, and owner-derived values recalculate. Keeping the Editor object stable preserves its context identity and workspace state while replacing server records. It also retains a detached snapshot of the last loaded records for restoring optimistic edits if a save fails.
 
@@ -92,6 +92,12 @@ Requirements:
 
 The [separate solution](solutions/12-http-and-persistence.md) supplies the markup. Neither the metadata summary nor the relationship count is required.
 
+## Context metadata saves
+
+Editor.updateContext() calls updateContextRecord() in client/context.ts, which sends a PATCH to /api/context. The handler requires an object body and passes updates to contextRepository.updateContext(). That repository validates the supported metadata and writes only the Context record to context.json, preserving its identity and leaving the four collection files untouched. Successful commands invalidate page data so the refreshed Context reaches the same Editor. Failures use the existing last-loaded-data recovery path rather than navigating offline.
+
+The Context title field is named title. The root sidebar edits that title on blur/Enter and uses the same property/tag controls as a Concept sidebar. Those controls dispatch to setContextProperties(), addContextTag(), and removeContextTag() at the root, while nested Concept views retain their Concept commands. Tag references are saved in context.json; ensuring a new tag also creates its Concept in concepts.json. Notes, dates, and appearance are supported by the metadata endpoint but do not yet have editing controls.
+
 ## Protect data and isolate execution
 
 Use native WSL commands from the original project root. Stop the live application and other writers first. Create a fresh external backup directory outside the checkout:
@@ -100,9 +106,10 @@ Use native WSL commands from the original project root. Stop the live applicatio
 mkdir ../concept-editor-tutorial-12-backup
 ```
 
-If it already exists or creation fails, stop and choose a fresh location; do not overwrite an earlier backup. Copy all four related files, preserving the existing project-level archive:
+If it already exists or creation fails, stop and choose a fresh location; do not overwrite an earlier backup. Copy all five related files, preserving the existing project-level archive:
 
 ```sh
+cp -p src/lib/data/context.json ../concept-editor-tutorial-12-backup/
 cp -p src/lib/data/concepts.json ../concept-editor-tutorial-12-backup/
 cp -p src/lib/data/concept_instances.json ../concept-editor-tutorial-12-backup/
 cp -p src/lib/data/concept_relationships.json ../concept-editor-tutorial-12-backup/
@@ -112,6 +119,7 @@ cp -p src/lib/data/relationship_definitions.json ../concept-editor-tutorial-12-b
 Verify each copy without printing personal records:
 
 ```sh
+cmp src/lib/data/context.json ../concept-editor-tutorial-12-backup/context.json
 cmp src/lib/data/concepts.json ../concept-editor-tutorial-12-backup/concepts.json
 cmp src/lib/data/concept_instances.json ../concept-editor-tutorial-12-backup/concept_instances.json
 cmp src/lib/data/concept_relationships.json ../concept-editor-tutorial-12-backup/concept_relationships.json
@@ -165,7 +173,7 @@ On a Concept chosen in the disposable copy:
 5. Click again: the property count must not increase again. If the key already existed, it must not increase at all.
 6. If present, the metadata summary updates; the relationship count is unchanged. These are optional extra observations, not prerequisites.
 
-Check that the original workspace's four data files still match its external backup if no intentional live edits occurred in the meantime. If they differ, investigate; do not automatically restore them over potentially desired changes.
+Check that the original workspace's five data files still match its external backup if no intentional live edits occurred in the meantime. If they differ, investigate; do not automatically restore them over potentially desired changes.
 
 ## Cleanup without losing later work
 
