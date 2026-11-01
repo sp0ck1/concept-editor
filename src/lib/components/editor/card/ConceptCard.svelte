@@ -5,7 +5,7 @@
 	import { getEditorContext } from '$lib/components/editor/EditorContext';
 	import type { ConceptCardView } from '$lib/model/ConceptCardView';
 
-	let { card }: { card: ConceptCardView } = $props();
+	let { card, preview = false }: { card: ConceptCardView; preview?: boolean } = $props();
 
 	const editor = getEditorContext();
 
@@ -23,7 +23,7 @@
 	let isArranging = $derived(editor.canvas.arrangingCards);
 	let isMarqueePreviewed = $derived(editor.canvas.marqueePreviewInstanceIds.has(instance.id));
 	let shouldFocusTitle = $derived(editor.pendingFocusInstanceId === instance.id);
-	let tagConcepts = $derived(editor.getTagConcepts(concept.tagConceptIds ?? []));
+	let tagConcepts = $derived(editor.getTags(concept.tagIds ?? []));
 	let isCollapsed = $derived(instance.width <= 190 || instance.height <= 80);
 
 	const childTileHoldDelayMs = 300;
@@ -88,29 +88,40 @@
 
 <article
 	class="concept-card"
+	class:is-preview={preview}
 	class:is-active={isActive}
 	class:is-dragging={isDragging}
 	class:is-selected={isSelected}
 	class:is-arranging={isArranging}
 	class:is-marquee-previewed={isMarqueePreviewed}
 	class:is-collapsed={isCollapsed}
-	data-card-instance-id={instance.id}
+	data-card-instance-id={preview ? undefined : instance.id}
 	style={`
 		transform: translate(${instance.x}px, ${instance.y}px);
 		width: ${instance.width}px;
 		height: ${instance.height}px;
 	`}
 	aria-label={concept.title || 'Untitled concept'}
-	onpointerdown={(event) => editor.canvas.handleCardPointerDown(event, card)}
-	oncontextmenu={(event) => editor.canvas.handleCardContextMenu(event, card)}
+	onpointerdown={(event) => {
+		if (!preview) editor.canvas.handleCardPointerDown(event, card);
+	}}
+	oncontextmenu={(event) => {
+		if (preview) event.preventDefault();
+		else editor.canvas.handleCardContextMenu(event, card);
+	}}
 >
 	<input
 		bind:this={titleInput}
 		class="concept-title-input"
 		value={concept.title}
 		aria-label="Concept title"
-		onkeydown={(event) => editor.canvas.handleConceptTitleKeydown(event, card)}
-		onblur={(event) => editor.canvas.handleConceptTitleBlur(event, card)}
+		readonly={preview}
+		onkeydown={(event) => {
+			if (!preview) editor.canvas.handleConceptTitleKeydown(event, card);
+		}}
+		onblur={(event) => {
+			if (!preview) editor.canvas.handleConceptTitleBlur(event, card);
+		}}
 		ondblclick={(event) => event.stopPropagation()}
 	/>
 
@@ -140,12 +151,14 @@
 		</div>
 	{/if}
 
-	<button
-		class="concept-resize-handle"
-		type="button"
-		aria-label="Resize concept"
-		onpointerdown={(event) => editor.canvas.handleResizePointerDown(event, card)}
-	></button>
+	{#if !preview}
+		<button
+			class="concept-resize-handle"
+			type="button"
+			aria-label="Resize concept"
+			onpointerdown={(event) => editor.canvas.handleResizePointerDown(event, card)}
+		></button>
+	{/if}
 </article>
 
 <style>
@@ -172,6 +185,10 @@
 		z-index: 1;
 		border-bottom-right-radius: 0px;
 		border-top-left-radius: 0px;
+	}
+
+	.concept-card.is-preview {
+		cursor: default;
 	}
 
 	.concept-title-input {

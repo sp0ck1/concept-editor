@@ -4,7 +4,7 @@
 
 ## Implementation
 
-In `src/lib/components/editor/card/ConceptCard.svelte`, add this declaration after `tagConcepts`:
+In `src/lib/components/editor/card/ConceptCard.svelte`, add this declaration after the existing `concept` and `instance` derivations, independent of the tag-display variable:
 
 ```ts
 let occurrenceCount = $derived(

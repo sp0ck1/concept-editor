@@ -13,7 +13,7 @@ let metadataSummary = $derived.by(() => {
 	}
 
 	const propertyCount = Object.keys(concept.properties ?? {}).length;
-	const tagCount = (concept.tagConceptIds ?? []).length;
+	const tagCount = (concept.tagIds ?? []).length;
 	const propertyWord = propertyCount === 1 ? 'property' : 'properties';
 	const tagWord = tagCount === 1 ? 'tag' : 'tags';
 
@@ -34,7 +34,7 @@ No import, Editor command, model field, or CSS change is needed. Keep unrelated 
 
 `currentCanvasOwnerCard` already identifies the Concept being inspected. The count is a presentation of that Concept's existing data, so a component-local `$derived.by` is sufficient. Storing the summary would introduce another value that could disagree with the metadata.
 
-`tagConceptIds.length` counts stored references. `editor.getTagConcepts(...)` would instead count references that resolve to loaded Concepts. The exercise explicitly asks for the former; a missing Concept may make the summary larger than the visible tag tile count.
+`tagIds.length` counts stored references. Resolving IDs against `editor.tags` would count only references to loaded Tags through the stable Editor refresh bridge. The exercise explicitly asks for the former; a missing Tag may make the summary larger than the visible tag tile count.
 
 When records are refreshed:
 
@@ -45,6 +45,8 @@ When records are refreshed:
 Changing the owner Concept also changes the summary. Different instances of the same Concept report the same counts because metadata is not stored on the instance.
 
 ## Verification
+
+This solution uses the implemented `tagIds` model and `editor.tags` collection. Commands below are exercise instructions, not reported results for this optional summary. Do not reintroduce legacy Concept-tag helpers to implement this count.
 
 Run from the project root:
 

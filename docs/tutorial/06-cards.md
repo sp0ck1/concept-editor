@@ -51,7 +51,9 @@ Most events are dispatched rather than implemented inside the card:
 | Title keydown              | `editor.canvas.handleConceptTitleKeydown(event, card)` |
 | Title blur                 | `editor.canvas.handleConceptTitleBlur(event, card)`    |
 | Manual tag entry           | `editor.addTag(card, title)`                           |
-| Tag removal                | `editor.removeTag(card, tagConcept)`                   |
+| Tag removal                | `editor.removeTag(card, tag)`                          |
+
+The tag callback receives a Tag, not a Concept. `editor.getTags(concept.tagIds)` resolves the displayed Tags from `Editor.tags`. See [Properties and tags](11-properties-and-tags.md) for assignment commands and native tag dragging.
 
 The callback wrappers preserve the receiver of controller and Editor methods. They also supply this card's identity.
 
@@ -96,7 +98,7 @@ The historical `child-tile` names remain in active handlers and DOM classes. The
 
 The card derives selection, active, drag, arrangement, and marquee-preview flags from shared state. It does not maintain a second independent selection list.
 
-Its body is currently hidden when `instance.width <= 190` or `instance.height <= 80`. This is a simple size threshold, not the planned configurable detail system. Notes and interactive hover previews remain future features.
+Its body is currently hidden when `instance.width <= 190` or `instance.height <= 80`. This is a simple size threshold, not the planned configurable detail system. Card notes editing and interactive instance hover previews remain future features. Linked Tag tiles now trigger the same ConceptCard inside a temporary top-layer preview; see [Properties and tags](11-properties-and-tags.md#linked-tag-hover-preview).
 
 CSS is otherwise outside this guide's scope, but interaction selectors are significant. Classes and instance/concept data attributes used by drop detection must remain consistent with the controller.
 
@@ -128,3 +130,7 @@ Remove the label to undo the exercise. No data rollback is needed unless separat
 `ConceptCardView` contains the records; `ConceptCard.svelte` displays them. The component owns DOM-local details such as title focus and a pending hold timer. Shared selection, spatial gestures, and persisted commands remain with the Editor and CanvasController.
 
 [Canvas](07-canvas.md) · [Contents](README.md)
+
+## Cards in hover previews
+
+ConceptCardPreview is only a positioning/fade wrapper: it renders `<ConceptCard {card} preview />`. The `preview` prop defaults to false for normal canvas cards. For previews it makes the title read-only, skips title commit handlers, omits the spatial instance ID and resize control, and disables canvas selection/context-menu handlers. Tag add/remove controls still call the same Editor commands and persist shared Concept metadata. The temporary instance has normal default dimensions but is absent from Editor.instances and JSON; it supplies card geometry without inventing a stored occurrence. Future card notes/view controls belong in ConceptCard and are not implemented here.

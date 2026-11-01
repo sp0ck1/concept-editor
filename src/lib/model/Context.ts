@@ -6,7 +6,7 @@ export type Context = {
 	id: string;
 	title: string;
 	properties: Record<string, string>;
-	tagConceptIds: string[];
+	tagIds: string[];
 	notes: ConceptNotes;
 	dates: ConceptDate[];
 	appearance?: ConceptAppearance;

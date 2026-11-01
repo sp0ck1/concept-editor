@@ -198,6 +198,71 @@ export async function deleteConceptInstance(id: string): Promise<boolean> {
 	return true;
 }
 
+// Validate and snapshot before cloning: the destination may be inside the source subtree.
+export function copyDescendantInstances(
+	instances: ConceptInstance[],
+	sourceInstanceId: string,
+	destinationInstanceId: string,
+	retainMetadata: boolean,
+	conceptIds: ReadonlySet<string>
+): ConceptInstance[] {
+	const byParent = new Map<string, ConceptInstance[]>();
+	const idCounts = new Map<string, number>();
+	for (const instance of instances) {
+		idCounts.set(instance.id, (idCounts.get(instance.id) ?? 0) + 1);
+		if (instance.parentInstanceId !== null) {
+			const children = byParent.get(instance.parentInstanceId) ?? [];
+			children.push(instance);
+			byParent.set(instance.parentInstanceId, children);
+		}
+	}
+	if (idCounts.get(sourceInstanceId) !== 1) {
+		throw new Error('The source instance is missing or has a duplicate ID.');
+	}
+	const seen = new Set([sourceInstanceId]);
+	const snapshot: ConceptInstance[] = [];
+	const pending = [...(byParent.get(sourceInstanceId) ?? [])];
+	for (let index = 0; index < pending.length; index += 1) {
+		const instance = pending[index];
+		if (seen.has(instance.id) || idCounts.get(instance.id) !== 1) {
+			throw new Error('The source subtree contains a cycle or duplicate instance ID.');
+		}
+		if (!conceptIds.has(instance.conceptId)) {
+			throw new Error('A source descendant references a missing Concept.');
+		}
+		seen.add(instance.id);
+		snapshot.push(structuredClone(instance));
+		pending.push(...(byParent.get(instance.id) ?? []));
+	}
+	const remappedIds = new Map([[sourceInstanceId, destinationInstanceId]]);
+	const siblingCounts = new Map<string, number>();
+	return snapshot.map((instance) => {
+		const parentInstanceId = remappedIds.get(instance.parentInstanceId!)!;
+		const id = createConceptInstanceId();
+		remappedIds.set(instance.id, id);
+		const siblingIndex = siblingCounts.get(parentInstanceId) ?? 0;
+		siblingCounts.set(parentInstanceId, siblingIndex + 1);
+		return retainMetadata
+			? { ...structuredClone(instance), id, parentInstanceId }
+			: {
+					id,
+					conceptId: instance.conceptId,
+					parentInstanceId,
+					x: 32 + siblingIndex * 24,
+					y: 32 + siblingIndex * 24,
+					width: defaultConceptWidth,
+					height: defaultConceptHeight,
+					lastCameraPanX: 0,
+					lastCameraPanY: 0,
+					lastCameraZoom: 1,
+					notes: normalizeConceptNotes(undefined),
+					properties: {},
+					view: 'tree',
+					isPinned: false
+				};
+	});
+}
+
 export async function importChildrenFromConceptInstance(
 	sourceInstanceId: string,
 	targetInstanceId: string

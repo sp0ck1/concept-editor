@@ -29,7 +29,7 @@ The focus is the application rather than CSS or a general introduction to TypeSc
 
 ### Commands and persistence
 
-10. [Creation and title editing](10-creation-and-title-editing.md) — linked record creation, title identity decisions, input behavior, refresh, and focus.
+10. [Creation and title editing](10-creation-and-title-editing.md) — linked record creation, the title-conflict wizard, exact identity/copy choices, input behavior, refresh, and focus.
 11. [Properties and tags](11-properties-and-tags.md) — shared metadata, sidebar drafts, tag identity, and mutation paths.
 12. [HTTP and persistence](12-http-and-persistence.md) — request handling, service/repository boundaries, JSON writes, and invalidation.
 13. [Integration](13-integration.md) — sharing a spatial creation command between a button and the existing keyboard path.
@@ -60,8 +60,10 @@ No exercise requires adding CSS. Existing classes and data attributes are discus
 
 ## Data safety
 
-The four JSON files under `src/lib/data/` contain real project data, not fixtures:
+Treat the Context record and five collection files under `src/lib/data/` as project data, not fixtures. `tags.json` is the separate Tag store, initialized by the completed reset:
 
+- `context.json`
+- `tags.json`
 - `concepts.json`
 - `concept_instances.json`
 - `concept_relationships.json`
@@ -91,12 +93,16 @@ npm run lint
 npm run build
 ```
 
-These validate types, formatting/lint rules, and compilation. They do not establish correct browser interaction or safe persistence. The current source has existing accessibility/CSS warnings; distinguish them from new errors. Exercise-specific manual checks describe behavior separately.
+These validate types, formatting/lint rules, and compilation. The owner reports 113 component tests passed and real-mouse HTML5 browser tests passed first/repeated/nested drops, counts/IDs/world coordinates/assignments, add/remove/case reuse, and missing-link 409 with a banner and no writes. The current reported `npm run check` still has four pre-existing required `Concept.image` errors: the normalizer, two repository creates, and service creation. Preserve the owner-added `image: object`; this is not a clean check or implemented image feature. This documentation-only update does not rerun application checks. They do not establish correct browser interaction or safe persistence. The current source has existing accessibility/CSS warnings; distinguish them from new errors. Exercise-specific manual checks describe behavior separately.
+
+The title-conflict implementation has reported passing unit tests and isolated browser tests for key flows. That evidence is specific to the wizard, not completion of the broader refactor manual checklist or the optional New Card exercises. This documentation-only update does not rerun those tests.
 
 Keep source edits isolated and review the diff before removing an exercise. Do not use destructive resets to discard unrelated work.
 
 ## Implementation boundaries
 
-The guide describes the current architecture, not a complete product specification. Table view remains a placeholder. Notes, search, full title-conflict selection, full tree-row opening, tag navigation, and interactive card previews remain unfinished. Definitions and model fields may support more than the current UI implements.
+The guide describes the current architecture, not a complete product specification. Table view remains a placeholder. General notes editing, search, full tree-row opening, tag navigation, interactive card previews, and date-display filtering remain unfinished. The native title-conflict wizard is implemented: exact Concept/occurrence selection, current-card or new-sibling destinations, and optional instance-property, notes, and full-subtree copying. Definitions and model fields may support more than the current UI implements.
+
+Separate Tags are implemented through the model, persistence, stable `Editor.tags` refresh, assignment controls, and blank-canvas native drag/drop; see [Properties and tags](11-properties-and-tags.md). The owner reports the no-migration reset completed after stopping Vite PID 2192 and verifying external backup `/home/cory/development/concept-editor-backups/before-separate-tags-20261031-201525`. Context is `Concept Editor Project` with a fresh ID and empty metadata; all five collections are empty. Existing archives and `Updates-Ideas.md` were preserved. This records completed work, not a request to reset again. Linked Tags now show the actual ConceptCard after a 2-second hover and 1-second fade, using an unsaved default-size instance with a read-only title. Its tag controls save normally, its tags can open nested previews, and loader refresh retains the preview chain. Hovering alone performs no writes. Instance/tree/chooser triggers, future card notes/view controls, and representative images remain future work.
 
 The live source remains authoritative if it differs from an excerpt. `AGENTS.md` records preservation rules; `Updates-Ideas.md` records product priorities; the refactor checklist and notes retain the history and pending manual verification.

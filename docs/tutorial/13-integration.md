@@ -83,16 +83,16 @@ Only replace the final center/position/create block. Do not move or remove the g
 
 There are separate creation paths that must remain separate:
 
-| Input                    | Placement and behavior to preserve                                                                           |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Canvas double Enter      | Use the revised viewport-center command.                                                                     |
-| New Card button          | Use that same command; keep the arrow callback so the method retains its receiver.                           |
-| Title-input double Enter | Await `commitTitleEdit`, then use `getNearbyCardPosition(card)` and `Editor.createConcept` to create nearby. |
-| Canvas double-click      | Use pointer-to-world conversion plus the existing random offset.                                             |
+| Input                    | Placement and behavior to preserve                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Canvas double Enter      | Use the revised viewport-center command.                                                                            |
+| New Card button          | Use that same command; keep the arrow callback so the method retains its receiver.                                  |
+| Title-input double Enter | Await the pending commit; only normal `saved`/`unchanged` outcomes create nearby via `getNearbyCardPosition(card)`. |
+| Canvas double-click      | Use pointer-to-world conversion plus the existing random offset.                                                    |
 
 The title handler's timing target is `title:<instance ID>`. Enter commits without blurring; blur commits too, and Escape restores the original title before blurring. The window handler excludes the focused input rather than treating this as canvas Enter.
 
-A reported title conflict currently stores state and returns normally. The title-input double-Enter branch can therefore still create nearby after a conflict; it does not wait for a resolving chooser. This integration must not replace that branch with viewport-center creation or imply the missing chooser has been implemented.
+A reported title conflict opens the implemented `TitleConflictDialog` and keeps the commit pending. Enter/blur join that edit; wizard resolved/cancelled/failed outcomes do not create nearby. Busy saves block repeats/cancel, failed resolution stays open, and successful write with failed refresh closes to avoid repeat copying. Preserve this logic and the exact-ID/current-card/new-sibling copy behavior described in [chapter 10](10-creation-and-title-editing.md#the-implemented-conflict-wizard); do not replace it with viewport-center creation.
 
 ## Concrete creation trace
 
@@ -189,6 +189,8 @@ With isolated data or the verified paired backup, optional manual checks are:
 4. Using a disposable blank card, press Enter twice in its title. Confirm nearby placement remains distinct from viewport-center creation. Do not edit a personal title to test this.
 5. Double-click blank canvas and confirm pointer-relative placement still works.
 6. Check browser requests/errors, then reload and confirm persistence.
+
+The title-conflict implementation has reported passing unit tests and isolated browser tests for key wizard flows, not these optional exercise checks or the broader manual checklist. No application tests are rerun for this documentation-only update.
 
 A successful build does not establish those browser behaviors. Do not mark behavior checks complete without actually running them against protected/disposable data.
 

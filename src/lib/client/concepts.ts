@@ -1,6 +1,6 @@
 import type { Concept } from '$lib/model/Concept';
 import type { ConceptInstance } from '$lib/model/ConceptInstance';
-import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
+import type { TitleConflictMode, TitleConflictResolution } from '$lib/model/TitleConflictMode';
 import { getErrorMessage } from '$lib/client/http';
 
 export type CreateConceptRequest = {
@@ -68,7 +68,8 @@ export async function updateConceptTitleFromInstanceRecord(
 	conceptId: string,
 	instanceId: string,
 	title: string,
-	conflictMode: TitleConflictMode = 'report-conflict'
+	conflictMode: TitleConflictMode = 'report-conflict',
+	resolution?: TitleConflictResolution
 ): Promise<UpdateConceptTitleResult> {
 	const response = await fetch('/api/concepts', {
 		method: 'PATCH',
@@ -77,12 +78,13 @@ export async function updateConceptTitleFromInstanceRecord(
 			id: conceptId,
 			instanceId,
 			title,
-			conflictMode
+			conflictMode,
+			...(resolution ? { resolution } : {})
 		})
 	});
 
 	if (response.status === 409) {
-		const body = (await response.json()) as {
+		const body = (await response.clone().json()) as {
 			code?: string;
 			matchingConcepts?: Concept[];
 		};

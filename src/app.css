@@ -1,6 +1,7 @@
 :root {
+	--canvas-background-contrast-color: #6E5757;
 	--canvas-background-color: #576e6e;
-	--canvas-dot-color: hsl(180, 12%, 29%);
+	--canvas-dot-color: hsl(180, 12%, 29%); 
 	--maximum-z-index: 999;
 	--ui-panel-bg-color: hsl(224 8% 16%);
 	--child-tile-size-drag: 200px;
@@ -115,21 +116,7 @@ body {
 	color: #f0f0f0;
 }
 
-.zoom-indicator {
-	position: fixed;
-	right: 16px;
-	bottom: 16px;
-	padding: 6px 10px;
-	border-radius: 5px;
-	border-top-left-radius: 0px;
-	border-bottom-right-radius: 0px;
-	background: rgb(17, 175, 20);
-	border: 1px solid #d0d0d0;
-	box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
-	font-size: 20px;
-	user-select: none;
-	color: black;
-}
+
 
 .app {
 	height: 100vh;

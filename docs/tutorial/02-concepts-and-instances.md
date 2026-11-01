@@ -23,7 +23,7 @@ export type Concept = {
 	id: string;
 	title: string;
 	properties: Record<string, string>;
-	tagConceptIds: string[];
+	tagIds: string[];
 	notes: ConceptNotes;
 	dates: ConceptDate[];
 	appearance?: ConceptAppearance;
@@ -33,7 +33,7 @@ export type Concept = {
 - `id` identifies the Concept.
 - `title` is its displayed name, not a unique key.
 - `properties` contains string-valued metadata.
-- `tagConceptIds` refers to other Concepts used as tags.
+- `tagIds` refers to separate Tag records, not Concepts. Tag and Concept titles may repeat. Exact Concept-to-tag drops preserve identity through representedByConceptId; typed Tag lookup prefers the matching linked Concept with the most shared properties, keeping the first Tag on a tie.
 
 Two distinct Concepts may have the same title. Comparing names cannot establish whether two cards represent the same Concept; comparing their Concept IDs can.
 
@@ -67,7 +67,7 @@ export type ConceptInstance = {
 
 `parentInstanceId` identifies one parent instance; `null` means root placement. Geometry belongs to the placement, not the shared Concept. The camera fields remember the view of this instance's child canvas, rather than its card's position in the parent canvas.
 
-There is no local title or child-ID array. Instance notes and properties belong to this occurrence; properties supplement, rather than override, the Concept properties. Tags remain Concept-only. The stored view selects tree, notes, or metadata; isPinned records pinning intent. Neither new view controls nor pin enforcement is implemented by these model fields.
+There is no local title or child-ID array. Instance notes and properties belong to this occurrence; properties supplement, rather than override, the Concept properties. Tag assignments belong to Concepts and Context, not instances. The stored view selects tree, notes, or metadata; isPinned records pinning intent. Neither new view controls nor pin enforcement is implemented by these model fields.
 
 The optional instance sequence is reserved for future sequencing functionality. Unassigned values are omitted from JSON; finite numeric values, including zero, are preserved. It does not change alphabetical tree ordering or current canvas behavior.
 
@@ -96,7 +96,7 @@ ConceptNotes contains format: plain and text: string. Concepts and instances eac
 
 ConceptAppearance is optional. It contains an optional backgroundColor and optional backgroundLayers. Each layer identifies an asset reference or gradient and may supply position, size, repeat, origin, clip, attachment, and blendMode. Omitted settings stay absent; these types do not implement asset storage or appearance rendering.
 
-Context.ts defines the singleton project record: identity/title and Concept-like metadata. contextRepository reads and writes context.json, while the other four repositories retain their record collections. The page loader supplies all five parts to the stable Editor. Root instances are still inferred from null parentInstanceId. Portable Context import/export is not implemented.
+Context.ts defines the singleton project record: identity/title and Concept-like metadata. contextRepository reads and writes context.json, while the other five repositories retain their record collections. The page loader supplies Context and all five collections, including Tags. The bridge stores Tags in `editor.tags` on the stable Editor. Root instances are still inferred from null parentInstanceId. Portable Context import/export is not implemented.
 
 Normalizers default legacy records to empty notes/dates, empty contextual properties, tree view, and unpinned state without rewriting the files. They detach nested metadata so copies do not share editable objects.
 
@@ -140,7 +140,7 @@ Editing a named occurrence's title can change which Concept it references. It do
 
 If A changes from Bicycle to Scooter, A retains its instance ID, placement, camera, and children. B can continue referring to the original Bicycle Concept. The service has a special case for naming a blank Concept with only one instance.
 
-[Creation and title editing](10-creation-and-title-editing.md) traces those decisions and the unfinished conflict-selection UI.
+[Creation and title editing](10-creation-and-title-editing.md) traces those decisions and the title-conflict wizard. [Properties and tags](11-properties-and-tags.md) explains why Tag materialization uses a separate exact-link path.
 
 ## Exercise: display occurrence counts
 

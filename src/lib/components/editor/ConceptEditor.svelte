@@ -5,6 +5,8 @@
 	import CanvasTopbar from '$lib/components/editor/canvas/CanvasTopbar.svelte';
 	import PasteImportConfirmation from '$lib/components/editor/canvas/PasteImportConfirmation.svelte';
 	import ConceptSidebar from '$lib/components/editor/sidebar/ConceptSidebar.svelte';
+	import TitleConflictDialog from '$lib/components/editor/TitleConflictDialog.svelte';
+	import ConceptCardPreview from '$lib/components/editor/ConceptCardPreview.svelte';
 	import { clamp } from '$lib/components/editor/canvas/geometry';
 	import type { EditorData } from '$lib/components/editor/EditorTypes';
 	import { Editor } from '$lib/components/editor/Editor.svelte';
@@ -14,17 +16,29 @@
 
 	const editor = untrack(() => new Editor(data));
 	setEditorContext(editor);
-	onDestroy(() => editor.canvas.cancelRightClickHold());
+	onDestroy(() => {
+		editor.canvas.cancelRightClickHold();
+		editor.dismissTagPreview();
+		editor.cancelTitleConflict();
+	});
 
 	$effect(() => {
 		const context = data.context;
+		const tags = data.tags;
 		const concepts = data.concepts;
 		const instances = data.instances;
 		const relationships = data.relationships;
 		const relationshipDefinitions = data.relationshipDefinitions;
 
 		untrack(() => {
-			editor.replaceData({ context, concepts, instances, relationships, relationshipDefinitions });
+			editor.replaceData({
+				context,
+				tags,
+				concepts,
+				instances,
+				relationships,
+				relationshipDefinitions
+			});
 		});
 	});
 
@@ -70,12 +84,36 @@
 
 <svelte:window
 	onclick={() => editor.closeContextMenu()}
-	onkeydown={(event) => editor.canvas.handleWindowKeydown(event)}
+	onkeydown={(event) => {
+		if (event.key === 'Escape' && editor.dismissTagPreview()) {
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
+		editor.canvas.handleWindowKeydown(event);
+	}}
 	onpointermove={(event) => editor.canvas.handleWindowPointerMove(event)}
 	onpointerup={(event) => void editor.canvas.handleWindowPointerUp(event)}
-	onpointercancel={() => editor.canvas.cancelRightClickHold()}
-	onblur={() => editor.canvas.cancelRightClickHold()}
+	onpointercancel={() => {
+		editor.canvas.cancelRightClickHold();
+		editor.dismissTagPreview();
+	}}
+	onblur={() => {
+		editor.canvas.cancelRightClickHold();
+		editor.dismissTagPreview();
+	}}
 />
+
+{#if editor.titleConflict}
+	<TitleConflictDialog />
+{/if}
+
+{#each editor.tagPreviews as preview (preview.id)}
+	{@const concept = editor.getConceptById(preview.conceptId)}
+	{#if concept}
+		<ConceptCardPreview card={{ concept, instance: preview.instance }} {preview} />
+	{/if}
+{/each}
 
 <div class="concept-workspace">
 	<CanvasTopbar />

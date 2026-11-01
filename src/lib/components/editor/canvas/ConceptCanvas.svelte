@@ -25,8 +25,10 @@
 	oncontextmenu={(event) => editor.canvas.handleCanvasContextMenu(event)}
 	onpointerdown={(event) => editor.canvas.handleCanvasPointerDown(event)}
 	onpaste={(event) => editor.canvas.handleCanvasPaste(event)}
+	ondragover={(event) => editor.canvas.handleCanvasTagDragOver(event)}
+	ondrop={(event) => void editor.canvas.handleCanvasTagDrop(event)}
 	style={`
-	background-size: ${20 *(0.5 * editor.canvas.zoom)}px ${20 * (0.5 * editor.canvas.zoom)}px;
+	background-size: ${20 * (0.5 * editor.canvas.zoom)}px ${20 * (0.5 * editor.canvas.zoom)}px;
 	background-position: ${editor.canvas.panX}px ${editor.canvas.panY}px;
 	background-image: radial-gradient(ellipse, var(--canvas-dot-color) 2px, transparent 0px); /* could depend on vars in the future */
 	`}
@@ -49,6 +51,9 @@
 	{/each}
 </div>
 
+<div class="position-indicator">
+	({editor.canvas.panX}, {editor.canvas.panY})
+</div>
 <div class="zoom-indicator">
 	{Math.round(editor.canvas.zoom * 100)}%
 </div>
@@ -104,8 +109,6 @@
 		position: absolute;
 		inset: 0;
 		z-index: 0;
-		
-		
 	}
 
 	.canvas-world {
@@ -123,6 +126,22 @@
 		z-index: 20;
 		padding: 0.25rem 0.45rem;
 		border-radius: 6px;
+		background: hsl(0 0% 0% / 45%);
+
+		color: white;
+		font-size: 0.75rem;
+		pointer-events: none;
+	}
+
+	.position-indicator {
+		border: 1px solid #d0d0d0;
+		position: absolute;
+		left: 0.75rem;
+		bottom: 0.75rem;
+		z-index: 21;
+		padding: 0.25rem 0.45rem;
+		border-radius: 6px;
+
 		background: hsl(0 0% 0% / 45%);
 		color: white;
 		font-size: 0.75rem;

@@ -12,7 +12,7 @@ const notes = { format: 'plain' as const, text: 'Saved notes' };
 const metadata = {
 	notes,
 	properties: { shared: 'saved' },
-	tagConceptIds: ['tag'],
+	tagIds: ['tag'],
 	dates: [
 		{ date: '2024-02-29', dateLabel: 'Started' },
 		{ date: '', dateLabel: 'Undated' }
@@ -72,7 +72,7 @@ describe('expanded model persistence', () => {
 				notes: { format: 'plain', text: '' },
 				dates: [],
 				properties: {},
-				tagConceptIds: []
+				tagIds: []
 			});
 		for (const item of [instance, pair.instance])
 			expect(item).toMatchObject({
@@ -157,7 +157,7 @@ describe('expanded model persistence', () => {
 			notes: { format: 'plain', text: '' },
 			dates: [],
 			properties: metadata.properties,
-			tagConceptIds: metadata.tagConceptIds
+			tagIds: metadata.tagIds
 		});
 		expect(result?.appearance ?? {}).toEqual({});
 		expect((await concepts.getConceptById(concept.id))?.appearance ?? {}).toEqual({});

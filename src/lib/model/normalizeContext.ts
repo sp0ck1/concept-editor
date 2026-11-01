@@ -12,8 +12,8 @@ export function normalizeContext(context: Partial<Context>): Context {
 		id: typeof context.id === 'string' ? context.id : 'missing-context-id',
 		title: typeof context.title === 'string' ? context.title : 'Untitled Context',
 		properties: isStringRecord(context.properties) ? { ...context.properties } : {},
-		tagConceptIds: Array.isArray(context.tagConceptIds)
-			? context.tagConceptIds.filter((id): id is string => typeof id === 'string')
+		tagIds: Array.isArray(context.tagIds)
+			? context.tagIds.filter((id): id is string => typeof id === 'string')
 			: [],
 		notes: normalizeConceptNotes(context.notes),
 		dates: normalizeConceptDates(context.dates),

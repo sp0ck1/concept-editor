@@ -141,6 +141,12 @@ Grid arrangement is different. It sorts the current canvas cards, calculates pac
 
 Drag and resize completion also write instance geometry. Camera persistence follows another path: `saveCurrentCanvasCamera` stores the live camera on the current owner instance when navigation leaves a nested canvas. It calls the instance client directly, **without `invalidateAll()`**. Root has no owner instance and no camera record to save.
 
+## Native Tag drop
+
+Tag dragging is a separate native HTML5 gesture, not the card/tree pointer-drag state machine above. It uses custom MIME `application/x-concept-editor-tag` carrying a Tag ID and accepts a blank-canvas drop. Reverse viewport offset, pan, and zoom to obtain the pointer world position; use `null` for root or the current owner instance ID when nested.
+
+The action uses Tag placement, not title editing or its copy wizard. An unlinked Tag creates a default Concept, records its exact link, and creates an instance; a linked Tag creates only a new instance of that Concept. No source-instance metadata/children are copied, and assignments remain. A missing linked Concept is an error, not title fallback. See [Properties and tags](11-properties-and-tags.md#blank-canvas-materialization) for the implemented command/service path and reported validation.
+
 ## Optional exercise: Reset View
 
 Add a camera command that sets pan to `(0, 0)` and zoom to `1`. This is a proposed exercise feature, not an existing button in the inspected application.
@@ -164,7 +170,7 @@ The [worked solution](solutions/07-canvas.md) contains the complete additions.
 
 ## Safe verification and reversal
 
-**Browser interaction can mutate live JSON.** Before mutation-heavy testing, stop the app, make and verify an external backup of all four files under `src/lib/data/` (`concepts.json`, `concept_instances.json`, `concept_relationships.json`, and `relationship_definitions.json`), or use an isolated disposable copy of the application and data. The existing backup archive is not proof of a current backup. Do not run automated mutation tests against live storage.
+**Browser interaction can mutate live JSON.** Before mutation-heavy testing, stop the app, make and verify an external backup of all six files under `src/lib/data/` (`context.json`, `concepts.json`, `concept_instances.json`, `concept_relationships.json`, `relationship_definitions.json`, and `tags.json`), or use an isolated disposable copy of the application and data. The existing backup archive is not proof of a current backup. Do not run automated mutation tests against live storage.
 
 Run `npm run check` from the project root using native WSL Node/npm. This checks Svelte and TypeScript, not browser behavior.
 

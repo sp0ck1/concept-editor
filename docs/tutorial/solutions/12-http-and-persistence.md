@@ -5,7 +5,7 @@
 Complete [Protect data and isolate execution](../12-http-and-persistence.md#protect-data-and-isolate-execution) first:
 
 1. Stop the live app and other data writers.
-2. Back up all four JSON files to a fresh directory outside the checkout and verify every copy with `cmp`. Do not overwrite the project-level archive or an earlier backup.
+2. Back up all six JSON files (Context and five collections, including Tags) to a fresh directory outside the checkout and verify every copy with `cmp`. Do not overwrite the project-level archive or an earlier backup.
 3. Make a separate disposable project copy at `/tmp/concept-editor-tutorial-12/workspace` and confirm its `src/lib/data` is independent, not linked to live storage.
 4. Edit and run only that copy. Start its server from its own root, using the chapter's distinct port 5174. Do not click the exercise button in a live-workspace tab.
 
@@ -54,7 +54,7 @@ The key is flexible exercise metadata, not a new domain status field.
 3. The route follows the non-title branch. It accepts an object for `properties` but does not validate every value as a string.
 4. Repository `updateConcept` finds the Concept and replaces its property object. `saveAllConcepts` rewrites the Concept collection.
 5. After HTTP success, `Editor.updateConcept` calls `invalidateAll()`.
-6. The page loader returns all four record collections. `ConceptEditor.svelte` passes them to the stable editor's `replaceData` inside `untrack`.
+6. The page loader returns Context and all five record collections, including Tags. The bridge carries Tags into `Editor.tags` as well. `ConceptEditor.svelte` passes them to the stable editor's `replaceData` inside `untrack`.
 7. Card views, the property list, and an optional metadata summary derive from the refreshed records.
 
 The server path uses the disposable copy because repository paths resolve from `process.cwd()`. The server response is not manually distributed to every card.
@@ -84,7 +84,7 @@ Use only the disposable store if constructing additional cases. Confirm all unre
 
 If previous display exercises are present, the metadata summary reflects the key count and the relationship count remains unchanged. Their absence does not affect this solution.
 
-Do not run automated mutation tests against live data. With no intervening intentional live edits, the original workspace's four JSON files should still match the external backup. A mismatch is a reason to investigate, not to overwrite the originals automatically.
+Do not run automated mutation tests against live data. With no intervening intentional live edits, the original workspace's six JSON files should still match the external backup. A mismatch is a reason to investigate, not to overwrite the originals automatically.
 
 ## Cleanup and rollback
 

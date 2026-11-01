@@ -672,6 +672,21 @@ export class CanvasController {
 		return this.canvasPointToWorldPoint(this.getCanvasPointFromPointerEvent(event));
 	}
 
+	handleCanvasTagDragOver(event: DragEvent) {
+		if (!event.dataTransfer?.types.includes('application/x-concept-editor-tag')) return;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+	}
+
+	async handleCanvasTagDrop(event: DragEvent) {
+		if (!event.dataTransfer?.types.includes('application/x-concept-editor-tag')) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const tagId = event.dataTransfer.getData('application/x-concept-editor-tag');
+		if (!tagId || !this.canvasElement) return;
+		await this.editor.createInstanceFromTag(tagId, this.getWorldPointFromEvent(event));
+	}
+
 	async handleCanvasDoubleClick(event: MouseEvent) {
 		const point = this.getWorldPointFromEvent(event);
 
@@ -1067,7 +1082,7 @@ export class CanvasController {
 				return;
 			}
 
-			await this.editor.tagConceptWithConcept(targetCard, childCard.concept);
+			await this.editor.addTag(targetCard, childCard.concept.title, childCard.concept.id);
 
 			return;
 		}
@@ -1197,7 +1212,7 @@ export class CanvasController {
 			}
 
 			for (const draggedCard of draggedCards) {
-				await this.editor.tagConceptWithConcept(targetCard, draggedCard.concept);
+				await this.editor.addTag(targetCard, draggedCard.concept.title, draggedCard.concept.id);
 			}
 
 			return;
@@ -1353,6 +1368,18 @@ export class CanvasController {
 		});
 	}
 
+	private async commitConceptTitleInput(input: HTMLInputElement, card: ConceptCardView) {
+		const draft = input.value;
+		const outcome = await this.editor.commitTitleEdit(card, draft);
+		if (outcome !== 'failed' && input.value === draft) {
+			input.value = this.editor.getCard(card.instance.id)?.concept.title ?? card.concept.title;
+		}
+		if (outcome === 'cancelled' || outcome === 'failed' || outcome === 'resolved') {
+			this.lastEnterPress = { targetId: null, time: 0 };
+		}
+		return outcome;
+	}
+
 	async handleConceptTitleKeydown(event: KeyboardEvent, card: ConceptCardView) {
 		const input = event.currentTarget as HTMLInputElement;
 
@@ -1361,9 +1388,9 @@ export class CanvasController {
 
 			const isDoubleEnter = this.consumeDoubleEnter(`title:${card.instance.id}`);
 
-			await this.editor.commitTitleEdit(card, input.value);
+			const outcome = await this.commitConceptTitleInput(input, card);
 
-			if (isDoubleEnter) {
+			if (isDoubleEnter && (outcome === 'saved' || outcome === 'unchanged')) {
 				const nextPosition = getNearbyCardPosition(card);
 
 				const position = {
@@ -1388,7 +1415,7 @@ export class CanvasController {
 	async handleConceptTitleBlur(event: FocusEvent, card: ConceptCardView) {
 		const input = event.currentTarget as HTMLInputElement;
 
-		await this.editor.commitTitleEdit(card, input.value);
+		await this.commitConceptTitleInput(input, card);
 	}
 
 	emptyChildDragState(): ChildDragState {

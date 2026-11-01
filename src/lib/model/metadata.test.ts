@@ -25,7 +25,7 @@ describe('model metadata normalization', () => {
 			isPinned: false,
 			lastCameraZoom: 0
 		});
-		expect(instance).not.toHaveProperty('tagConceptIds');
+		expect(instance).not.toHaveProperty('tagIds');
 	});
 
 	it.each(['tree', 'notes', 'metadata'] as const)('retains the %s instance view', (view) => {
@@ -78,7 +78,7 @@ describe('model metadata normalization', () => {
 			notes: { format: 'plain', text: 'Shared' },
 			dates: [{ date: '', dateLabel: 'Date' }],
 			properties: { title: 'value' },
-			tagConceptIds: ['tag'],
+			tagIds: ['tag'],
 			appearance: {
 				backgroundLayers: [{ source: { type: 'asset', reference: 'paper' }, repeat: 'repeat' }]
 			}
@@ -87,12 +87,12 @@ describe('model metadata normalization', () => {
 		copy.notes.text = 'Changed';
 		copy.dates[0].dateLabel = 'Changed';
 		copy.properties.title = 'Changed';
-		copy.tagConceptIds.push('another');
+		copy.tagIds.push('another');
 		copy.appearance!.backgroundLayers![0].repeat = 'no-repeat';
 		expect(concept.notes.text).toBe('Shared');
 		expect(concept.dates[0].dateLabel).toBe('Date');
 		expect(concept.properties.title).toBe('value');
-		expect(concept.tagConceptIds).toEqual(['tag']);
+		expect(concept.tagIds).toEqual(['tag']);
 		expect(concept.appearance!.backgroundLayers![0].repeat).toBe('repeat');
 		const instance = normalizeConceptInstance({
 			notes: { format: 'plain', text: 'Local' },

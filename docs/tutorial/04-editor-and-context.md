@@ -22,11 +22,11 @@ The Editor constructor creates one `CanvasController` and calls `replaceData(dat
 
 The class contains three different kinds of state:
 
-| Kind           | Examples                                                                       | Purpose                                                       |
-| -------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| Loaded records | `context`, `concepts`, `instances`, `relationships`, `relationshipDefinitions` | Client-side working data supplied by the server               |
-| Derived values | `cards`, `cardsByInstanceId`, `cardsInCurrentCanvas`, `currentBreadcrumb`      | Indexes and views calculated from records and current context |
-| UI state       | `selectedInstanceIds`, `activeInstanceId`, `sidebarVisible`, `mainView`        | Current interaction and presentation choices                  |
+| Kind           | Examples                                                                               | Purpose                                                       |
+| -------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Loaded records | `context`, `concepts`, `instances`, `relationships`, `relationshipDefinitions`, `tags` | Client-side working data supplied by the server               |
+| Derived values | `cards`, `cardsByInstanceId`, `cardsInCurrentCanvas`, `currentBreadcrumb`              | Indexes and views calculated from records and current context |
+| UI state       | `selectedInstanceIds`, `activeInstanceId`, `sidebarVisible`, `mainView`                | Current interaction and presentation choices                  |
 
 Fields declared with `$state` are reactive. Fields declared with `$derived` or `$derived.by` are calculated from reactive dependencies.
 

@@ -11,7 +11,7 @@ const context: Context = {
 	id: 'context',
 	title: 'Workspace',
 	properties: { status: 'active' },
-	tagConceptIds: ['tag'],
+	tagIds: ['tag'],
 	notes: { format: 'plain', text: 'Saved notes' },
 	dates: [
 		{ date: '2024-02-29', dateLabel: 'Started' },
@@ -59,7 +59,7 @@ describe('singleton Context persistence', () => {
 			id: 'legacy',
 			title: 'Legacy',
 			properties: {},
-			tagConceptIds: [],
+			tagIds: [],
 			notes: { format: 'plain', text: '' },
 			dates: []
 		});
@@ -86,7 +86,7 @@ describe('singleton Context persistence', () => {
 		const input = structuredClone(context);
 		input.title = ' Updated ';
 		input.properties = { status: 'updated' };
-		input.tagConceptIds = ['new-tag'];
+		input.tagIds = ['new-tag'];
 		input.notes.text = 'Updated notes';
 		input.dates = [
 			{ date: '2026-10-28', dateLabel: 'Updated' },
@@ -98,7 +98,7 @@ describe('singleton Context persistence', () => {
 		const result = await repository.updateContext(input);
 		expect(result).toEqual(expected);
 		input.properties.status = 'changed';
-		input.tagConceptIds.push('changed');
+		input.tagIds.push('changed');
 		input.notes.text = 'changed';
 		input.dates[0].dateLabel = 'changed';
 		input.appearance!.backgroundLayers![0].source = { type: 'asset', reference: 'changed' };
@@ -112,13 +112,13 @@ describe('singleton Context persistence', () => {
 			{
 				title: null,
 				properties: null,
-				tagConceptIds: null,
+				tagIds: null,
 				notes: null,
 				dates: null,
 				appearance: null
 			},
-			{ title: 1, properties: { bad: 1 }, tagConceptIds: ['tag', 1] },
-			{ properties: [], tagConceptIds: 'tag', notes: { format: 'markdown', text: 'bad' } },
+			{ title: 1, properties: { bad: 1 }, tagIds: ['tag', 1] },
+			{ properties: [], tagIds: 'tag', notes: { format: 'markdown', text: 'bad' } },
 			{ notes: { format: 'plain', text: 1 } },
 			{ dates: [{ date: '2023-02-29', dateLabel: 'Invalid' }] },
 			{ dates: [{ date: '2024-02-29', dateLabel: 1 }] },
@@ -147,7 +147,7 @@ describe('singleton Context persistence', () => {
 			id: context.id,
 			title: '',
 			properties: {},
-			tagConceptIds: [],
+			tagIds: [],
 			notes: { format: 'plain' as const, text: '' },
 			dates: [],
 			appearance: {}

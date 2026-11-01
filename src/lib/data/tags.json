@@ -1,0 +1,29 @@
+[
+	{
+		"id": "tag-c7dd30b2-a3eb-4ac4-8785-2d3fbbd85072",
+		"title": "Concept B",
+		"representedByConceptId": "concept-91ab6d2f-2e39-4c02-9475-b0a3f1afae58"
+	},
+	{
+		"id": "tag-2cb074c1-2bd4-4d44-afcf-101589748f1e",
+		"title": "Concept B",
+		"representedByConceptId": "concept-e0fb0e61-730d-42bb-9625-d126654183ac"
+	},
+	{
+		"id": "tag-321e7eab-a47d-43f9-a082-b0e6bf2d74f8",
+		"title": "Ham"
+	},
+	{
+		"id": "tag-4ff4233e-1cb4-475a-9cc6-21968f2bb625",
+		"title": "Cheese",
+		"representedByConceptId": "concept-f9d649fb-a7b7-4020-afc3-e15dbf1766d3"
+	},
+	{
+		"id": "tag-9abdc0b9-ad8a-4fc4-be2e-b8b8758dd37e",
+		"title": "Pizza"
+	},
+	{
+		"id": "tag-3823a98e-09b2-4888-b34d-949557723193",
+		"title": "Test Tag about Cheese"
+	}
+]

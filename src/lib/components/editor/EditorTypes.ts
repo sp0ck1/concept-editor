@@ -1,6 +1,6 @@
+import type { Tag } from '$lib/model/Tag';
 import type { Context } from '$lib/model/Context';
 import type { Concept } from '$lib/model/Concept';
-import type { ConceptCardView } from '$lib/model/ConceptCardView';
 import type { ConceptInstance } from '$lib/model/ConceptInstance';
 import type { ConceptRelationship } from '$lib/model/ConceptRelationship';
 import type { RelationshipDefinition } from '$lib/model/RelationshipDefinition';
@@ -8,6 +8,7 @@ import type { ConceptSizePreset } from '$lib/components/editor/canvas/layout';
 
 export type EditorData = {
 	context: Context;
+	tags: Tag[];
 	concepts: Concept[];
 	instances: ConceptInstance[];
 	relationships: ConceptRelationship[];
@@ -53,8 +54,20 @@ export type ContextMenu = {
 	y: number;
 } & ContextMenuTarget;
 
+export type TitleEditOutcome = 'saved' | 'resolved' | 'unchanged' | 'cancelled' | 'failed';
+
 export type TitleConflictState = {
-	card: ConceptCardView;
+	instanceId: string;
+	originalConceptId: string;
+	previousTitle: string;
 	title: string;
 	matchingConcepts: Concept[];
+};
+
+export type TitleConflictCandidate = {
+	concept: Concept;
+	instance: ConceptInstance | null;
+	path: string;
+	propertiesCount: number;
+	childrenCount: number;
 };

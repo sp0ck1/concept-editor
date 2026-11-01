@@ -6,15 +6,17 @@ This chapter follows the commands first, then their input handlers, HTTP calls, 
 
 ## Responsibilities and main functions
 
-| File                                                                                  | Responsibility and main functions                                                                                                                                                          |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/lib/components/editor/Editor.svelte.ts`                                          | `createConcept` supplies creation defaults and refreshes records. `commitTitleEdit` skips unchanged input; `updateConceptTitleFromInstance` coordinates title requests and conflict state. |
-| `src/lib/components/editor/canvas/CanvasController.svelte.ts`                         | Handles canvas and title-input events. Chooses placement using `getViewportCenterWorldPoint`, pointer conversion, or `getNearbyCardPosition` from `layout.ts`.                             |
-| `src/lib/components/editor/card/ConceptCard.svelte`                                   | Displays one card's title input and focuses it when `pendingFocusInstanceId` matches.                                                                                                      |
-| `src/lib/client/concepts.ts`                                                          | `createConceptRecord` and `updateConceptTitleFromInstanceRecord` send HTTP requests and interpret responses.                                                                               |
-| `src/routes/api/concepts/+server.ts`                                                  | `POST` delegates creation; `PATCH` requires both IDs for title edits and translates service results into HTTP responses.                                                                   |
-| `src/lib/server/conceptService.ts`                                                    | `createConceptWithInstance` constructs linked records. `updateConceptTitleFromInstance` applies reassignment and conflict rules.                                                           |
-| `src/lib/server/repositories/conceptRepository.ts` and `conceptInstanceRepository.ts` | Read collections, generate IDs, and write the two JSON files.                                                                                                                              |
+| File                                                                                  | Responsibility and main functions                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/components/editor/Editor.svelte.ts`                                          | `createConcept` supplies defaults and refresh. `commitTitleEdit` joins pending edits; `updateConceptTitleFromInstance` reports conflicts; `getTitleConflictCandidates`, `resolveTitleConflict`, and `cancelTitleConflict` drive the wizard. |
+| `src/lib/components/editor/canvas/CanvasController.svelte.ts`                         | Handles canvas and title-input events. Chooses placement using `getViewportCenterWorldPoint`, pointer conversion, or `getNearbyCardPosition` from `layout.ts`.                                                                              |
+| `src/lib/components/editor/card/ConceptCard.svelte`                                   | Displays one card's title input and focuses it when `pendingFocusInstanceId` matches.                                                                                                                                                       |
+| `src/lib/client/concepts.ts`                                                          | `createConceptRecord` and `updateConceptTitleFromInstanceRecord` send HTTP requests and interpret responses.                                                                                                                                |
+| `src/routes/api/concepts/+server.ts`                                                  | `POST` delegates creation; `PATCH` requires both IDs for title edits and translates service results into HTTP responses.                                                                                                                    |
+| `src/lib/server/conceptService.ts`                                                    | `createConceptWithInstance` constructs linked records. `updateConceptTitleFromInstance` applies reassignment and conflict rules.                                                                                                            |
+| `src/lib/server/repositories/conceptRepository.ts` and `conceptInstanceRepository.ts` | Read collections, generate IDs, and write the two JSON files.                                                                                                                                                                               |
+| `src/lib/components/editor/TitleConflictDialog.svelte` and `ConceptEditor.svelte`     | The dialog presents source, destination, and copy choices; the workspace mounts it while `editor.titleConflict` exists.                                                                                                                     |
+| `src/lib/model/TitleConflictMode.ts`                                                  | Defines conflict modes and the optional `TitleConflictResolution` request.                                                                                                                                                                  |
 
 The [loading and derived cards chapter](05-loading-and-derived-cards.md) explains the return path from persistence to rendering. [Cards](06-cards.md) covers the component itself; [HTTP and persistence](12-http-and-persistence.md) covers the transport and storage boundaries in more detail.
 
@@ -95,13 +97,32 @@ In `ConceptCard.svelte`, an effect waits for both a matching `pendingFocusInstan
 
 ## Title editing changes the represented Concept
 
-A card displays `card.concept.title`, but edits begin from `card.instance`. `Editor.commitTitleEdit` trims the input and returns without a request if it exactly equals the current Concept title. Otherwise it calls the editor's `updateConceptTitleFromInstance` method.
+A card displays `card.concept.title`, but edits begin from `card.instance`. `Editor.commitTitleEdit` trims input and skips an exactly unchanged title. Enter and blur for the same in-flight edit join one pending promise rather than sending duplicate requests.
 
-That method sends the Concept ID, instance ID, requested title, and conflict mode through `updateConceptTitleFromInstanceRecord`. On success it clears `titleConflict` and invalidates. On a conflict it stores the card, requested title, and matching Concepts, then returns without invalidation.
+`updateConceptTitleFromInstanceRecord` sends the Concept ID, instance ID, requested title, and conflict mode to `PATCH /api/concepts`. A reported conflict returns `409`/`TITLE_CONFLICT` without writes. The Editor stores the original title and matching Concepts, and keeps the commit pending while `ConceptEditor.svelte` mounts `TitleConflictDialog.svelte`.
 
-The route's `PATCH` branch requires an instance ID when changing a title. Missing IDs produce `400`; missing records produce `404`. A service conflict produces `409` with code `TITLE_CONFLICT`, which the client converts to a `title-conflict` result. Unknown conflict modes fall back to `report-conflict`.
+### The implemented conflict wizard
 
-**The current components do not render a complete conflict chooser.** Stored conflict state and supported service modes are not a finished selection/confirmation interface.
+The native modal uses cream fills, square edges, and compact rows. It asks whether to Create new Concept or use an existing Concept. `getTitleConflictCandidates` builds one row per occurrence/path, plus Not placed entries for Concepts without instances. Selecting a row supplies exact Concept and optional source-instance IDs, not identity inferred from its title/path.
+
+Rows show properties and immediate children. Properties count is `Object.keys(concept.properties).length + Object.keys(instance.properties).length`, counting overlapping keys twice. Not placed counts only shared properties and has no instance-copy options. Ancestors shorten with ellipses; the final title remains visible and the full path is available on hover.
+
+Existing selection offers two destinations:
+
+| Destination                                  | Behavior                                                                                                                                                                                                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Use it for this card                         | Reassign the edited instance, preserving ID, parentage, geometry, camera, view, pin, sequence, and existing children. Merge selected source-instance property keys: selected values overwrite matching keys, while unselected destination keys remain. |
+| Keep this card and create another occurrence | Leave the original unchanged. Create a fresh sibling beside it with default instance size, camera, tree view, unpinned state, no sequence, and empty metadata except selected copies.                                                                  |
+
+All source-instance property keys start selected, with Select All, Select None, and individual controls. Notes default checked when a source instance exists; children default checked when it has children. Notes copying warns about replacement and explicitly warns when empty source notes would clear current notes. Declining notes copying preserves current notes or leaves a new sibling at its default.
+
+Copy children appends the entire source descendant tree beneath the destination. Every copied instance gets a fresh ID and retains its Concept reference; there is no title/Concept-ID deduplication and no immediate-only option. Existing destination children remain. One Retain child metadata checkbox governs the whole subtree, retaining instance metadata or initializing defaults.
+
+Shared Concept properties, tags, notes, dates, and appearance apply by reference. They are not optional instance copies; there are no instance date/appearance controls. The separate legacy immediate-child import action remains unchanged: it copies only immediate children and skips Concept IDs already directly present.
+
+`resolveTitleConflict` sends the chosen mode and optional `TitleConflictResolution` through the client, route, and service, then invalidates so records return through the stable Editor bridge. A new sibling is selected after refresh when visible on the current canvas. Cancel/Escape before saving resolves the pending edit as cancelled, restores the original input title, and writes nothing. Busy saving blocks repeated confirmation and cancellation. A failed resolution stays open with an error; a successful write followed by failed refresh closes the wizard to prevent another copy.
+
+The route requires both IDs for title editing and validates resolution fields; the service rejects invalid/stale source or target selections. `use-existing` resolutions carry `targetConceptId`, optional `sourceInstanceId`, `destination`, `propertyKeys`, `copyNotes`, `copyChildren`, and `retainChildMetadata`. Unknown conflict modes retain the `report-conflict` fallback.
 
 ### Service decision order
 
@@ -109,18 +130,19 @@ The route's `PATCH` branch requires an instance ID when changing a title. Missin
 
 The order matters:
 
-| Condition                                                                                                 | Result                                                                                                                          | Files written |
-| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| Matches exist; `report-conflict`                                                                          | Return matching Concepts without changing records.                                                                              | Neither       |
-| Matches exist; `use-existing`                                                                             | Set this instance's `conceptId` to the first matching Concept ID. Its displayed metadata now comes from that Concept.           | Instances     |
-| No earlier return; original title is blank, exactly one instance uses it, and requested title is nonempty | Name the original blank Concept in place.                                                                                       | Concepts      |
-| Otherwise                                                                                                 | Create a new Concept, copy the original properties and tag IDs, and reconnect this instance to it. Retain the original Concept. | Both          |
+| Condition                                                                                                 | Result                                                                                                                                    | Files written |
+| --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Matches exist; `report-conflict`                                                                          | Return matching Concepts without changing records.                                                                                        | Neither       |
+| Valid `use-existing` resolution                                                                           | Use the exact selected Concept and apply current-instance or new-sibling destination/copy options.                                        | Instances     |
+| Matches exist; `use-existing` without a resolution                                                        | Legacy fallback: reconnect this instance to the first matching Concept.                                                                   | Instances     |
+| No earlier return; original title is blank, exactly one instance uses it, and requested title is nonempty | Name the original blank Concept in place.                                                                                                 | Concepts      |
+| Otherwise                                                                                                 | Create a new Concept, deep-copy properties, tags, notes, dates, and appearance, and reconnect this instance. Retain the original Concept. | Both          |
 
-`create-duplicate` bypasses reuse/conflict reporting; it still reaches the blank-Concept special case before the new-Concept branch. It does not force a new ID when naming a singly used blank Concept. `use-existing` with no match also proceeds to those later branches.
+`create-duplicate` bypasses reuse/conflict reporting; it still reaches the blank-Concept special case before the new-Concept branch. It does not force a new ID when naming a singly used blank Concept. Legacy `use-existing` without a resolution and with no match also proceeds to those later branches; an exact-ID resolution must select a matching Concept.
 
 Naming a blank, singly used Concept is the narrow in-place exception. Editing an already named occurrence is not a global rename of the shared Concept. Clearing a named title reaches the new-Concept branch with an empty title. Different Concept IDs may legitimately have equal titles.
 
-The current `use-existing` implementation chooses `matchingConcepts[0]`. That is an identity shortcut, not complete same-name disambiguation. Reusing a Concept takes its shared metadata; it does not merge or copy the previous Concept's metadata into the target.
+Only legacy `use-existing` calls without a resolution choose `matchingConcepts[0]`. The wizard always supplies an exact-ID resolution. Reusing a Concept takes its shared metadata; it does not merge the previous shared metadata into it.
 
 ### Identity and containment remain distinct
 
@@ -128,17 +150,17 @@ When reassignment changes `instance.conceptId`, it preserves the instance's:
 
 - `id` and `parentInstanceId`;
 - position and dimensions;
-- saved camera fields;
+- saved camera fields, view, pin, and sequence;
 - children, whose `parentInstanceId` still points to the unchanged instance ID.
 
 Other instances still refer to the original Concept. No instance-local title is added, and unused Concepts are not automatically deleted.
 
 For example, suppose instance A in Garage and instance B in Transport both reference Bicycle. Editing A to `Scooter` has these outcomes:
 
-1. If Scooter already exists, the default request reports a conflict without writing either file. The Editor stores it, but no complete chooser appears.
-2. A deliberate caller retry with `use-existing` connects A to the first matching Scooter Concept, including its properties/tags. B still represents Bicycle.
+1. If Scooter already exists, the default request reports a conflict without writing either file. The wizard opens and keeps the title commit pending.
+2. Choosing an exact Scooter occurrence and Use it for this card reconnects A to that Concept with optional instance copies. B still represents Bicycle. Choosing a new sibling instead leaves both unchanged.
 3. If there is no match, the service creates a new Scooter Concept with Bicycle's copied properties, tags, notes, dates, and optional appearance, then reconnects A. Bicycle remains unchanged for B.
-4. A's children, parent, geometry, camera, and instance ID remain unchanged in either reassignment.
+4. Current-instance reassignment preserves A's children, parent, geometry, camera, view, pin, sequence, and ID; selected copies can merge properties, replace notes, or append descendants.
 
 These are service traces, not instructions to test against personal records.
 
@@ -149,15 +171,17 @@ The input in `ConceptCard.svelte` delegates `keydown` to `handleConceptTitleKeyd
 | Entry point                                  | Current behavior                                                                                                                   |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Enter in a title input                       | Prevent default, record the title-specific Enter target, and await `commitTitleEdit`.                                              |
-| Second Enter in the same title within 450 ms | After the commit returns, create a blank card at `getNearbyCardPosition(card)`.                                                    |
+| Second Enter in the same title within 450 ms | After a normal `saved`/`unchanged` commit, create nearby via `getNearbyCardPosition(card)`; wizard outcomes do not create.         |
 | Escape in a title input                      | Restore `card.concept.title` in the input, then blur; blur calls the normal commit path, normally a no-op for that restored value. |
-| Blur                                         | Commit the current input value.                                                                                                    |
+| Blur                                         | Commit the current input value, joining the pending edit if Enter already started it.                                              |
 | Double Enter outside interactive elements    | `handleWindowKeydown` creates at viewport center.                                                                                  |
 | Canvas double-click                          | Convert pointer position to world coordinates and create with a random offset of up to 100 units per axis.                         |
 
 `consumeDoubleEnter` compares the previous target ID and timestamp, then updates both. Title targets use `title:<instance ID>`; canvas targets use `canvas:<owner instance ID or root>`. It does not itself check whether the event was Enter. The window handler excludes focused inputs, buttons, and other interactive elements.
 
-The title handler does **not** test whether a conflict was resolved before creating nearby: `commitTitleEdit` returns normally after storing a reported conflict. It also does not blur on Enter. Preserve these actual behaviors rather than assuming a completed confirmation workflow.
+The title handler awaits the pending edit and creates nearby only for `saved` or `unchanged`. Wizard `resolved`/`cancelled`/`failed` outcomes do not create another card. Enter does not blur; the dialog stops keyboard propagation so wizard actions cannot trigger canvas double Enter. `commitConceptTitleInput` synchronizes the input with the canonical or restored title after completion.
+
+Key wizard flows passed isolated browser tests, and unit tests passed (reported implementation validation). This documentation update does not rerun them or complete the broader manual checklist. Three-second interactive previews and date-display filtering remain deferred.
 
 ## Optional exercise: add a New Card button
 
@@ -237,5 +261,5 @@ Keep the command and button if continuing to integration. To remove this exercis
 - Creation persists a new Concept and a distinct instance; derived cards appear through invalidation and `replaceData`.
 - Title edits operate through an occurrence. They may reuse a Concept, name one singly used blank Concept, or create a Concept and reassign the instance.
 - Reassignment preserves occurrence identity, containment, children, geometry, and camera. Titles are not unique IDs.
-- Conflict reporting exists, but the complete chooser does not. Title-input double Enter creates nearby, independently of canvas-center creation.
+- The wizard resolves exact identities and current-card/new-sibling copy choices. Only normal saved/unchanged title double Enter creates nearby; wizard outcomes do not.
 - The optional New Card command composes existing APIs without changing persistence or title semantics.

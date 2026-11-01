@@ -13,7 +13,7 @@ This chapter traces an existing property update and adds a temporary `reviewed` 
 | `lib/client/concepts.ts`                              | `updateConceptRecord` sends a typed `PATCH /api/concepts` request.                                                |
 | `routes/api/concepts/+server.ts`                      | `PATCH` selects the title or metadata path and constructs repository input.                                       |
 | `lib/server/repositories/conceptRepository.ts`        | `updateConcept` finds the record, replaces supplied metadata fields, and saves the collection.                    |
-| `routes/+page.server.ts`                              | `load` reads the Context record and four canonical collections.                                                   |
+| `routes/+page.server.ts`                              | `load` reads the Context record and five canonical collections.                                                   |
 | `lib/components/editor/ConceptEditor.svelte`          | Bridges incoming page data into the existing editor with `replaceData`.                                           |
 
 `src/lib/server/conceptService.ts` coordinates operations such as creating a Concept with an instance and reassigning an instance after a title edit. Ordinary property/tag updates go directly from the Concept route to repository `updateConcept`; they do not pass through that service.
@@ -47,13 +47,13 @@ flowchart TD
     D --> E[Repository writes concepts.json]
     E --> F[Successful response]
     F --> G[Editor calls invalidateAll]
-    G --> H[Page loader reads Context and four collections]
+    G --> H[Page loader reads Context and five collections]
     H --> I[ConceptEditor incoming-data effect]
     I --> J[Stable Editor.replaceData]
     J --> K[Derived cards and sidebar]
 ```
 
-`+page.server.ts` reads the Context, Concepts, instances, relationships, and relationship definitions. `ConceptEditor.svelte` tracks the incoming collections and calls `editor.replaceData(...)` inside `untrack`. It does not construct a new editor for each refresh.
+`+page.server.ts` reads the Context, Tags, Concepts, instances, relationships, and relationship definitions. `ConceptEditor.svelte` tracks the incoming collections and calls `editor.replaceData(...)` inside `untrack`. It does not construct a new editor for each refresh.
 
 `replaceData` normalizes Concepts and instances, assigns relationships and definitions, and lets indexes, card views, and owner-derived values recalculate. Keeping the Editor object stable preserves its context identity and workspace state while replacing server records. It also retains a detached snapshot of the last loaded records for restoring optimistic edits if a save fails.
 
@@ -73,7 +73,7 @@ The repository path is resolved from `process.cwd()` to `src/lib/data/concepts.j
 Current limits are important when interpreting a successful UI update:
 
 - The route checks that `properties` is a non-null, non-array object, then casts it to `Record<string, string>`. It does not validate each property's value as a string. TypeScript request types do not enforce runtime JSON shapes.
-- For `tagConceptIds`, the route filters an array to strings; it does not check every referenced Concept exists. Editor-side deduplication/self-tag checks are not equivalent to server validation.
+- For `tagIds`, the route filters an array to strings; it does not check every referenced Tag exists. Client deduplication is not server reference validation. These are Tag IDs, not Concept IDs.
 - If `body.title` is a string, the separate title/identity branch runs and requires an instance ID. This is not the ordinary metadata branch.
 - `Editor.updateConcept` returns `true` after a successful write and refresh. On failure it logs the exception, restores the last-loaded record snapshot, sets `saveError`, and returns `false`. The workspace displays that message with a Reload button. Recovery makes no loader request, so it also works offline; the snapshot is not proof of the server's final state if a response was lost.
 - Read/modify/write of a whole JSON file is not a transaction or concurrency-control mechanism. Concurrent writes can lose changes; the current design does not establish multi-user safety.
@@ -94,9 +94,9 @@ The [separate solution](solutions/12-http-and-persistence.md) supplies the marku
 
 ## Context metadata saves
 
-Editor.updateContext() calls updateContextRecord() in client/context.ts, which sends a PATCH to /api/context. The handler requires an object body and passes updates to contextRepository.updateContext(). That repository validates the supported metadata and writes only the Context record to context.json, preserving its identity and leaving the four collection files untouched. Successful commands invalidate page data so the refreshed Context reaches the same Editor. Failures use the existing last-loaded-data recovery path rather than navigating offline.
+Editor.updateContext() calls updateContextRecord() in client/context.ts, which sends a PATCH to /api/context. The handler requires an object body and passes updates to contextRepository.updateContext(). That repository validates the supported metadata and writes only the Context record to context.json, preserving its identity and leaving the five collection files untouched. Successful commands invalidate page data so the refreshed Context reaches the same Editor. Failures use the existing last-loaded-data recovery path rather than navigating offline.
 
-The Context title field is named title. The root sidebar edits that title on blur/Enter and uses the same property/tag controls as a Concept sidebar. Those controls dispatch to setContextProperties(), addContextTag(), and removeContextTag() at the root, while nested Concept views retain their Concept commands. Tag references are saved in context.json; ensuring a new tag also creates its Concept in concepts.json. Notes, dates, and appearance are supported by the metadata endpoint but do not yet have editing controls.
+The Context title field is named title. The root sidebar edits that title on blur/Enter and uses the same property/tag controls as a Concept sidebar. Those controls dispatch to setContextProperties(), addContextTag(), and removeContextTag() at the root, while nested Concept views retain their Concept commands. Tag references are saved in context.json; the add path ensures a Tag in tags.json rather than creating a Concept. `setContextTagIds`/`setConceptTagIds` save assignment lists, and refreshed Tags return through `Editor.tags`. Only explicit blank-canvas Tag materialization creates/links a representing Concept; see [Properties and tags](11-properties-and-tags.md). Notes, dates, and appearance are supported by the metadata endpoint but do not yet have editing controls.
 
 ## Protect data and isolate execution
 
@@ -106,9 +106,10 @@ Use native WSL commands from the original project root. Stop the live applicatio
 mkdir ../concept-editor-tutorial-12-backup
 ```
 
-If it already exists or creation fails, stop and choose a fresh location; do not overwrite an earlier backup. Copy all five related files, preserving the existing project-level archive:
+If it already exists or creation fails, stop and choose a fresh location; do not overwrite an earlier backup. Copy all six related files, preserving the existing project-level archive:
 
 ```sh
+cp -p src/lib/data/tags.json ../concept-editor-tutorial-12-backup/
 cp -p src/lib/data/context.json ../concept-editor-tutorial-12-backup/
 cp -p src/lib/data/concepts.json ../concept-editor-tutorial-12-backup/
 cp -p src/lib/data/concept_instances.json ../concept-editor-tutorial-12-backup/
@@ -119,6 +120,7 @@ cp -p src/lib/data/relationship_definitions.json ../concept-editor-tutorial-12-b
 Verify each copy without printing personal records:
 
 ```sh
+cmp src/lib/data/tags.json ../concept-editor-tutorial-12-backup/tags.json
 cmp src/lib/data/context.json ../concept-editor-tutorial-12-backup/context.json
 cmp src/lib/data/concepts.json ../concept-editor-tutorial-12-backup/concepts.json
 cmp src/lib/data/concept_instances.json ../concept-editor-tutorial-12-backup/concept_instances.json
@@ -126,7 +128,7 @@ cmp src/lib/data/concept_relationships.json ../concept-editor-tutorial-12-backup
 cmp src/lib/data/relationship_definitions.json ../concept-editor-tutorial-12-backup/relationship_definitions.json
 ```
 
-Every comparison must exit successfully. A backup is verified only after comparison, not merely because a copy command was issued. Keep it until the exercise is complete; it is separate from `data-backup-do-not-delete-project-level-data.zip`.
+Every comparison must exit successfully. `tags.json` was initialized in the completed separate-Tag reset. If any expected file is missing, stop rather than claiming a complete backup or substituting live data. Do not repeat the reset for this exercise. A backup is verified only after comparison, not merely because a copy command was issued. Keep it until the exercise is complete; it is separate from `data-backup-do-not-delete-project-level-data.zip`.
 
 Create a separate local project copy, still with all writers stopped:
 
@@ -173,7 +175,7 @@ On a Concept chosen in the disposable copy:
 5. Click again: the property count must not increase again. If the key already existed, it must not increase at all.
 6. If present, the metadata summary updates; the relationship count is unchanged. These are optional extra observations, not prerequisites.
 
-Check that the original workspace's five data files still match its external backup if no intentional live edits occurred in the meantime. If they differ, investigate; do not automatically restore them over potentially desired changes.
+Check that the original workspace's six data files still match its external backup if no intentional live edits occurred in the meantime. If they differ, investigate; do not automatically restore them over potentially desired changes.
 
 ## Cleanup without losing later work
 

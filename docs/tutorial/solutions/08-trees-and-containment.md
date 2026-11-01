@@ -87,7 +87,7 @@ Run `npm run check` from the project root with native WSL Node/npm. Inspect exis
 - Expanding grandchildren does not increase an ancestor's immediate count.
 - Repeated occurrences can display different counts.
 
-Expansion and count inspection do not require writes. Hold-to-drag and navigation can write live JSON. Before those browser checks, stop the app and make and verify an external backup of all four JSON files under `src/lib/data/`, or use an isolated disposable application copy. Do not manufacture test cases in personal data or run automated mutation tests against live storage.
+Expansion and count inspection do not require writes. Hold-to-drag and navigation can write live JSON. Before those browser checks, stop the app and make and verify an external backup of all six JSON files (Context and five collections, including Tags) under `src/lib/data/`, or use an isolated disposable application copy. Do not manufacture test cases in personal data or run automated mutation tests against live storage.
 
 On protected data, verify early release cancels the card's 300 ms hold and a full hold still starts child dragging. Card trees receive those callbacks; the sidebar's `<TreeView />` does not. Do not add sidebar dragging as part of a count change.
 

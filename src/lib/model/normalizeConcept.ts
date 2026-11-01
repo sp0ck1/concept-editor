@@ -11,7 +11,7 @@ export function normalizeConcept(concept: Partial<Concept>, index = 0): Concept 
 		id: concept.id ?? `missing-concept-id-${index}`,
 		title: concept.title ?? '',
 		properties: { ...(concept.properties ?? {}) },
-		tagConceptIds: Array.isArray(concept.tagConceptIds) ? [...concept.tagConceptIds] : [],
+		tagIds: Array.isArray(concept.tagIds) ? [...concept.tagIds] : [],
 		notes: normalizeConceptNotes(concept.notes),
 		dates: normalizeConceptDates(concept.dates),
 		...(appearance !== undefined ? { appearance } : {})

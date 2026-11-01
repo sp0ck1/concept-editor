@@ -18,7 +18,7 @@ export type UpdateConceptInput = {
 	dates?: Concept['dates'];
 	appearance?: Concept['appearance'];
 	properties?: Record<string, string>;
-	tagConceptIds?: string[];
+	tagIds?: string[];
 };
 
 export async function getAllConcepts(): Promise<Concept[]> {
@@ -62,7 +62,7 @@ export async function createConcept(
 		id: createConceptId(),
 		title: title.trim(),
 		properties: {},
-		tagConceptIds: [],
+		tagIds: [],
 		notes: normalizeConceptNotes(undefined),
 		dates: normalizeConceptDates(undefined)
 	};
@@ -92,7 +92,7 @@ export async function ensureConceptByTitle(
 		id: createConceptId(),
 		title: normalizedTitle,
 		properties: {},
-		tagConceptIds: [],
+		tagIds: [],
 		notes: normalizeConceptNotes(undefined),
 		dates: normalizeConceptDates(undefined)
 	};
@@ -125,8 +125,8 @@ function applyConceptUpdates(concept: Concept, updates: UpdateConceptInput): voi
 		concept.properties = updates.properties;
 	}
 
-	if (updates.tagConceptIds !== undefined) {
-		concept.tagConceptIds = updates.tagConceptIds;
+	if (updates.tagIds !== undefined) {
+		concept.tagIds = updates.tagIds;
 	}
 
 	if (isConceptNotes(updates.notes)) concept.notes = normalizeConceptNotes(updates.notes);

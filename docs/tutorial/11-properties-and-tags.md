@@ -1,67 +1,50 @@
 # 11. Properties and tags
 
-Inside a Concept canvas, the property and tag controls described in this chapter edit shared Concept metadata. At the root workspace, the same controls edit the Context record through Context-specific commands and PATCH /api/context. Instances also support their own additive contextual properties in the model, but separate instance-property controls are not implemented. Tags remain Concept-only. Two instances share Concept metadata while retaining independent notes, contextual properties, geometry, parents, children, and cameras.
+Inside a Concept canvas, the property and tag controls described in this chapter edit shared Concept metadata. At the root workspace, the same controls edit the Context record through Context-specific commands and PATCH /api/context. Instances also support their own additive contextual properties in the model, but separate instance-property controls are not implemented. Tag assignments belong to Concepts and Context, not instances. Two instances share Concept metadata while retaining independent notes, contextual properties, geometry, parents, children, and cameras.
 
 This chapter covers metadata ownership, editing commands, local input drafts, and tag identity. Its display-only exercise does not require changes from earlier exercises; the relationship count from [Relationships](03-relationships.md) may remain if you added it.
 
 ## Responsibilities and main functions
 
-| File under `src/lib/`                             | Responsibility                                                              |
-| ------------------------------------------------- | --------------------------------------------------------------------------- |
-| `model/Concept.ts`                                | Defines shared metadata fields.                                             |
-| `model/normalizeConcept.ts`                       | Supplies defaults when Concept records enter the application.               |
-| `components/editor/Editor.svelte.ts`              | Owns canonical Concepts, metadata commands, and ID lookup.                  |
-| `components/editor/sidebar/ConceptSidebar.svelte` | Edits properties and keeps new-property and sidebar-tag drafts.             |
-| `components/editor/ConceptTagsPreview.svelte`     | Renders tag Concepts and emits tag input/open/remove callbacks.             |
-| `components/editor/card/ConceptCard.svelte`       | Resolves a card's tag references and connects callbacks to Editor commands. |
+| File under `src/lib/`                             | Responsibility                                                                                                                     |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `model/Concept.ts` and `model/Context.ts`         | Define metadata with `tagIds` referencing Tags.                                                                                    |
+| `model/Tag.ts`                                    | Define `Tag { id, title, representedByConceptId? }`.                                                                               |
+| `server/repositories/tagRepository.ts`            | Read/write `tags.json`; `ensureTag` selects typed matches by shared-property count or preserves an explicitly supplied Concept ID. |
+| `server/tagService.ts`                            | `materializeTag` links a representing Concept and creates an instance.                                                             |
+| `client/tags.ts`                                  | `ensureTag` and `createTagInstance` call the Tag endpoints.                                                                        |
+| `components/editor/Editor.svelte.ts`              | Own `tags`, resolve assignments with `getTags`, and coordinate metadata/materialization commands.                                  |
+| `components/editor/sidebar/ConceptSidebar.svelte` | Own drafts and choose Context or Concept commands.                                                                                 |
+| `components/editor/ConceptTagsPreview.svelte`     | Render native draggable Tag tiles and provide input/remove callbacks.                                                              |
 
-The main Editor APIs are:
+**Status:** separate Tags are implemented end to end, including the stable `Editor.tags` refresh bridge, assignment controls, native draggable tiles, and blank-canvas materialization. The owner reports 113 passing component tests and real-mouse HTML5 browser coverage; see validation below. This documentation update does not rerun those checks.
 
-| Function                                       | Operation                                                                                |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `setProperties(card, properties)`              | Replaces the Concept's complete property object and persists it.                         |
-| `addTag(card, title)`                          | Finds or creates a Concept by title, then attaches its ID as a tag.                      |
-| `removeTag(card, tagConcept)`                  | Removes the tag ID from the target Concept, not the tag Concept itself.                  |
-| `setConceptTagConceptIds(card, tagConceptIds)` | Deduplicates IDs, excludes the target's own ID, and persists the complete list.          |
-| `getTagConcepts(tagConceptIds)`                | Resolves IDs to loaded Concepts, dropping unresolved references from the display result. |
-
-`tagConceptWithConcept(targetCard, tagConcept)` is the ID-based operation used once the tag Concept is already known. `updateConcept(id, updates)` sends metadata changes through the client and refreshes canonical records after success.
+Existing property commands remain `setProperties(card, properties)` for a Concept and `setContextProperties(properties)` for Context. They replace the complete property object. `updateConcept(id, updates)` and `updateContext(updates)` persist metadata and refresh canonical records after success. Tag assignments use `setContextTagIds`/`setConceptTagIds`. `addContextTag`/`addTag` ensure Tags by title, and `removeContextTag`/`removeTag` remove assignments without deleting Tags. `getTags(tagIds)` resolves the display list from `Editor.tags`.
 
 ## Metadata shape and identity
 
-`src/lib/model/Concept.ts` defines:
+Concept and Context store `tagIds: string[]`. These are Tag IDs, not Concept IDs or display labels. This metadata excerpt refers to separately stored Tags:
 
 ```ts
-export type Concept = {
-	id: string;
-	title: string;
-	properties: Record<string, string>;
-	tagConceptIds: string[];
-};
-```
-
-For example:
-
-```ts
-const bicycle: Concept = {
-	id: 'bicycle',
-	title: 'Bicycle',
+const metadata = {
 	properties: { colour: 'blue', gears: '8' },
-	tagConceptIds: ['vehicle', 'owned']
+	tagIds: ['tag-vehicle', 'tag-owned']
 };
+
+const vehicleTag: Tag = { id: 'tag-vehicle', title: 'Vehicle' };
 ```
 
-`'8'` is a string, not a numeric property type. `vehicle` and `owned` are Concept IDs, not stored display labels. Their titles are resolved from the loaded Concept collection. Tags are ordinary Concepts and do not need a separate tag entity.
+Property values remain strings. This excerpt omits other Concept/Context fields rather than declaring a complete Concept. Tags carry no Concept metadata or instance children. The optional `representedByConceptId` links to a separate Concept when materialized below.
 
-IDs establish identity. Distinct Concepts may have the same title; equal text does not make them the same tag. The current title-based add flow does not yet offer complete disambiguation between them.
+Tag titles are nonempty and trimmed but may repeat. Typed `Vehicle`/`vehicle` lookup considers the same case-insensitive matches and chooses the Tag whose linked Concept has the most shared properties; ties retain the first Tag in storage order. Unlinked or missing linked Concepts contribute zero. Two ordinary Concepts called Vehicle may coexist; typing a tag does not automatically link either one. Tag and linked Concept titles are independent; renaming either does not rename the other or change the exact-ID link. Future tag filtering uses Tag IDs, not Concept IDs or names.
 
-The model does not establish required properties, inheritance, arbitrary JSON values, or schema enforcement through tags. These capabilities must not be inferred from flexible metadata.
+Flexible metadata does not imply required properties, inheritance, typed attributes, or status workflows.
 
-### Defaults are not validation
+### Defaults are not migration
 
-`normalizeConcept(concept, index)` fills a missing ID/title, defaults missing properties to `{}`, and defaults `tagConceptIds` to `[]` when it is not an array. It does not resolve IDs or thoroughly validate the contents of those fields.
+`normalizeConcept` defaults absent/non-array `tagIds` to an empty array; `normalizeContext` also filters its array to strings. Normalizers repair/default loaded records; repository input types describe accepted updates. Neither is complete runtime schema validation. Defaults do not resolve references or convert the old Concept-as-tag model. The separate-Tag change used a fresh-data reset, not migration.
 
-This differs from defining accepted write input: the normalizer repairs/defaults loaded records; `UpdateConceptInput` in the repository describes supported metadata updates. Neither is a complete runtime schema validator.
+The owner reports the reset completed after stopping live Vite PID 2192 and verifying the external backup at `/home/cory/development/concept-editor-backups/before-separate-tags-20261031-201525`. Context is now `Concept Editor Project` with a fresh ID and empty metadata, and all five collections are empty (Concepts, instances, relationships, definitions, Tags). Existing archives and `Updates-Ideas.md` were preserved. This records completed work; do not repeat the reset.
 
 ## Shared data and local drafts
 
@@ -108,24 +91,48 @@ The preservation step matters: `setProperties(card, { colour: 'blue' })` does no
 
 ## Tag editing
 
-Adding a typed tag includes a Concept identity lookup before the metadata write:
+Adding a typed tag creates/reuses a Tag, never a Concept:
 
-1. On a card, `ConceptTagsPreview` trims its input and emits `onManualTagAdd`. In the sidebar, `addSidebarTag` trims the separate sidebar input. Both clear their local draft and call `editor.addTag(card, title)`.
-2. `addTag` calls client `ensureConceptByTitle`, which sends `POST /api/concepts/ensure`.
-3. The repository reuses the first case-insensitive trimmed-title match or creates a new Concept. It does not create a spatial instance for a new tag.
-4. If necessary, `addTag` adds the returned Concept to the editor's local Concept collection.
-5. `tagConceptWithConcept` appends its ID and delegates to `setConceptTagConceptIds`.
-6. That method removes duplicate IDs, excludes self-tagging, and persists the list through `updateConcept`.
+1. Card/sidebar input trims the title and invokes the relevant Concept/Context tag command.
+2. Client `ensureTag(title)` sends `POST /api/tags`. Repository `ensureTag` ranks trimmed case-insensitive matches by linked Concept shared-property count (first match on a tie), or saves a new unlinked Tag in `tags.json` if none match. It creates no Concept or instance.
+3. Append the returned Tag ID to the `tagIds` on the metadata owner, avoiding duplicate assignments. Save through the Concept metadata endpoint or `PATCH /api/context`.
+4. Refresh canonical records through the loader and stable Editor bridge, including `Editor.tags`. Display tags by looking up Tag IDs in that collection. Unresolved references are not automatically removed from storage.
 
-`getTagConcepts` resolves references for rendering; it does not delete missing IDs from storage. Removing a tag changes the reference list only and does not delete the tag Concept or its instances.
+Removing an assignment does not delete the Tag, linked Concept, or instances. Ensuring and attaching are separate requests, not an atomic transaction: an unattached Tag may remain after an attachment failure.
 
-The find/create request and metadata update are separate operations, not an atomic transaction. A newly created tag Concept can remain unplaced, including if the later attachment fails. Concepts without instances are valid records, not automatic cleanup candidates.
+### Existing Concept-to-tag-area pointer drag
 
-### Current limits
+The existing card/tree pointer gesture is not native Tag dragging. A Concept dropped onto a tag area calls `addTag(targetCard, title, conceptId)`. The client supplies representedByConceptId to `POST /api/tags`; the repository validates the source Concept and reuses a Tag linked to that exact ID, or creates a new linked Tag using the source title. Same-name Tags linked to other Concepts and existing unlinked Tags are left untouched. Assign the returned Tag ID, not the Concept ID. Dragging that Tag back out reuses the source Concept and its shared metadata, without copying instance metadata or children. Existing assignments remain.
 
-- `ensureConceptByTitle` chooses the first case-insensitive match. It is an incomplete identity shortcut, not a rule that Concept titles are unique.
-- `Editor.openTagCanvas(tagConcept)` only logs a message. Tag open callbacks exist, but occurrence selection and navigation are not implemented by those callbacks.
-- Basic tag displays and string properties do not imply a table implementation, typed attributes, inheritance, or a status workflow.
+### Blank-canvas materialization
+
+A native HTML5 drag carries the Tag ID using custom MIME `application/x-concept-editor-tag`. A blank-canvas drop uses pointer world coordinates after reversing viewport offset, pan, and zoom. The destination parent is `null` at root or the current owner instance ID when nested.
+
+`ConceptTagsPreview` sets the native drag payload. `ConceptCanvas` forwards blank-background dragover/drop events to `CanvasController.handleCanvasTagDragOver`/`handleCanvasTagDrop`. The drop handler converts the pointer with `getWorldPointFromEvent` and calls `Editor.createInstanceFromTag(tagId, position)`. That command adds the current parent ID and calls client `createTagInstance` → `POST /api/tags/[id]/instances` → `materializeTag`. Success invalidates loader data, refreshes the stable Editor, and selects the new visible instance. Failure uses the existing save-error banner path.
+
+- **First drop, no link:** create a Concept with the Tag title and normal defaults, save its ID as `representedByConceptId`, and create an instance with normal instance defaults at the destination. Do not search ordinary Concepts for an equal title.
+- **Later drop:** resolve the exact linked Concept ID and create a fresh instance of it. Do not duplicate the Concept or select an arbitrary existing occurrence.
+- **Missing linked Concept:** report an actionable error (currently 409), not a title lookup or silently replaced link.
+
+This bypasses the title-copy wizard. No contextual properties, instance notes, or children are copied from another occurrence. Existing assignments remain intact. Native Tag dragging differs from pointer dragging a Concept into a tag area or filing an existing instance into another card.
+
+### Compatibility and deferred work
+
+Tagging uses `getTags`, `setContextTagIds`, `setConceptTagIds`, `addTag`, and `removeTag` rather than the retired `getTagConcepts`/`tagConceptWithConcept` flow. `ensureConceptByTitle` remains an actual Concept compatibility helper, not the tagging lookup. Its first-match behavior does not impose Concept title uniqueness.
+
+Tag opening/general occurrence navigation is not established by materialization. Instance/tree/chooser previews, profile/representative images, and Tag-ID filtering UI remain future work.
+
+## Linked Tag hover preview
+
+`ConceptTagsPreview` reports tag pointer entry/movement/exit to `Editor.beginTagPreview`, `moveTagPreviewPointer`, and `leaveTagPreview`. The Editor waits 2 seconds, verifies the source and linked Concept still exist, then sets `tagPreview`. `ConceptEditor` mounts one keyed ConceptCardPreview wrapper per entry in Editor.tagPreviews outside the transformed canvas. Each wraps the actual ConceptCard with a temporary default-size instance; none of those instances are inserted into canonical records. Its manual popover uses the browser top layer, fixed screen dimensions, and bottom-left positioning at the latest pointer coordinates. It does not move once opened.
+
+The preview is the actual ConceptCard, not a separate metadata display. It uses a temporary instance for default geometry, with the title read-only and spatial-instance commands disabled. Its existing tag controls still save shared Concept assignments through normal commands. Hovering alone writes no records, and no notes/property/view UI is added. A 1-second CSS animation fades it in; `pointerenter` calls `enterTagPreview(id)`, whose opaque flag disables the animation and makes opacity 1 immediately. `pointerleave.relatedTarget` is checked against the source Tags and every preview in the chain. Hovering a Tag inside a preview appends a child after the normal delay; ancestors remain mounted, and a sibling source replaces only descendants. Leaving the whole chain or pressing Escape dismisses it. Drag start, window blur/pointercancel, navigation, and teardown cancel pending or visible previews. Drag dismissal waits one animation frame to preserve native dragging from a soon-to-be-removed preview. Ordinary loader refresh preserves the chain and inputs; a removed Concept prunes its branch. Unlinked or broken Tags show no preview. Existing tag editing works; instance data, future notes/view controls, and tree/chooser triggers remain outside this version.
+
+## Reported implementation validation
+
+The owner reports 113 component tests passed and real-mouse native HTML5 browser tests passed first/repeated/nested blank-canvas drops, checking counts, exact linked Concept and new instance IDs, world coordinates, and preserved assignments. Add/remove and case-insensitive Tag reuse passed. A missing link target returned 409, displayed the save-error banner, and performed no writes. These results do not test the optional exercise below.
+
+The reported current `npm run check` has only four pre-existing required `Concept.image` errors: `normalizeConcept`, two creates in `conceptRepository`, and creation in `conceptService`. The owner-added `image: object` remains unchanged; this is not a clean type check or implemented image feature. No application checks were rerun for this documentation update.
 
 ## Exercise: derive a metadata summary
 
@@ -138,13 +145,13 @@ Change only `src/lib/components/editor/sidebar/ConceptSidebar.svelte` to display
 Requirements:
 
 1. Add a local `metadataSummary` derived value based on `currentCanvasOwnerCard.concept`.
-2. Count property keys and stored `tagConceptIds`, not resolved tag Concepts.
+2. Count property keys and stored `tagIds`, not resolved Tags.
 3. Use singular `property`/`tag` for exactly one and plural words otherwise.
 4. Render only in the existing current-owner branch; root must show no summary.
 5. Add no persisted fields, Editor methods, imports, or CSS.
-6. Work with the unmodified application; an earlier relationship heading count is optional and must remain independent.
+6. Target the approved `tagIds` model, not legacy Concept-tag helpers. An earlier relationship heading count remains optional and independent. The exercise is optional; reported Tag tests do not establish that this added summary was tested.
 
-Stored reference count is deliberate. An unresolved tag ID contributes to this summary even though `getTagConcepts` omits it from visible tiles. See the [separate solution](solutions/11-properties-and-tags.md).
+Stored reference count is deliberate. An unresolved tag ID contributes to this summary even when a Tag lookup cannot render its tile. See the [separate solution](solutions/11-properties-and-tags.md).
 
 ## Verification and cleanup
 
@@ -165,7 +172,7 @@ To undo the exercise, remove only `metadataSummary` and its markup line. The dis
 
 ## Summary
 
-Properties are string entries and tags are Concept-ID references, both shared across a Concept's instances. Components own drafts; Editor commands commit complete metadata values. Display summaries remain derived, and stored reference counts are distinct from successfully resolved tag tiles.
+Properties are string entries and tags are Tag-ID references, both shared across a Concept's instances. Components own drafts; Editor commands commit complete metadata values. Display summaries remain derived, and stored reference counts are distinct from successfully resolved tag tiles.
 
 - [Creation and title editing](10-creation-and-title-editing.md)
 - [HTTP and persistence](12-http-and-persistence.md)

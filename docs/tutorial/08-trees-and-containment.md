@@ -144,7 +144,7 @@ The sidebar uses `<TreeView />` without those callbacks. It supports expansion, 
 
 ## Drop targets and navigation limits
 
-Once a child drag starts, the controller renders a ghost and finishes on window pointer release. `finishChildDrag` can apply a tag, reparent the existing instance into a card, or place it on the current canvas with world coordinates. Its containment checks reject self/descendant destinations; dropping into a card also skips another immediate occurrence of the same Concept. These are interaction-path rules, not a global title-uniqueness rule.
+Once a child drag starts, the controller renders a ghost and finishes on window pointer release. `finishChildDrag` can apply a tag, reparent the existing instance into a card, or place it on the current canvas with world coordinates. Its containment checks reject self/descendant destinations; dropping into a card also skips another immediate occurrence of the same Concept. These are interaction-path rules, not a global title-uniqueness rule. A pointer drop on a tag area calls `editor.addTag(targetCard, draggedCard.concept.title, draggedCard.concept.id)` to reuse or create a Tag linked to that exact Concept, then assign the returned Tag ID. Same-name Tags can coexist without retargeting their links. This differs from native Tag dragging onto blank canvas in [Properties and tags](11-properties-and-tags.md).
 
 Drop detection uses `document.elementFromPoint`, `.concept-drop-area`, and instance data attributes. Tree rows expose `data-instance-id` and `data-concept-id`; cards use `data-card-instance-id`. Preserve these interfaces and instance-based loop keys when changing markup.
 
@@ -170,7 +170,7 @@ This exercise is self-contained. The [worked solution](solutions/08-trees-and-co
 
 Run `npm run check` from the project root using native WSL Node/npm after implementing the exercise. Inspect existing structure to compare the global root count, card-root count, parent count, and leaf `(0)`. Expanding grandchildren must not change an ancestor's immediate count.
 
-**Counts and expansion do not require writes, but navigation and dragging can write live JSON.** Before testing hold-to-drag, containment changes, or camera navigation, stop the app and make and verify an external backup of all four JSON files in `src/lib/data/`, or use an isolated disposable copy with its own data. Tag drops can change shared Concepts as well as instance-related workflows. Do not create or move personal records merely to manufacture test cases, and do not run automated mutation tests against live storage.
+**Counts and expansion do not require writes, but navigation and dragging can write live JSON.** Before testing hold-to-drag, containment changes, or camera navigation, stop the app and make and verify an external backup of all six JSON files (Context and five collections, including Tags) in `src/lib/data/`, or use an isolated disposable copy with its own data. Tag drops can change shared Concepts as well as instance-related workflows. Do not create or move personal records merely to manufacture test cases, and do not run automated mutation tests against live storage.
 
 On protected data, verify the 300 ms card-tree drag and early-release cancellation still work; do not expect sidebar hold-to-drag. If no suitable existing hierarchy is available, leave the relevant manual check unverified rather than claiming it passed.
 

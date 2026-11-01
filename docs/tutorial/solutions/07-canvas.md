@@ -68,7 +68,7 @@ The renderer already reads controller state, so it needs no edit. World coordina
 
 Reset itself performs no request. At root, camera saving returns without writing because there is no owner instance. In a nested canvas, navigating away after reset can persist `(0, 0, 1)` on that owner through the existing camera save. That save calls the instance client without `invalidateAll()`; do not replace it as part of this exercise.
 
-Before navigation or drag tests, stop the app and make and verify an external backup of all four JSON files in `src/lib/data/`, or use an isolated disposable copy with independent data. Reaching root from a nested canvas may already save a camera. Do not run automated mutation tests against live storage.
+Before navigation or drag tests, stop the app and make and verify an external backup of all six JSON files (Context and five collections, including Tags) in `src/lib/data/`, or use an isolated disposable copy with independent data. Reaching root from a nested canvas may already save a camera. Do not run automated mutation tests against live storage.
 
 ## Verification
 

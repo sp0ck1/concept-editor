@@ -10,7 +10,7 @@ The application persists Concepts and instances separately, then joins them for 
 | `src/lib/server/repositories/conceptInstanceRepository.ts` | `getAllConceptInstances()` reads and normalizes placements               |
 | `src/lib/model/normalizeConcept.ts`                        | Default missing Concept fields                                           |
 | `src/lib/model/normalizeConceptInstance.ts`                | Default missing instance fields                                          |
-| `src/routes/+page.server.ts`                               | `load()` gathers the Context record and four record collections          |
+| `src/routes/+page.server.ts`                               | `load()` gathers the Context record and five record collections          |
 | `src/lib/components/editor/ConceptEditor.svelte`           | Forward page data to the stable Editor                                   |
 | `src/lib/components/editor/Editor.svelte.ts`               | `replaceData()` receives records; derived fields build indexes and cards |
 | `src/lib/components/editor/canvas/ConceptCanvas.svelte`    | Render the current-canvas collection                                     |
@@ -36,20 +36,28 @@ Creation is a different operation: it generates a new ID and applies defaults to
 
 ## Loading the workspace
 
-`load()` reads the Context through contextRepository.getContext(), then gathers Concepts, instances, relationships, and relationship definitions. The page passes them as `data` to `ConceptEditor.svelte`.
+`load()` reads the Context through contextRepository.getContext(), then gathers Tags, Concepts, instances, relationships, and relationship definitions. The page passes them as `data` to `ConceptEditor.svelte`.
 
-The workspace creates an Editor once, then forwards incoming records when page data changes:
+The workspace creates an Editor once, then forwards Tags and the other records when page data changes:
 
 ```ts
 $effect(() => {
 	const context = data.context;
+	const tags = data.tags;
 	const concepts = data.concepts;
 	const instances = data.instances;
 	const relationships = data.relationships;
 	const relationshipDefinitions = data.relationshipDefinitions;
 
 	untrack(() => {
-		editor.replaceData({ context, concepts, instances, relationships, relationshipDefinitions });
+		editor.replaceData({
+			context,
+			tags,
+			concepts,
+			instances,
+			relationships,
+			relationshipDefinitions
+		});
 	});
 });
 ```

@@ -190,7 +190,7 @@ Root must display `0`. A canvas owned by a root instance must display `1`, regar
 
 Run `npm run check` from the project root with native WSL Node/npm. It validates the component change, not navigation or persistence at runtime.
 
-**Navigation away from a non-root canvas writes camera fields even if the depth feature is display-only.** Before browser navigation/camera tests, stop the app and make and verify an external backup of all four JSON files under `src/lib/data/`, or use an isolated disposable application copy with its own storage. Do not run automated mutation tests against live data or rely on an older archive as a current backup.
+**Navigation away from a non-root canvas writes camera fields even if the depth feature is display-only.** Before browser navigation/camera tests, stop the app and make and verify an external backup of all six JSON files (Context and five collections, including Tags) under `src/lib/data/`, or use an isolated disposable application copy with its own storage. Do not run automated mutation tests against live data or rely on an older archive as a current backup.
 
 On protected data, verify root depth `0`, a root instance's canvas depth `1`, and deeper existing owners. Navigate upward with breadcrumb buttons and confirm the resolved depth decreases. Confirm opening the current owner remains a no-op, selection does not leak, and leaving then returning restores the existing camera. Test root framing separately from nested restoration. Avoid Grid or drag operations unless their data mutations are intentional.
 

@@ -257,7 +257,7 @@
 						}}
 						onblur={(event) => commitContextTitle(event.currentTarget)}
 					/>
-						{editor.context.title}
+					{editor.context.title}
 					<div class="sidebar-id">{editor.context.id}</div>
 				</div>
 			{/if}
@@ -282,7 +282,7 @@
 				</div>
 
 				<ConceptTagsPreview
-					tags={editor.getTagConcepts(sidebarMetadata.tagConceptIds)}
+					tags={editor.getTags(sidebarMetadata.tagIds)}
 					showInput={false}
 					onTagOpen={(tagConcept) => editor.openTagCanvas(tagConcept)}
 					onTagRemove={(tagConcept) =>
@@ -629,5 +629,4 @@
 		background: hsl(210 45% 28%);
 		border-radius: 0.2rem;
 	}
-
 </style>

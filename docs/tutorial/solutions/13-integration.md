@@ -104,13 +104,15 @@ This is the Enter portion, not a replacement for the whole method. Keep the prec
 Leave `handleConceptTitleKeydown` and `handleConceptTitleBlur` unchanged:
 
 - Title Enter prevents default, records `title:<instance ID>`, and awaits `commitTitleEdit`.
-- Title double Enter creates at `getNearbyCardPosition(card)`, not viewport center.
-- A reported conflict returns normally from the commit, so the nearby creation branch can still run. This solution does not implement the missing chooser.
+- Title double Enter creates at `getNearbyCardPosition(card)` only for normal `saved`/`unchanged` commits, not viewport center.
+- A reported conflict opens the implemented native wizard and keeps the commit pending; Enter/blur join it. Wizard outcomes do not trigger nearby creation. Preserve busy-save repeat/cancel guards and failure behavior: failed resolution stays open; successful write with failed refresh closes to prevent repeat copying.
 - Enter does not blur the title. Blur commits; Escape restores the canonical title and blurs.
 
 Leave `handleCanvasDoubleClick` unchanged too. It uses pointer-to-world conversion plus the existing random offset, not the new command.
 
-All service title semantics remain unchanged: case-insensitive matching, first-match reuse, the singly used blank-Concept naming exception, and otherwise a new Concept with copied properties, tags, notes, dates, and optional appearance. Reassignment preserves instance identity, parentage, children, geometry, and camera.
+All service title semantics remain unchanged by this exercise: case-insensitive matching, exact-ID wizard resolution (first-match fallback only for legacy calls without resolution), the singly used blank-Concept naming exception, and otherwise a new Concept with copied properties, tags, notes, dates, and optional appearance.
+
+Existing selection can reassign the current instance while preserving identity, parentage, children, geometry, camera, view, pin, and sequence: selected source property keys merge, optional notes replace/clear, and full-subtree copies append fresh IDs without deduplication. Alternatively it creates a default-initialized sibling plus selected copies, leaving the original unchanged. Shared Concept metadata applies by reference. Cancel/Escape before save restores the original title without writes. Keep all these [wizard behaviors](../10-creation-and-title-editing.md#the-implemented-conflict-wizard); legacy immediate-child import is separate and unchanged. Three-second previews and date filtering remain deferred.
 
 ## Resulting path
 
@@ -151,7 +153,7 @@ Using disposable data or the verified backup:
 6. Confirm blank-canvas double-click remains pointer-relative.
 7. Check browser requests/errors and reload persistence.
 
-Do not create same-title conflicts in personal data to validate this ownership change. The instructions above are a verification plan, not a claim that browser testing has already passed.
+Do not create same-title conflicts in personal data to validate this ownership change. The instructions above are an exercise verification plan, not a claim that its browser checks have passed. The wizard separately has reported passing unit tests and isolated browser tests for key flows; this does not complete the broader manual checklist. This documentation-only update does not rerun application tests.
 
 ## Source cleanup
 

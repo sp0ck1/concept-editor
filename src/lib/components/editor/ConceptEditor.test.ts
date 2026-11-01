@@ -11,6 +11,7 @@ vi.mock('$app/navigation', () => ({ invalidateAll: vi.fn() }));
 function fixture(title: string): EditorData {
 	return {
 		context: normalizeContext({ id: 'project', title }),
+		tags: [{ id: 'first-tag', title: 'First root' }],
 		concepts: [
 			normalizeConcept({ id: 'first', title: 'First root' }),
 			normalizeConcept({ id: 'second', title: 'Second root' })
@@ -51,7 +52,7 @@ describe('Context title display', () => {
 	it('renders an editable root title and Context property and tag controls', () => {
 		const data = fixture('Root project');
 		data.context.properties = { status: 'Project property' };
-		data.context.tagConceptIds = ['first'];
+		data.context.tagIds = ['first-tag'];
 		const { body } = render(ConceptEditor, { props: { data } });
 		const title = body.match(/<input[^>]*aria-label="Context Title"[^>]*>/)?.[0];
 		expect(title).toBeDefined();

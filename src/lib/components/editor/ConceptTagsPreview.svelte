@@ -1,5 +1,8 @@
 <script lang="ts">
-	import type { Concept } from '$lib/model/Concept';
+	import type { Tag } from '$lib/model/Tag';
+	import { getEditorContext } from './EditorContext';
+
+	const editor = getEditorContext();
 
 	// Props
 
@@ -10,11 +13,11 @@
 		onTagOpen,
 		onTagRemove
 	}: {
-		tags?: Concept[];
+		tags?: Tag[];
 		showInput?: boolean;
 		onManualTagAdd?: (title: string) => void;
-		onTagOpen?: (tagConcept: Concept) => void;
-		onTagRemove?: (tagConcept: Concept) => void;
+		onTagOpen?: (tagConcept: Tag) => void;
+		onTagRemove?: (tagConcept: Tag) => void;
 	} = $props();
 
 	let newTag = $state('');
@@ -54,6 +57,29 @@
 		{#each tags as tagConcept (tagConcept.id)}
 			<div
 				class="concept-tag-tile"
+				draggable="true"
+				onpointerdown={(event) => event.stopPropagation()}
+				onpointerenter={(event) => {
+					if (event.pointerType !== 'touch' && event.buttons === 0) {
+						editor.beginTagPreview(
+							tagConcept.id,
+							event.currentTarget,
+							event.clientX,
+							event.clientY
+						);
+					}
+				}}
+				onpointermove={(event) =>
+					editor.moveTagPreviewPointer(event.currentTarget, event.clientX, event.clientY)}
+				onpointerleave={(event) => editor.leaveTagPreview(event.relatedTarget)}
+				ondragstart={(event) => {
+					// Let the browser capture the drag image before removing its source preview.
+					requestAnimationFrame(() => editor.dismissTagPreview());
+					event.stopPropagation();
+					if (!event.dataTransfer) return;
+					event.dataTransfer.setData('application/x-concept-editor-tag', tagConcept.id);
+					event.dataTransfer.effectAllowed = 'copy';
+				}}
 				role="button"
 				tabindex="0"
 				title={tagConcept.title || tagConcept.id}

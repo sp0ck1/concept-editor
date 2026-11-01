@@ -56,14 +56,16 @@ The position is the card's top-left anchor. For a 1000 × 600 viewport, pan `(10
 This solution adds no title-editing code. Keep these boundaries intact:
 
 - `commitTitleEdit` trims and skips an exactly unchanged title.
-- The default title request reports matching Concepts without writing data; conflict state exists, but no complete resolving chooser is rendered.
-- `use-existing` reconnects the instance to the first matching Concept and its shared metadata.
+- The default title request reports matches without writes and opens the native `TitleConflictDialog`. Enter/blur join the pending edit.
+- The wizard chooses exact Concept/source-instance IDs, including Not placed entries, then either reuses this card or creates a sibling. Only legacy `use-existing` without a resolution uses the first match. Shared Concept metadata applies by reference.
+- Current-card resolution preserves identity, geometry, camera, view, pin, sequence, and existing children. Selected source-instance property keys merge (selected overwrite, unselected destination keys remain); optional notes can replace/clear notes, and full-subtree copies append fresh IDs without deduplication. A new sibling uses defaults plus selected copies and leaves the original unchanged.
+- All instance-property choices start selected; Select All/None and individual controls are available. Notes default checked for a source instance, children when present. Retain child metadata applies to the whole subtree. There are no instance date/appearance options.
 - A nonempty title can name a blank Concept in place only when exactly one instance uses it and no earlier conflict/reuse branch returned.
 - Otherwise a new Concept copies the previous properties, tags, notes, dates, and optional appearance and the instance is reassigned; its ID, parentage, children, geometry, and camera remain stable.
 - `create-duplicate` bypasses matching reuse/reporting, but does not bypass the blank-Concept exception.
-- Title-input double Enter commits, then creates nearby even if the commit returned after reporting a conflict. Canvas double Enter remains a separate viewport-center path.
+- Title-input double Enter creates nearby only after normal `saved`/`unchanged` commits, never wizard outcomes. Cancel/Escape before save restores the original title without writes. Busy saves block repeat/cancel; resolution failure stays open; write success with refresh failure closes to prevent repeat copies. Canvas double Enter remains a separate viewport-center path.
 
-Do not add an editable ID, instance-local title, global rename, or uniqueness constraint.
+Do not add an editable ID, instance-local title, global rename, or uniqueness constraint. The separate immediate-child import remains unchanged. See the [wizard trace](../10-creation-and-title-editing.md#the-implemented-conflict-wizard) for details. Interactive three-second previews and date filtering remain deferred.
 
 ## Verification and data safety
 

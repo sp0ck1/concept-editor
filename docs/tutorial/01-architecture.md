@@ -38,14 +38,16 @@ flowchart TD
     G --> H[ConceptCard components]
 ```
 
-`load()` in `src/routes/+page.server.ts` calls four repository functions:
+`load()` in `src/routes/+page.server.ts` calls six repository functions:
 
+- `getContext()`
+- `getAllTags()`
 - `getAllConcepts()`
 - `getAllConceptInstances()`
 - `getAllConceptRelationships()`
 - `getAllRelationshipDefinitions()`
 
-It returns their results as page data. It does not construct cards or decide how to display them.
+It returns their results as page data. Tag integration carries `data.tags` into `editor.tags` on the stable Editor (see [Properties and tags](11-properties-and-tags.md)). It does not construct cards or decide how to display them.
 
 `src/routes/+page.svelte` receives that data and passes it to the workspace:
 

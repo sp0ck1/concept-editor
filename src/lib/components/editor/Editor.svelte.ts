@@ -1,3 +1,5 @@
+import type { Tag } from '$lib/model/Tag';
+import { ensureTag, createTagInstance } from '$lib/client/tags';
 import type { Context } from '$lib/model/Context';
 import { normalizeContext } from '$lib/model/normalizeContext';
 import { updateContextRecord } from '$lib/client/context';
@@ -5,7 +7,6 @@ import { invalidateAll } from '$app/navigation';
 import { tick } from 'svelte';
 import {
 	createConceptRecord,
-	ensureConceptByTitle,
 	updateConceptRecord,
 	updateConceptTitleFromInstanceRecord
 } from '$lib/client/concepts';
@@ -23,7 +24,9 @@ import type {
 	EditorData,
 	MainView,
 	SidebarTab,
-	TitleConflictState
+	TitleConflictState,
+	TitleConflictCandidate,
+	TitleEditOutcome
 } from '$lib/components/editor/EditorTypes';
 import type { Concept } from '$lib/model/Concept';
 import type { ConceptCardView } from '$lib/model/ConceptCardView';
@@ -31,21 +34,42 @@ import type { ConceptInstance } from '$lib/model/ConceptInstance';
 import { normalizeConcept } from '$lib/model/normalizeConcept';
 import { normalizeConceptInstance } from '$lib/model/normalizeConceptInstance';
 import { getRelationshipsForConcept } from '$lib/model/relationshipQueries';
-import type { TitleConflictMode } from '$lib/model/TitleConflictMode';
+import type { TitleConflictMode, TitleConflictResolution } from '$lib/model/TitleConflictMode';
 import { SvelteSet } from 'svelte/reactivity';
+
+export type TagPreview = {
+	id: string;
+	conceptId: string;
+	instance: ConceptInstance;
+	x: number;
+	y: number;
+	opaque: boolean;
+};
 
 export class Editor {
 	canvas: CanvasController;
 
+	tagPreviews = $state<TagPreview[]>([]);
+	private tagPreviewElements = new Map<string, HTMLElement>();
+	private tagPreviewSources = new Map<string, HTMLElement>();
+	private pendingTagPreview: {
+		source: HTMLElement;
+		timer: ReturnType<typeof setTimeout>;
+		x: number;
+		y: number;
+	} | null = null;
+
 	// Keep a detached baseline so failed optimistic edits can be reverted even while offline.
 	private lastLoadedData: EditorData = {
 		context: normalizeContext({}),
+		tags: [],
 		concepts: [],
 		instances: [],
 		relationships: [],
 		relationshipDefinitions: []
 	};
 
+	tags = $state<Tag[]>([]);
 	context = $state<Context>(normalizeContext({}));
 	concepts = $state<EditorData['concepts']>([]);
 	instances = $state<EditorData['instances']>([]);
@@ -63,6 +87,11 @@ export class Editor {
 
 	saveError = $state<string | null>(null);
 	titleConflict = $state<TitleConflictState | null>(null);
+	titleConflictSaving = $state(false);
+	titleConflictError = $state<string | null>(null);
+	private pendingTitleEdit: { instanceId: string; promise: Promise<TitleEditOutcome> } | null =
+		null;
+	private completeTitleConflict: ((outcome: TitleEditOutcome) => void) | null = null;
 	contextMenu = $state<ContextMenu>({
 		visible: false,
 		x: 0,
@@ -166,6 +195,7 @@ export class Editor {
 	}
 
 	async prepareCanvasNavigation(nextOwnerInstanceId: string | null) {
+		this.dismissTagPreview();
 		this.canvas.clearInteractiveState();
 		this.clearSelection();
 		this.closeContextMenu();
@@ -228,10 +258,15 @@ export class Editor {
 	replaceData(data: EditorData) {
 		this.lastLoadedData = structuredClone($state.snapshot(data));
 		this.context = normalizeContext(data.context);
+		this.tags = data.tags.map((tag) => ({ ...tag }));
 		this.concepts = data.concepts.map(normalizeConcept);
 		this.instances = data.instances.map(normalizeConceptInstance);
 		this.relationships = data.relationships;
 		this.relationshipDefinitions = data.relationshipDefinitions;
+		const missing = this.tagPreviews.findIndex(
+			(preview) => !this.getConceptById(preview.conceptId)
+		);
+		if (missing !== -1) this.trimTagPreviews(missing);
 	}
 
 	rememberSavedInstance(instance: ConceptInstance) {
@@ -254,10 +289,114 @@ export class Editor {
 		return this.conceptsById.get(conceptId) ?? null;
 	}
 
-	getTagConcepts(tagConceptIds: string[]) {
-		return tagConceptIds
-			.map((conceptId) => this.getConceptById(conceptId))
-			.filter((concept): concept is Concept => Boolean(concept));
+	getTags(tagIds: string[]): Tag[] {
+		return tagIds.flatMap((id) => {
+			const tag = this.tags.find((item) => item.id === id);
+			return tag ? [tag] : [];
+		});
+	}
+
+	beginTagPreview(tagId: string, source: HTMLElement, x: number, y: number) {
+		if (this.pendingTagPreview?.source === source) return;
+		this.cancelTagPreviewDelay();
+		if ([...this.tagPreviewSources.values()].includes(source)) return;
+		const tag = this.tags.find((item) => item.id === tagId);
+		if (!tag?.representedByConceptId || !this.getConceptById(tag.representedByConceptId)) return;
+		const parent = this.tagPreviews.findLast((preview) =>
+			this.tagPreviewElements.get(preview.id)?.contains(source)
+		);
+		const timer = setTimeout(() => {
+			const pending = this.pendingTagPreview;
+			this.pendingTagPreview = null;
+			const currentTag = this.tags.find((item) => item.id === tagId);
+			const parentIndex = parent ? this.tagPreviews.findIndex((item) => item.id === parent.id) : -1;
+			if (
+				!pending ||
+				!source.isConnected ||
+				(parent && parentIndex === -1) ||
+				!currentTag?.representedByConceptId ||
+				!this.getConceptById(currentTag.representedByConceptId)
+			)
+				return;
+			this.trimTagPreviews(parentIndex + 1);
+			const id = 'preview-' + crypto.randomUUID();
+			const conceptId = currentTag.representedByConceptId;
+			this.tagPreviewSources.set(id, source);
+			this.tagPreviews = [
+				...this.tagPreviews,
+				{
+					id,
+					conceptId,
+					x: pending.x,
+					y: pending.y,
+					opaque: false,
+					instance: normalizeConceptInstance({
+						id,
+						conceptId,
+						parentInstanceId: null,
+						x: 0,
+						y: 0,
+						lastCameraZoom: 1
+					})
+				}
+			];
+		}, 2000);
+		this.pendingTagPreview = { source, timer, x, y };
+	}
+
+	moveTagPreviewPointer(source: HTMLElement, x: number, y: number) {
+		if (this.pendingTagPreview?.source === source) {
+			this.pendingTagPreview.x = x;
+			this.pendingTagPreview.y = y;
+		}
+	}
+
+	registerTagPreviewElement(id: string, element: HTMLElement) {
+		this.tagPreviewElements.set(id, element);
+		return () => {
+			if (this.tagPreviewElements.get(id) === element) this.tagPreviewElements.delete(id);
+		};
+	}
+
+	enterTagPreview(id: string) {
+		const preview = this.tagPreviews.find((item) => item.id === id);
+		if (preview) preview.opaque = true;
+	}
+
+	leaveTagPreview(next: EventTarget | null) {
+		if (!(next instanceof Node)) {
+			this.dismissTagPreview();
+			return;
+		}
+		if (this.pendingTagPreview?.source.contains(next)) return;
+		this.cancelTagPreviewDelay();
+		if (
+			[...this.tagPreviewSources.values(), ...this.tagPreviewElements.values()].some((element) =>
+				element.contains(next)
+			)
+		)
+			return;
+		this.dismissTagPreview();
+	}
+
+	private cancelTagPreviewDelay() {
+		if (this.pendingTagPreview) clearTimeout(this.pendingTagPreview.timer);
+		this.pendingTagPreview = null;
+	}
+
+	private trimTagPreviews(count: number) {
+		for (const preview of this.tagPreviews.slice(count)) {
+			this.tagPreviewElements.delete(preview.id);
+			this.tagPreviewSources.delete(preview.id);
+		}
+		this.tagPreviews = this.tagPreviews.slice(0, count);
+	}
+
+	dismissTagPreview() {
+		const wasOpen = this.tagPreviews.length > 0 || this.pendingTagPreview !== null;
+		this.cancelTagPreviewDelay();
+		this.trimTagPreviews(0);
+		return wasOpen;
 	}
 
 	getCard(instanceId: string) {
@@ -465,41 +604,159 @@ export class Editor {
 		}
 	}
 
-	async commitTitleEdit(card: ConceptCardView, nextTitle: string) {
-		const trimmedTitle = nextTitle.trim();
-
-		if (trimmedTitle === card.concept.title) {
-			return;
+	commitTitleEdit(card: ConceptCardView, nextTitle: string): Promise<TitleEditOutcome> {
+		const currentCard = this.getCard(card.instance.id);
+		if (!currentCard) return Promise.resolve('failed');
+		if (this.pendingTitleEdit) {
+			return this.pendingTitleEdit.instanceId === card.instance.id
+				? this.pendingTitleEdit.promise
+				: Promise.resolve('cancelled');
 		}
-
-		await this.updateConceptTitleFromInstance(card, trimmedTitle);
+		const title = nextTitle.trim();
+		if (title === currentCard.concept.title) return Promise.resolve('unchanged');
+		const promise = this.updateConceptTitleFromInstance(currentCard, title);
+		this.pendingTitleEdit = { instanceId: card.instance.id, promise };
+		void promise.then(() => {
+			if (this.pendingTitleEdit?.promise === promise) this.pendingTitleEdit = null;
+		});
+		return promise;
 	}
 
 	async updateConceptTitleFromInstance(
 		card: ConceptCardView,
 		title: string,
 		conflictMode: TitleConflictMode = 'report-conflict'
-	) {
-		const result = await updateConceptTitleFromInstanceRecord(
-			card.concept.id,
-			card.instance.id,
-			title,
-			conflictMode
-		);
-
-		if (result.status === 'title-conflict') {
-			this.titleConflict = {
-				card,
+	): Promise<TitleEditOutcome> {
+		const instanceId = card.instance.id;
+		const originalConceptId = card.concept.id;
+		const previousTitle = card.concept.title;
+		try {
+			const result = await updateConceptTitleFromInstanceRecord(
+				originalConceptId,
+				instanceId,
 				title,
-				matchingConcepts: result.matchingConcepts
-			};
-
-			return;
+				conflictMode
+			);
+			if (result.status === 'title-conflict') {
+				return await new Promise<TitleEditOutcome>((resolve) => {
+					this.completeTitleConflict = resolve;
+					this.titleConflictError = null;
+					this.titleConflict = {
+						instanceId,
+						originalConceptId,
+						previousTitle,
+						title,
+						matchingConcepts: result.matchingConcepts
+					};
+				});
+			}
+			await invalidateAll();
+			return 'saved';
+		} catch (error) {
+			this.recoverFromSaveFailure('Could not confirm that the title was saved.', error);
+			return 'failed';
 		}
+	}
 
+	getTitleConflictCandidates(): TitleConflictCandidate[] {
+		const conflict = this.titleConflict;
+		if (!conflict) return [];
+		const projectTitle = this.context.title || 'Untitled Context';
+		return conflict.matchingConcepts.flatMap<TitleConflictCandidate>((concept) => {
+			const occurrences = this.instances.filter((instance) => instance.conceptId === concept.id);
+			if (occurrences.length === 0) {
+				return [
+					{
+						concept,
+						instance: null,
+						path: [projectTitle, 'Not placed', concept.title].join(' > '),
+						propertiesCount: Object.keys(concept.properties).length,
+						childrenCount: 0
+					}
+				];
+			}
+			return occurrences.map((instance) => ({
+				concept,
+				instance,
+				path: [
+					projectTitle,
+					...this.getInstanceBreadcrumb(instance.id).map(
+						(card) => card.concept.title || card.concept.id
+					)
+				].join(' > '),
+				propertiesCount:
+					Object.keys(concept.properties).length + Object.keys(instance.properties).length,
+				childrenCount: this.instances.filter((child) => child.parentInstanceId === instance.id)
+					.length
+			}));
+		});
+	}
+
+	async resolveTitleConflict(
+		mode: Exclude<TitleConflictMode, 'report-conflict'>,
+		resolution?: TitleConflictResolution
+	): Promise<boolean> {
+		const conflict = this.titleConflict;
+		if (!conflict || this.titleConflictSaving) return false;
+		if (mode === 'use-existing' && !resolution) {
+			this.titleConflictError = 'Choose a Concept and its copy options first.';
+			return false;
+		}
+		this.titleConflictSaving = true;
+		this.titleConflictError = null;
+		let result: Awaited<ReturnType<typeof updateConceptTitleFromInstanceRecord>>;
+		try {
+			result = await updateConceptTitleFromInstanceRecord(
+				conflict.originalConceptId,
+				conflict.instanceId,
+				conflict.title,
+				mode,
+				resolution
+			);
+		} catch (error) {
+			this.titleConflictError =
+				error instanceof Error ? error.message : 'Could not save this choice.';
+			this.titleConflictSaving = false;
+			return false;
+		}
+		if (result.status === 'title-conflict') {
+			this.titleConflict = { ...conflict, matchingConcepts: result.matchingConcepts };
+			this.titleConflictError = 'The available Concepts changed. Choose again.';
+			this.titleConflictSaving = false;
+			return false;
+		}
+		try {
+			await invalidateAll();
+		} catch (error) {
+			this.recoverFromSaveFailure(
+				'The choice was saved, but its refreshed data could not be loaded.',
+				error
+			);
+			this.finishTitleConflict('failed');
+			return false;
+		}
+		if (
+			result.instance.id !== conflict.instanceId &&
+			this.cardsInCurrentCanvas.some((card) => card.instance.id === result.instance.id)
+		) {
+			this.selectOnlyInstance(result.instance.id);
+		}
+		this.finishTitleConflict('resolved');
+		return true;
+	}
+
+	cancelTitleConflict() {
+		if (this.titleConflictSaving) return;
+		this.finishTitleConflict('cancelled');
+	}
+
+	private finishTitleConflict(outcome: TitleEditOutcome) {
+		const complete = this.completeTitleConflict;
+		this.completeTitleConflict = null;
 		this.titleConflict = null;
-
-		await invalidateAll();
+		this.titleConflictError = null;
+		this.titleConflictSaving = false;
+		complete?.(outcome);
 	}
 
 	async setContextProperties(properties: Record<string, string>) {
@@ -507,32 +764,32 @@ export class Editor {
 		return this.updateContext({ properties });
 	}
 
-	async setContextTagConceptIds(tagConceptIds: string[]) {
-		const uniqueTagConceptIds = [...new Set(tagConceptIds)];
-		this.context.tagConceptIds = uniqueTagConceptIds;
-		return this.updateContext({ tagConceptIds: uniqueTagConceptIds });
+	async setContextTagIds(tagIds: string[]) {
+		const uniqueTagIds = [...new Set(tagIds)];
+		this.context.tagIds = uniqueTagIds;
+		return this.updateContext({ tagIds: uniqueTagIds });
+	}
+
+	private rememberTag(tag: Tag) {
+		this.tags = [...this.tags.filter((item) => item.id !== tag.id), { ...tag }];
 	}
 
 	async addContextTag(title: string) {
-		let result: Awaited<ReturnType<typeof ensureConceptByTitle>>;
+		let result: Awaited<ReturnType<typeof ensureTag>>;
 		try {
-			result = await ensureConceptByTitle(title);
+			result = await ensureTag(title);
 		} catch (error) {
 			return this.recoverFromSaveFailure(
 				'Could not confirm that the Context tag was saved.',
 				error
 			);
 		}
-		if (!this.concepts.some((concept) => concept.id === result.concept.id)) {
-			this.concepts = [...this.concepts, normalizeConcept(result.concept)];
-		}
-		return this.setContextTagConceptIds([...this.context.tagConceptIds, result.concept.id]);
+		this.rememberTag(result.tag);
+		return this.setContextTagIds([...this.context.tagIds, result.tag.id]);
 	}
 
-	async removeContextTag(tagConcept: Concept) {
-		return this.setContextTagConceptIds(
-			this.context.tagConceptIds.filter((conceptId) => conceptId !== tagConcept.id)
-		);
+	async removeContextTag(tag: Tag) {
+		return this.setContextTagIds(this.context.tagIds.filter((id) => id !== tag.id));
 	}
 
 	async setProperties(card: ConceptCardView, properties: Record<string, string>) {
@@ -543,51 +800,54 @@ export class Editor {
 		});
 	}
 
-	async setConceptTagConceptIds(card: ConceptCardView, tagConceptIds: string[]) {
-		const uniqueTagConceptIds = [...new Set(tagConceptIds)].filter(
-			(conceptId) => conceptId !== card.concept.id
-		);
-
-		card.concept.tagConceptIds = uniqueTagConceptIds;
-
-		await this.updateConcept(card.concept.id, {
-			tagConceptIds: uniqueTagConceptIds
-		});
+	async setConceptTagIds(card: ConceptCardView, tagIds: string[]) {
+		const uniqueTagIds = [...new Set(tagIds)];
+		card.concept.tagIds = uniqueTagIds;
+		await this.updateConcept(card.concept.id, { tagIds: uniqueTagIds });
 	}
 
-	async tagConceptWithConcept(targetCard: ConceptCardView, tagConcept: Concept) {
-		await this.setConceptTagConceptIds(targetCard, [
-			...(targetCard.concept.tagConceptIds ?? []),
-			tagConcept.id
-		]);
-	}
-
-	async addTag(card: ConceptCardView, title: string) {
-		let result: Awaited<ReturnType<typeof ensureConceptByTitle>>;
-
+	async addTag(card: ConceptCardView, title: string, representedByConceptId?: string) {
+		let result: Awaited<ReturnType<typeof ensureTag>>;
 		try {
-			result = await ensureConceptByTitle(title);
+			result =
+				representedByConceptId === undefined
+					? await ensureTag(title)
+					: await ensureTag(title, representedByConceptId);
 		} catch (error) {
 			await this.recoverFromSaveFailure('Could not confirm that the tag was saved.', error);
 			return;
 		}
-
-		if (!this.concepts.some((concept) => concept.id === result.concept.id)) {
-			this.concepts = [...this.concepts, normalizeConcept(result.concept)];
-		}
-
-		await this.tagConceptWithConcept(card, result.concept);
+		this.rememberTag(result.tag);
+		await this.setConceptTagIds(card, [...card.concept.tagIds, result.tag.id]);
 	}
 
-	async removeTag(card: ConceptCardView, tagConcept: Concept) {
-		await this.setConceptTagConceptIds(
+	async removeTag(card: ConceptCardView, tag: Tag) {
+		await this.setConceptTagIds(
 			card,
-			(card.concept.tagConceptIds ?? []).filter((conceptId) => conceptId !== tagConcept.id)
+			card.concept.tagIds.filter((id) => id !== tag.id)
 		);
 	}
 
-	openTagCanvas(tagConcept: Concept) {
-		console.log('open tag canvas later:', tagConcept.title || tagConcept.id);
+	openTagCanvas(tag: Tag) {
+		console.log('open tag canvas later:', tag.title || tag.id);
+	}
+
+	async createInstanceFromTag(tagId: string, position: { x: number; y: number }) {
+		try {
+			const result = await createTagInstance(tagId, {
+				parentInstanceId: this.currentCanvasOwnerInstanceId,
+				...position
+			});
+			await invalidateAll();
+			if (this.cardsInCurrentCanvas.some((card) => card.instance.id === result.instance.id)) {
+				this.selectOnlyInstance(result.instance.id);
+			}
+		} catch (error) {
+			await this.recoverFromSaveFailure(
+				'Could not confirm that the tag occurrence was saved. Reload before trying again.',
+				error
+			);
+		}
 	}
 
 	setMainView(nextView: MainView) {

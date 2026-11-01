@@ -11,7 +11,7 @@ const context: Context = {
 	id: 'context',
 	title: 'Workspace',
 	properties: {},
-	tagConceptIds: [],
+	tagIds: [],
 	notes: { format: 'plain', text: '' },
 	dates: []
 };
@@ -36,7 +36,7 @@ describe('Context PATCH', () => {
 		const updates = {
 			title: ' Updated ',
 			properties: { status: 'active' },
-			tagConceptIds: ['tag'],
+			tagIds: ['tag'],
 			notes: { format: 'plain', text: 'Notes' },
 			dates: [{ date: '2026-10-28', dateLabel: 'Started' }],
 			appearance: { backgroundColor: 'blue' },

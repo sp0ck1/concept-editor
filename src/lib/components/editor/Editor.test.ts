@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { invalidateAll } from '$app/navigation';
 import {
 	createConceptRecord,
-	ensureConceptByTitle,
 	updateConceptRecord,
 	updateConceptTitleFromInstanceRecord
 } from '$lib/client/concepts';
@@ -17,14 +16,15 @@ import {
 	updateConceptInstanceRecord,
 	updateConceptInstancesBatch
 } from '$lib/client/conceptInstances';
+import { ensureTag, createTagInstance } from '$lib/client/tags';
 import { Editor } from './Editor.svelte';
 import type { EditorData } from './EditorTypes';
 
 vi.mock('$app/navigation', () => ({ invalidateAll: vi.fn() }));
+vi.mock('$lib/client/tags', () => ({ ensureTag: vi.fn(), createTagInstance: vi.fn() }));
 vi.mock('$lib/client/context', () => ({ updateContextRecord: vi.fn() }));
 vi.mock('$lib/client/concepts', () => ({
 	createConceptRecord: vi.fn(),
-	ensureConceptByTitle: vi.fn(),
 	updateConceptRecord: vi.fn(),
 	updateConceptTitleFromInstanceRecord: vi.fn()
 }));
@@ -39,18 +39,19 @@ vi.mock('$lib/client/conceptInstances', () => ({
 function fixture(): EditorData {
 	return {
 		context: normalizeContext({ id: 'test-context', title: 'Test project' }),
+		tags: [{ id: 'test-tag', title: 'Test tag' }],
 		concepts: [
 			{
 				id: 'test-concept',
 				title: 'Test item',
 				properties: { status: 'saved', keep: 'original' },
-				tagConceptIds: ['test-tag']
+				tagIds: ['test-tag']
 			},
 			{
-				id: 'test-tag',
+				id: 'same-title-concept',
 				title: 'Test tag',
 				properties: {} as Record<string, string>,
-				tagConceptIds: []
+				tagIds: []
 			}
 		].map((concept) => normalizeConcept(concept)),
 		instances: [
@@ -146,7 +147,8 @@ beforeEach(() => {
 	vi.mocked(updateConceptInstancesBatch).mockResolvedValue(2);
 	for (const client of [
 		createConceptRecord,
-		ensureConceptByTitle,
+		ensureTag,
+		createTagInstance,
 		updateConceptTitleFromInstanceRecord,
 		deleteConceptInstanceRecord,
 		deleteConceptInstancesBatch,
@@ -208,35 +210,39 @@ describe('Editor save recovery', () => {
 		async (operation) => {
 			const failure = new Error('Tag write failed');
 			const card = { concept: editor.concepts[0], instance: editor.instances[0] };
-			const tag = fixture().concepts[1];
+			const tag = fixture().tags[0];
 			const expectedTags = operation === 'add' ? ['test-tag', 'test-new-tag'] : [];
 			const write = deferred<Awaited<ReturnType<typeof updateConceptRecord>>>();
 			vi.mocked(updateConceptRecord).mockReturnValueOnce(write.promise);
-			vi.mocked(ensureConceptByTitle).mockResolvedValueOnce({
-				concept: { ...tag, id: 'test-new-tag', title: 'New test tag' },
+			vi.mocked(ensureTag).mockResolvedValueOnce({
+				tag: { ...tag, id: 'test-new-tag', title: 'New test tag' },
 				created: true
 			});
 
 			const result =
 				operation === 'add' ? editor.addTag(card, 'New test tag') : editor.removeTag(card, tag);
-			// addTag first awaits ensureConceptByTitle before applying its optimistic change.
+			// addTag first awaits ensureTag before applying its optimistic change.
 			await Promise.resolve();
-			expect(editor.concepts[0].tagConceptIds).toEqual(expectedTags);
+			expect(editor.concepts[0].tagIds).toEqual(expectedTags);
 			if (operation === 'add') {
-				expect(ensureConceptByTitle).toHaveBeenCalledExactlyOnceWith('New test tag');
-				expect(editor.concepts.map((concept) => concept.id)).toContain('test-new-tag');
+				expect(ensureTag).toHaveBeenCalledExactlyOnceWith('New test tag');
+				expect(editor.tags.map((tag) => tag.id)).toContain('test-new-tag');
+				const expectedConcepts = fixture().concepts;
+				expectedConcepts[0].tagIds = expectedTags;
+				expect(editor.concepts).toEqual(expectedConcepts);
 			} else {
-				expect(ensureConceptByTitle).not.toHaveBeenCalled();
+				expect(ensureTag).not.toHaveBeenCalled();
 			}
 
 			write.reject(failure);
 			await expect(result).resolves.toBeUndefined();
 
 			expect(updateConceptRecord).toHaveBeenCalledExactlyOnceWith('test-concept', {
-				tagConceptIds: expectedTags
+				tagIds: expectedTags
 			});
 			expect(invalidateAll).not.toHaveBeenCalled();
 			expect(editor.concepts).toEqual(fixture().concepts);
+			expect(editor.tags).toEqual(fixture().tags);
 			expect(editor.saveError).toContain('The last loaded data has been restored');
 			expect(console.error).toHaveBeenCalledWith(expect.any(String), failure);
 		}
@@ -244,7 +250,7 @@ describe('Editor save recovery', () => {
 
 	it('recovers without throwing if ensuring a tag fails before the optimistic update', async () => {
 		const failure = new Error('Ensure tag failed');
-		vi.mocked(ensureConceptByTitle).mockRejectedValueOnce(failure);
+		vi.mocked(ensureTag).mockRejectedValueOnce(failure);
 
 		await expect(
 			editor.addTag({ concept: editor.concepts[0], instance: editor.instances[0] }, 'New tag')
@@ -320,7 +326,7 @@ describe('Editor save recovery', () => {
 
 	it('keeps the rollback baseline detached from the original fixture properties and tags', async () => {
 		const originalProperties = loadedData.concepts[0].properties;
-		const originalTags = loadedData.concepts[0].tagConceptIds;
+		const originalTags = loadedData.concepts[0].tagIds;
 		originalProperties.status = 'mutated through loader data';
 		delete originalProperties.keep;
 		originalTags.push('test-unsaved-tag');
@@ -330,7 +336,7 @@ describe('Editor save recovery', () => {
 
 		expect(editor.concepts).toEqual(fixture().concepts);
 		expect(editor.concepts[0].properties).not.toBe(originalProperties);
-		expect(editor.concepts[0].tagConceptIds).not.toBe(originalTags);
+		expect(editor.concepts[0].tagIds).not.toBe(originalTags);
 		expect(originalProperties).toEqual({ status: 'mutated through loader data' });
 		expect(originalTags).toEqual(['test-tag', 'test-unsaved-tag']);
 		expect(invalidateAll).not.toHaveBeenCalled();
@@ -345,7 +351,7 @@ describe('Editor save recovery', () => {
 
 			for (let attempt = 1; attempt <= 3; attempt++) {
 				const properties = editor.concepts[0].properties;
-				const tags = editor.concepts[0].tagConceptIds;
+				const tags = editor.concepts[0].tagIds;
 				const instance = editor.instances[0];
 				properties.status = `unsaved attempt ${attempt}`;
 				properties.added = 'temporary';
@@ -359,7 +365,7 @@ describe('Editor save recovery', () => {
 				expect(editor.concepts).toEqual(fixture().concepts);
 				expect(editor.instances).toEqual(fixture().instances);
 				expect(editor.concepts[0].properties).not.toBe(properties);
-				expect(editor.concepts[0].tagConceptIds).not.toBe(tags);
+				expect(editor.concepts[0].tagIds).not.toBe(tags);
 				expect(editor.instances[0]).not.toBe(instance);
 				expect(client).toHaveBeenCalledTimes(attempt);
 				expect(client).toHaveBeenLastCalledWith(...args);
@@ -377,12 +383,12 @@ describe('Editor save recovery', () => {
 	it('uses the latest replaceData baseline and keeps it detached from later input mutations', async () => {
 		const refreshed = fixture();
 		refreshed.concepts[0].properties = { status: 'newly loaded', keep: 'new baseline' };
-		refreshed.concepts[0].tagConceptIds = [];
+		refreshed.concepts[0].tagIds = [];
 		refreshed.instances[0].x = 75;
 		const expected = structuredClone(refreshed);
 		editor.replaceData(refreshed);
 		refreshed.concepts[0].properties.status = 'mutated after loading';
-		refreshed.concepts[0].tagConceptIds.push('test-unsaved-tag');
+		refreshed.concepts[0].tagIds.push('test-unsaved-tag');
 		Object.assign(editor.instances[0], geometry);
 		vi.mocked(updateConceptInstanceRecord).mockRejectedValueOnce(new Error('Offline write'));
 
@@ -391,7 +397,7 @@ describe('Editor save recovery', () => {
 		expect(editor.concepts).toEqual(expected.concepts);
 		expect(editor.instances).toEqual(expected.instances);
 		expect(editor.concepts[0].properties).not.toBe(refreshed.concepts[0].properties);
-		expect(editor.concepts[0].tagConceptIds).not.toBe(refreshed.concepts[0].tagConceptIds);
+		expect(editor.concepts[0].tagIds).not.toBe(refreshed.concepts[0].tagIds);
 		expect(invalidateAll).not.toHaveBeenCalled();
 	});
 
@@ -400,7 +406,7 @@ describe('Editor save recovery', () => {
 		async ({ client, args, save }) => {
 			const refreshError = new Error('Refresh failed after write');
 			editor.concepts[0].properties.status = 'optimistic change';
-			editor.concepts[0].tagConceptIds.push('test-unsaved-tag');
+			editor.concepts[0].tagIds.push('test-unsaved-tag');
 			Object.assign(editor.instances[0], geometry);
 			Object.assign(editor.instances[1], batchUpdates[1].updates);
 			vi.mocked(invalidateAll).mockRejectedValue(refreshError);
@@ -648,36 +654,38 @@ describe('Context sidebar commands', () => {
 		expect(editor.context.properties).toEqual(fixture().context.properties);
 		expect(invalidateAll).not.toHaveBeenCalled();
 	});
-	it('adds a tag Concept reference to the Context and removes duplicates', async () => {
-		const tag = fixture().concepts[1];
-		editor.context.tagConceptIds = [tag.id];
-		vi.mocked(ensureConceptByTitle).mockResolvedValueOnce({ concept: tag, created: false });
+	it('adds a Tag reference to the Context and removes duplicates', async () => {
+		const tag = fixture().tags[0];
+		editor.context.tagIds = [tag.id];
+		vi.mocked(ensureTag).mockResolvedValueOnce({ tag, created: false });
 		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
 		await expect(editor.addContextTag(tag.title)).resolves.toBe(true);
-		expect(ensureConceptByTitle).toHaveBeenCalledExactlyOnceWith(tag.title);
-		expect(updateContextRecord).toHaveBeenCalledExactlyOnceWith({ tagConceptIds: [tag.id] });
+		expect(ensureTag).toHaveBeenCalledExactlyOnceWith(tag.title);
+		expect(updateContextRecord).toHaveBeenCalledExactlyOnceWith({ tagIds: [tag.id] });
 		expect(updateConceptRecord).not.toHaveBeenCalled();
 	});
 	it('makes a newly created tag available without modifying a Concept sidebar owner', async () => {
-		const tag = { ...fixture().concepts[1], id: 'new-tag', title: 'New tag' };
-		vi.mocked(ensureConceptByTitle).mockResolvedValueOnce({ concept: tag, created: true });
+		const tag = { ...fixture().tags[0], id: 'new-tag', title: 'New tag' };
+		vi.mocked(ensureTag).mockResolvedValueOnce({ tag, created: true });
 		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
 		await expect(editor.addContextTag(tag.title)).resolves.toBe(true);
-		expect(editor.getConceptById(tag.id)).toEqual(tag);
-		expect(editor.context.tagConceptIds).toEqual([tag.id]);
-		expect(editor.concepts[0].tagConceptIds).toEqual(fixture().concepts[0].tagConceptIds);
+		expect(editor.getTags([tag.id])).toEqual([tag]);
+		expect(editor.getConceptById(tag.id)).toBeNull();
+		expect(editor.context.tagIds).toEqual([tag.id]);
+		expect(editor.concepts[0].tagIds).toEqual(fixture().concepts[0].tagIds);
 	});
 	it('removes only the selected Context tag reference', async () => {
-		const tag = fixture().concepts[1];
-		editor.context.tagConceptIds = [tag.id, 'other-tag'];
+		const tag = fixture().tags[0];
+		editor.context.tagIds = [tag.id, 'other-tag'];
 		vi.mocked(invalidateAll).mockResolvedValueOnce(undefined);
 		await expect(editor.removeContextTag(tag)).resolves.toBe(true);
-		expect(updateContextRecord).toHaveBeenCalledExactlyOnceWith({ tagConceptIds: ['other-tag'] });
-		expect(editor.getConceptById(tag.id)).toEqual(tag);
+		expect(updateContextRecord).toHaveBeenCalledExactlyOnceWith({ tagIds: ['other-tag'] });
+		expect(editor.getTags([tag.id])).toEqual([tag]);
+		expect(editor.getConceptById(tag.id)).toBeNull();
 		expect(updateConceptRecord).not.toHaveBeenCalled();
 	});
 	it('recovers when ensuring a Context tag fails before the metadata save', async () => {
-		vi.mocked(ensureConceptByTitle).mockRejectedValueOnce(new Error('Offline'));
+		vi.mocked(ensureTag).mockRejectedValueOnce(new Error('Offline'));
 		await expect(editor.addContextTag('New tag')).resolves.toBe(false);
 		expect(editor.context).toEqual(fixture().context);
 		expect(updateContextRecord).not.toHaveBeenCalled();

@@ -70,7 +70,7 @@ The existing zoom-default discrepancy also remains: normalization uses `0` for m
 
 Run `npm run check` from the project root with native WSL Node/npm. This checks the Svelte/TypeScript addition, not browser navigation.
 
-Navigation away from a nested canvas persists camera fields in `src/lib/data/concept_instances.json`. Before browser checks, stop the app and make and verify an external backup of all four JSON files in `src/lib/data/`, or use an isolated disposable application copy with independent storage. Do not run automated mutation tests against live data.
+Navigation away from a nested canvas persists camera fields in `src/lib/data/concept_instances.json`. Before browser checks, stop the app and make and verify an external backup of all six JSON files (Context and five collections, including Tags) in `src/lib/data/`, or use an isolated disposable application copy with independent storage. Do not run automated mutation tests against live data.
 
 On protected data:
 
